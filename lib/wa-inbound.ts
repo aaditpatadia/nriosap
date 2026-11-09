@@ -61,7 +61,7 @@ export async function storeInbound(m: Pick<InboundMessage, "from" | "id" | "type
 }
 
 async function grantedPurposes(parentId: string): Promise<Purpose[]> {
-  const rows = await asService(() => tx((t) => t.rows<Row>("select purpose from consents where parent_id = $1 and granted_at is not null and withdrawn_at is null", [parentId])));
+  const rows = await asService(() => tx((t) => t.rows<Row>("select purpose from consents where parent_id = $1 and subject = 'parent' and granted_at is not null and withdrawn_at is null", [parentId])));
   return rows.map((r) => r.purpose).filter((p): p is Purpose => ["read_records", "store"].includes(p));
 }
 
