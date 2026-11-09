@@ -22,7 +22,8 @@ export interface Family {
   name: string;
   owner: Person;
   parent: Parent;
-  coordinatorId: string;
+  coordinatorId: string | null;
+  status?: string;
   planUsd: number;
   startedAt: string;
 }
@@ -51,6 +52,7 @@ export interface Claim {
   openedAt: string;
   slaDueAt: string;
   missing: string[];
+  requirements?: { id: string; label: string; receivedAt?: string; documentId?: string }[];
 }
 
 export interface DocumentRecord {
@@ -64,6 +66,9 @@ export interface DocumentRecord {
   preparedBy: "ai";
   checkedBy?: string;
   consentPurposes: string[];
+  fieldConfidence?: Record<string, number>;
+  scanStatus?: string;
+  extractionStatus?: string;
 }
 
 export interface Task {
@@ -77,6 +82,7 @@ export interface Task {
   slaAt: string;
   hourBudget: number;
   needsApproval: boolean;
+  checklist?: string[];
 }
 
 export interface TimeEntry {

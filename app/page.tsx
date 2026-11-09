@@ -33,7 +33,7 @@ export default function Home() {
             <p className="mt-4 max-w-xl text-muted">A named person and a careful assistant look after your parents' paperwork, health insurance claims, bills and errands. You see everything. You approve everything.</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <a href="#waitlist" className="btn btn-primary">Join the waitlist</a>
-              <Link href="/family/shah" className="btn btn-secondary">See a demo family</Link>
+              <Link href="/signin" className="btn btn-secondary">Sign in</Link>
             </div>
           </div>
           <div>

@@ -2,7 +2,8 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
 
 /** Per-family key derived from one master secret. Set APP_ENCRYPTION_KEY in production. */
 function keyFor(familyId: string): Buffer {
-  const master = process.env.APP_ENCRYPTION_KEY ?? "dev-only-insecure-master-key-change-me";
+  const master = process.env.APP_ENCRYPTION_KEY ?? (process.env.NODE_ENV === "production" ? "" : "dev-only-insecure-master-key-change-me");
+  if (master.length < 32) throw new Error("APP_ENCRYPTION_KEY must be at least 32 characters");
   return Buffer.from(hkdfSync("sha256", master, "gharsaath", `family:${familyId}`, 32));
 }
 

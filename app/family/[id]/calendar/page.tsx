@@ -4,12 +4,12 @@ import { fmtDate, fromNow } from "@/lib/format";
 
 export default async function CalendarPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!getFamily(id)) notFound();
+  if (!(await getFamily(id))) notFound();
   const items: { at: string; label: string; kind: string }[] = [];
-  const policy = policyFor(id, "demo-owner");
+  const policy = (await policyFor(id));
   if (policy) items.push({ at: policy.renewalDate, label: `Health policy renews (${policy.insurer})`, kind: "Renewal" });
-  for (const t of tasksFor(id)) if (t.status !== "done") items.push({ at: t.dueAt, label: t.title, kind: t.kind === "bill" ? "Bill" : t.kind === "renewal" ? "Renewal" : "Task" });
-  for (const c of claimsFor(id)) if (c.status !== "settled") items.push({ at: c.slaDueAt, label: `Claim check: ${c.hospital}`, kind: "Claim" });
+  for (const t of (await tasksFor(id))) if (t.status !== "done") items.push({ at: t.dueAt, label: t.title, kind: t.kind === "bill" ? "Bill" : t.kind === "renewal" ? "Renewal" : "Task" });
+  for (const c of (await claimsFor(id))) if (c.status !== "settled") items.push({ at: c.slaDueAt, label: `Claim check: ${c.hospital}`, kind: "Claim" });
   items.sort((a, b) => a.at.localeCompare(b.at));
   return (
     <section className="grid gap-4">

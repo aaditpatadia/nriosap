@@ -7,8 +7,8 @@ const TONE = { preparing: "accent", submitted: "accent", query: "warn", approved
 
 export default async function Claims({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!getFamily(id)) notFound();
-  const claims = claimsFor(id);
+  if (!(await getFamily(id))) notFound();
+  const claims = (await claimsFor(id));
   return (
     <section className="grid gap-4">
       <h1 className="text-[length:var(--text-h1)] font-bold">Claims</h1>

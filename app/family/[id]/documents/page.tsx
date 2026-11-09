@@ -4,9 +4,9 @@ import { fmtDate, inr } from "@/lib/format";
 
 export default async function Documents({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!getFamily(id)) notFound();
-  const docs = documentsFor(id, "demo-owner");
-  const policy = policyFor(id, "demo-owner");
+  if (!(await getFamily(id))) notFound();
+  const docs = (await documentsFor(id));
+  const policy = (await policyFor(id));
   return (
     <section className="grid gap-4">
       <h1 className="text-[length:var(--text-h1)] font-bold">Documents</h1>

@@ -4,9 +4,9 @@ import { approvalsFor, documentsFor, getFamily } from "@/lib/store";
 
 export default async function Approvals({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!getFamily(id)) notFound();
-  const docs = documentsFor(id, "demo-owner");
-  const list = approvalsFor(id);
+  if (!(await getFamily(id))) notFound();
+  const docs = (await documentsFor(id));
+  const list = (await approvalsFor(id));
   return (
     <section className="grid gap-4">
       <h1 className="text-[length:var(--text-h1)] font-bold">Approvals</h1>

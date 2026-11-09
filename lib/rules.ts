@@ -120,6 +120,54 @@ export function overHourBudget(planUsd: number, hours: number): boolean {
   return hours > hourBudget(planUsd);
 }
 
+const IST_OFFSET_MS = 5.5 * 3600_000;
+
+/** First instant of the current calendar month in India, as a UTC date. Hours are counted per India month. */
+export function monthStartIst(now: Date): Date {
+  const ist = new Date(now.getTime() + IST_OFFSET_MS);
+  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - IST_OFFSET_MS);
+}
+
+export function entriesThisMonth<T extends Pick<TimeEntry, "at">>(entries: T[], now: Date): T[] {
+  const start = monthStartIst(now).getTime();
+  return entries.filter((e) => new Date(e.at).getTime() >= start);
+}
+
+/** Monday 00:00 India time of the week containing d, as a UTC date. */
+export function weekStartIst(d: Date): Date {
+  const ist = new Date(d.getTime() + IST_OFFSET_MS);
+  const day = (ist.getUTCDay() + 6) % 7;
+  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate() - day) - IST_OFFSET_MS);
+}
+
+/** Hours per week, oldest first, ending with the week containing now. */
+export function weeklyHours(entries: Pick<TimeEntry, "at" | "minutes">[], weeks: number, now: Date): { weekStart: string; hours: number }[] {
+  const current = weekStartIst(now).getTime();
+  const WEEK = 7 * 24 * 3600_000;
+  return Array.from({ length: weeks }, (_, i) => {
+    const start = current - (weeks - 1 - i) * WEEK;
+    const minutes = entries.filter((e) => {
+      const t = new Date(e.at).getTime();
+      return t >= start && t < start + WEEK;
+    });
+    return { weekStart: new Date(start).toISOString(), hours: hoursFor(minutes) };
+  });
+}
+
+export type SlaState = "past" | "soon" | "ok";
+
+/** "soon" means the SLA lands within 24 hours. */
+export function slaState(task: Pick<Task, "slaAt" | "status">, now: Date): SlaState {
+  if (isPastSla(task, now)) return "past";
+  return new Date(task.slaAt).getTime() - now.getTime() < 24 * 3600_000 ? "soon" : "ok";
+}
+
+/** Whole minutes for a stopped timer. At least 1, capped at the 600 minute limit on a single entry. */
+export function timerMinutes(startedAt: Date, stoppedAt: Date): number {
+  const m = Math.round((stoppedAt.getTime() - startedAt.getTime()) / 60000);
+  return Math.min(600, Math.max(1, m));
+}
+
 export function isPastSla(task: Pick<Task, "slaAt" | "status">, now: Date): boolean {
   return task.status !== "done" && new Date(task.slaAt).getTime() < now.getTime();
 }

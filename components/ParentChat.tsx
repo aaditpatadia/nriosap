@@ -8,7 +8,7 @@ import { spring } from "@/lib/motion";
 export interface ChatMsg { id: string; direction: "in" | "out"; body: string; at: string }
 
 /** Simulated parent WhatsApp view for demos. Real traffic uses /api/whatsapp. */
-export function ParentChat({ familyId, phone, initial, parentName }: { familyId: string; phone: string; initial: ChatMsg[]; parentName: string }) {
+export function ParentChat({ familyId, initial, parentName }: { familyId: string; initial: ChatMsg[]; parentName: string }) {
   const [msgs, setMsgs] = useState<ChatMsg[]>(initial);
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
@@ -21,7 +21,7 @@ export function ParentChat({ familyId, phone, initial, parentName }: { familyId:
     setMsgs((x) => [...x, temp]);
     setText("");
     start(async () => {
-      const r = await parentSays(familyId, phone, body);
+      const r = await parentSays(familyId, body);
       setNote(r.ok ? (r.emergency ? "Emergency words detected. A coordinator task was created." : "Delivered to the desk.") : "Could not deliver.");
     });
   }

@@ -7,10 +7,10 @@ import { fromNow } from "@/lib/format";
 
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const t = getTask(id);
+  const t = (await getTask(id));
   if (!t) notFound();
-  const fam = getFamily(t.familyId)!;
-  const entries = timeForTask(id);
+  const fam = (await getFamily(t.familyId))!;
+  const entries = (await timeForTask(id));
   const hrs = hoursFor(entries);
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">

@@ -5,10 +5,10 @@ import { approvalsFor, claimsFor, getFamily, timeline } from "@/lib/store";
 
 export default async function Overview({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const fam = getFamily(id);
+  const fam = (await getFamily(id));
   if (!fam) notFound();
-  const pending = approvalsFor(id).filter((a) => a.status === "pending");
-  const queries = claimsFor(id).filter((c) => c.status === "query" || c.missing.length > 0);
+  const pending = (await approvalsFor(id)).filter((a) => a.status === "pending");
+  const queries = (await claimsFor(id)).filter((c) => c.status === "query" || c.missing.length > 0);
   const needs = pending.length;
   const headline = needs === 0 ? "All on track" : `${needs} thing${needs === 1 ? "" : "s"} need${needs === 1 ? "s" : ""} you`;
 
@@ -33,7 +33,7 @@ export default async function Overview({ params }: { params: Promise<{ id: strin
           </div>
         )}
         <h2 className="mt-2 text-[length:var(--text-h2)] font-bold">What is happening</h2>
-        <Timeline events={timeline(id)} />
+        <Timeline events={(await timeline(id))} />
       </section>
       <aside className="grid content-start gap-4" aria-label="Parent">
         <div className="card grid gap-1">

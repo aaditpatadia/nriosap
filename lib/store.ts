@@ -1,5 +1,7 @@
-import { decryptField, encryptField, maskTail } from "./crypto";
-import { hoursFor, isEmergency, looksLikeAdvice, undoUntil } from "./rules";
+import "server-only";
+import { decryptField, maskTail } from "./crypto";
+import { asService, currentContext, isUuid, one, rows, run, tx, type Tx } from "./db";
+import { hoursFor, isEmergency, looksLikeAdvice } from "./rules";
 import type {
   Approval,
   AuditEntry,
@@ -7,7 +9,7 @@ import type {
   Coordinator,
   DocumentRecord,
   Family,
-  Policy,
+  Language,
   Task,
   TaskStatus,
   TimeEntry,
@@ -17,480 +19,364 @@ import type {
 } from "./types";
 
 /**
- * DEMO STORE. In-memory, seeded with three fictional families. Resets on server restart.
- * The Postgres schema with row level security is in supabase/migrations/001_init.sql;
- * swap this module for a Supabase-backed one with the same exports.
+ * Postgres-backed store. Export names match the old in-memory demo store; every function is now async.
+ * All reads and writes run under the caller's identity, so RLS decides what comes back.
+ * Functions that have no user (webhook, jobs, waitlist) run in the service context.
  */
-interface DB {
-  families: Family[];
-  coordinators: Coordinator[];
-  policies: Policy[];
-  claims: Claim[];
-  documents: DocumentRecord[];
-  tasks: Task[];
-  time: TimeEntry[];
-  approvals: Approval[];
-  events: TimelineEvent[];
-  messages: WhatsAppMessage[];
-  audit: AuditEntry[];
-  waitlist: WaitlistEntry[];
+
+type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// ---------- audit ----------
+export async function logAudit(_actorId: string, action: string, entity: string, entityId: string, familyId?: string, ip?: string) {
+  await auditIn(undefined, action, entity, entityId, familyId, ip, _actorId);
 }
 
-const HOUR = 3600_000;
-const DAY = 24 * HOUR;
-const iso = (offsetMs: number) => new Date(Date.now() + offsetMs).toISOString();
+async function auditIn(t: Tx | undefined, action: string, entity: string, entityId: string, familyId?: string, ip?: string, actorId?: string) {
+  const ctx = await currentContext();
+  const exec = (x: Tx) =>
+    ctx.kind === "service"
+      ? x.run("insert into audit_log(actor_id, action, entity, entity_id, family_id, ip) values ($1,$2,$3,$4,$5,$6)", [isUuid(actorId) ? actorId : null, action, entity, entityId, familyId ?? null, ip ?? null])
+      : ctx.kind === "user"
+        ? x.run("select audit_event($1,$2,$3,$4,$5)", [action, entity, entityId, familyId ?? null, ip ?? null])
+        : Promise.resolve(0);
+  return t ? exec(t) : tx(exec);
+}
 
-function seed(): DB {
-  const coordinators: Coordinator[] = [
-    { id: "c1", name: "Meera Joshi", city: "Rajkot", role: "coordinator" },
-    { id: "c2", name: "Rohan Desai", city: "Pune", role: "coordinator" },
-    { id: "c3", name: "Kavita Rao", city: "Mumbai", role: "coordinator" },
-    { id: "admin", name: "Aadit", city: "Mumbai", role: "admin" },
-  ];
+// ---------- families and people ----------
+const FAMILY_SELECT = `
+  select f.id, f.name, f.owner_id, f.coordinator_id, f.plan_usd, f.status, f.started_at,
+         o.name as owner_name, o.city as owner_city, o.country as owner_country,
+         p.id as parent_id, p.name as parent_name, p.city as parent_city, p.phone as parent_phone,
+         p.language as parent_language, p.consent_status as parent_consent
+  from families f
+  left join profiles o on o.id = f.owner_id
+  left join lateral (select * from parents x where x.family_id = f.id order by x.created_at limit 1) p on true`;
 
-  const families: Family[] = [
-    {
-      id: "shah",
-      name: "Shah family",
-      owner: { id: "u-priya", name: "Priya Shah", city: "Toronto", country: "Canada" },
-      parent: {
-        id: "p-kusum",
-        name: "Kusum Shah",
-        city: "Rajkot",
-        phone: "+919800000001",
-        language: "Gujarati",
-        consentStatus: "granted",
-      },
-      coordinatorId: "c1",
-      planUsd: 79,
-      startedAt: iso(-40 * DAY),
-    },
-    {
-      id: "kulkarni",
-      name: "Kulkarni family",
-      owner: { id: "u-mihir", name: "Mihir Kulkarni", city: "London", country: "United Kingdom" },
-      parent: {
-        id: "p-sulabha",
-        name: "Sulabha Kulkarni",
-        city: "Pune",
-        phone: "+919800000002",
-        language: "Marathi",
-        consentStatus: "granted",
-      },
-      coordinatorId: "c2",
-      planUsd: 79,
-      startedAt: iso(-25 * DAY),
-    },
-    {
-      id: "mehta",
-      name: "Mehta family",
-      owner: { id: "u-neha", name: "Neha Mehta", city: "Singapore", country: "Singapore" },
-      parent: {
-        id: "p-harish",
-        name: "Harish Mehta",
-        city: "Mumbai",
-        phone: "+919800000003",
-        language: "Hindi",
-        consentStatus: "granted",
-      },
-      coordinatorId: "c3",
-      planUsd: 40,
-      startedAt: iso(-12 * DAY),
-    },
-  ];
-
-  const policies: Policy[] = [
-    {
-      id: "pol-shah",
-      familyId: "shah",
-      insurer: "Demo Insurer A",
-      policyNoEnc: encryptField("shah", "DIA-2291-77410"),
-      sumInsuredInr: 500000,
-      renewalDate: iso(38 * DAY),
-    },
-    {
-      id: "pol-kul",
-      familyId: "kulkarni",
-      insurer: "Demo Insurer B",
-      policyNoEnc: encryptField("kulkarni", "DIB-8821-00314"),
-      sumInsuredInr: 1000000,
-      renewalDate: iso(120 * DAY),
-    },
-    {
-      id: "pol-meh",
-      familyId: "mehta",
-      insurer: "Demo Insurer A",
-      policyNoEnc: encryptField("mehta", "DIA-5531-90022"),
-      sumInsuredInr: 300000,
-      renewalDate: iso(9 * DAY),
-    },
-  ];
-
-  const claims: Claim[] = [
-    {
-      id: "clm-shah-1",
-      familyId: "shah",
-      kind: "cashless",
-      status: "query",
-      hospital: "Demo City Hospital, Rajkot",
-      amountClaimedInr: 86000,
-      openedAt: iso(-6 * DAY),
-      slaDueAt: iso(1 * DAY),
-      missing: ["Signed discharge summary", "Itemised final bill"],
-    },
-    {
-      id: "clm-kul-1",
-      familyId: "kulkarni",
-      kind: "reimbursement",
-      status: "settled",
-      hospital: "Demo Care Clinic, Pune",
-      amountClaimedInr: 24500,
-      amountSettledInr: 22800,
-      openedAt: iso(-33 * DAY),
-      slaDueAt: iso(-3 * DAY),
-      missing: [],
-    },
-    {
-      id: "clm-meh-1",
-      familyId: "mehta",
-      kind: "reimbursement",
-      status: "preparing",
-      hospital: "Demo Heart Centre, Mumbai",
-      amountClaimedInr: 41200,
-      openedAt: iso(-3 * DAY),
-      slaDueAt: iso(4 * DAY),
-      missing: ["Cancelled cheque", "Doctor's prescription copy"],
-    },
-  ];
-
-  const documents: DocumentRecord[] = [
-    {
-      id: "doc-1",
-      familyId: "shah",
-      kind: "policy",
-      title: "Health policy schedule.pdf",
-      uploadedAt: iso(-39 * DAY),
-      confidence: 0.94,
-      extracted: { Insurer: "Demo Insurer A", "Sum insured": "Rs 5,00,000", Renewal: "14 Dec 2026" },
-      preparedBy: "ai",
-      checkedBy: "Meera Joshi",
-      consentPurposes: ["read records", "store"],
-    },
-    {
-      id: "doc-2",
-      familyId: "shah",
-      kind: "discharge_summary",
-      title: "Discharge summary (unsigned).jpg",
-      uploadedAt: iso(-5 * DAY),
-      confidence: 0.82,
-      extracted: { Hospital: "Demo City Hospital", Admitted: "28 Oct", Discharged: "2 Nov" },
-      preparedBy: "ai",
-      consentPurposes: ["read records", "store", "share with insurer for claim"],
-    },
-    {
-      id: "doc-3",
-      familyId: "shah",
-      kind: "bill",
-      title: "Electricity bill November.pdf",
-      uploadedAt: iso(-2 * DAY),
-      confidence: 0.91,
-      extracted: { Payee: "Demo Power Co", Amount: "Rs 4,200", Due: "15 Nov" },
-      preparedBy: "ai",
-      checkedBy: "Meera Joshi",
-      consentPurposes: ["read records", "store"],
-    },
-    {
-      id: "doc-4",
-      familyId: "kulkarni",
-      kind: "policy",
-      title: "Policy copy.pdf",
-      uploadedAt: iso(-24 * DAY),
-      confidence: 0.95,
-      extracted: { Insurer: "Demo Insurer B", "Sum insured": "Rs 10,00,000" },
-      preparedBy: "ai",
-      checkedBy: "Rohan Desai",
-      consentPurposes: ["read records", "store"],
-    },
-    {
-      id: "doc-5",
-      familyId: "mehta",
-      kind: "report",
-      title: "Cardiology report.jpg",
-      uploadedAt: iso(-3 * DAY),
-      confidence: 0.6,
-      extracted: {},
-      preparedBy: "ai",
-      consentPurposes: ["read records", "store"],
-    },
-  ];
-
-  const tasks: Task[] = [
-    { id: "t1", familyId: "shah", title: "Chase signed discharge summary for claim", kind: "claim", status: "doing", ownerId: "c1", dueAt: iso(1 * DAY), slaAt: iso(1 * DAY), hourBudget: 2, needsApproval: false },
-    { id: "t2", familyId: "shah", title: "Pay November electricity bill", kind: "bill", status: "waiting_owner", ownerId: "c1", dueAt: iso(6 * DAY), slaAt: iso(5 * DAY), hourBudget: 0.5, needsApproval: true },
-    { id: "t3", familyId: "shah", title: "Renewal quotes for health policy", kind: "renewal", status: "todo", ownerId: "c1", dueAt: iso(30 * DAY), slaAt: iso(30 * DAY), hourBudget: 1, needsApproval: false },
-    { id: "t4", familyId: "kulkarni", title: "Weekly check-in call (Marathi)", kind: "checkin", status: "todo", ownerId: "c2", dueAt: iso(2 * DAY), slaAt: iso(2 * DAY), hourBudget: 0.5, needsApproval: false },
-    { id: "t5", familyId: "kulkarni", title: "Collect lab reports from clinic", kind: "errand", status: "done", ownerId: "c2", dueAt: iso(-8 * DAY), slaAt: iso(-8 * DAY), hourBudget: 1.5, needsApproval: false },
-    { id: "t6", familyId: "mehta", title: "Assemble reimbursement claim documents", kind: "claim", status: "waiting_parent", ownerId: "c3", dueAt: iso(-1 * DAY), slaAt: iso(-1 * DAY), hourBudget: 2, needsApproval: true },
-    { id: "t7", familyId: "mehta", title: "Renew health policy before expiry", kind: "renewal", status: "doing", ownerId: "c3", dueAt: iso(9 * DAY), slaAt: iso(7 * DAY), hourBudget: 1, needsApproval: true },
-  ];
-
-  const t = (id: string, taskId: string, familyId: string, userId: string, minutes: number, note: string, daysAgo: number): TimeEntry => ({
-    id,
-    taskId,
-    familyId,
-    userId,
-    minutes,
-    note,
-    at: iso(-daysAgo * DAY),
-  });
-  const time: TimeEntry[] = [
-    t("te1", "t1", "shah", "c1", 75, "Called hospital desk, requested signed summary", 3),
-    t("te2", "t1", "shah", "c1", 40, "Checked insurer query email", 1),
-    t("te3", "t2", "shah", "c1", 20, "Prepared bill payment request", 1),
-    t("te4", "t5", "kulkarni", "c2", 95, "Visited clinic, collected reports", 9),
-    t("te5", "t4", "kulkarni", "c2", 25, "Check-in call", 4),
-    t("te6", "t6", "mehta", "c3", 150, "Gathered documents from parent over two visits", 2),
-    t("te7", "t6", "mehta", "c3", 90, "Followed up on cancelled cheque", 1),
-    t("te8", "t7", "mehta", "c3", 120, "Compared renewal options, called insurer", 1),
-  ];
-
-  const approvals: Approval[] = [
-    {
-      id: "ap1",
-      familyId: "shah",
-      taskId: "t2",
-      summary: "Pay November electricity bill",
-      amountInr: 4200,
-      payee: "Demo Power Co",
-      feesInr: 0,
-      when: "By 15 Nov",
-      evidenceIds: ["doc-3"],
-      status: "pending",
-    },
-    {
-      id: "ap2",
-      familyId: "shah",
-      taskId: "t1",
-      summary: "Send claim documents to Demo Insurer A once the signed summary arrives",
-      amountInr: 0,
-      payee: "Demo Insurer A",
-      feesInr: 0,
-      when: "After summary is received",
-      evidenceIds: ["doc-1", "doc-2"],
-      status: "pending",
-    },
-  ];
-
-  const events: TimelineEvent[] = [
-    { id: "e1", familyId: "shah", at: iso(-6 * DAY), actor: "system", actorName: "Desk", kind: "claim", text: "Claim opened for the Rajkot hospital stay. We asked the hospital desk for the final bill." },
-    { id: "e2", familyId: "shah", at: iso(-5 * DAY), actor: "ai", actorName: "Prepared by AI, checked by Meera", kind: "document", text: "Discharge summary read. Two fields need a human check: doctor signature and stamp." },
-    { id: "e3", familyId: "shah", at: iso(-3 * DAY), actor: "human", actorName: "Meera Joshi", kind: "visit", text: "Phoned the hospital desk. They will send the signed summary within two days." },
-    { id: "e4", familyId: "shah", at: iso(-2 * DAY), actor: "ai", actorName: "Prepared by AI, checked by Meera", kind: "bill", text: "November electricity bill (Rs 4,200) found. Payment is waiting for your approval." },
-    { id: "e5", familyId: "shah", at: iso(-1 * DAY), actor: "system", actorName: "Desk", kind: "claim", text: "Insurer asked for two things: signed discharge summary and itemised final bill." },
-    { id: "e6", familyId: "kulkarni", at: iso(-9 * DAY), actor: "human", actorName: "Rohan Desai", kind: "visit", text: "Collected lab reports from the clinic and added them to the vault." },
-    { id: "e7", familyId: "kulkarni", at: iso(-4 * DAY), actor: "human", actorName: "Rohan Desai", kind: "message", text: "Weekly check-in done in Marathi. Sulabha-tai is well; knee pain is better." },
-    { id: "e8", familyId: "mehta", at: iso(-3 * DAY), actor: "ai", actorName: "Prepared by AI, needs a check", kind: "document", text: "Cardiology report read with low confidence (0.60). Meera will check it by hand." },
-    { id: "e9", familyId: "mehta", at: iso(-1 * DAY), actor: "human", actorName: "Kavita Rao", kind: "claim", text: "Reimbursement claim is waiting on a cancelled cheque and a prescription copy from Harish-ji." },
-  ];
-
-  const messages: WhatsAppMessage[] = [
-    { id: "m1", familyId: "shah", direction: "out", at: iso(-3 * DAY), language: "Gujarati", body: "નમસ્તે કુસુમબેન, હું મીરા. હોસ્પિટલમાંથી સહી કરેલું ડિસ્ચાર્જ સમરી મળી જાય એટલે હું તમને જણાવીશ." },
-    { id: "m2", familyId: "shah", direction: "in", at: iso(-3 * DAY + HOUR), language: "Gujarati", body: "સારું બેટા, આભાર." },
-  ];
-
+function toFamily(r: Row): Family {
   return {
-    families,
-    coordinators,
-    policies,
-    claims,
-    documents,
-    tasks,
-    time,
-    approvals,
-    events,
-    messages,
-    audit: [],
-    waitlist: [],
+    id: r.id,
+    name: r.name,
+    owner: { id: r.owner_id, name: r.owner_name ?? "Family owner", city: r.owner_city ?? "", country: r.owner_country ?? undefined },
+    parent: {
+      id: r.parent_id,
+      name: r.parent_name ?? "Parent",
+      city: r.parent_city ?? "",
+      phone: r.parent_phone ?? "",
+      language: (r.parent_language ?? "English") as Language,
+      consentStatus: r.parent_consent ?? "pending",
+    },
+    coordinatorId: r.coordinator_id,
+    planUsd: Number(r.plan_usd),
+    startedAt: r.started_at,
+    status: r.status,
   };
 }
 
-const g = globalThis as unknown as { __gharsaathDb?: DB };
-function db(): DB {
-  if (!g.__gharsaathDb) g.__gharsaathDb = seed();
-  return g.__gharsaathDb;
+export const listFamilies = async () => (await rows(`${FAMILY_SELECT} order by f.name`)).map(toFamily);
+
+export async function getFamily(id: string) {
+  if (!isUuid(id)) return undefined;
+  const r = await one(`${FAMILY_SELECT} where f.id = $1`, [id]);
+  return r ? toFamily(r) : undefined;
 }
 
-let counter = 1000;
-const nid = (p: string) => `${p}${++counter}`;
-
-export function logAudit(actorId: string, action: string, entity: string, entityId: string) {
-  db().audit.unshift({ id: nid("a"), at: new Date().toISOString(), actorId, action, entity, entityId });
+export async function getCoordinator(id: string | null | undefined): Promise<Coordinator | undefined> {
+  if (!isUuid(id)) return undefined;
+  const r = await one<Row>("select id, name, city, role from profiles where id = $1", [id]);
+  return r ? { id: r.id, name: r.name, city: r.city ?? "", role: r.role } : undefined;
 }
 
-export const listFamilies = () => db().families;
-export const getFamily = (id: string) => db().families.find((f) => f.id === id);
-export const getCoordinator = (id: string) => db().coordinators.find((c) => c.id === id);
-export const listCoordinators = () => db().coordinators.filter((c) => c.role === "coordinator");
-
-export function timeline(familyId: string) {
-  return db()
-    .events.filter((e) => e.familyId === familyId)
-    .sort((a, b) => b.at.localeCompare(a.at));
+export async function listCoordinators(): Promise<Coordinator[]> {
+  const r = await rows<Row>("select id, name, city, role from profiles where role = 'coordinator' order by name");
+  return r.map((x) => ({ id: x.id, name: x.name, city: x.city ?? "", role: x.role }));
 }
 
-export const claimsFor = (familyId: string) => db().claims.filter((c) => c.familyId === familyId);
-
-export function documentsFor(familyId: string, viewerId: string) {
-  logAudit(viewerId, "view_document_list", "family", familyId);
-  return db().documents.filter((d) => d.familyId === familyId);
+// ---------- timeline ----------
+function toEvent(r: Row): TimelineEvent {
+  return { id: r.id, familyId: r.family_id, at: r.created_at, actor: r.actor, actorName: r.actor_name ?? "Desk", kind: r.kind, text: r.text };
 }
 
-export function policyFor(familyId: string, viewerId: string) {
-  const p = db().policies.find((x) => x.familyId === familyId);
-  if (!p) return undefined;
-  logAudit(viewerId, "view_policy", "policy", p.id);
+export async function timeline(familyId: string) {
+  if (!isUuid(familyId)) return [];
+  return (await rows("select * from events where family_id = $1 order by created_at desc, id limit 200", [familyId])).map(toEvent);
+}
+
+// ---------- claims ----------
+function toClaim(r: Row): Claim {
   return {
-    id: p.id,
-    insurer: p.insurer,
-    sumInsuredInr: p.sumInsuredInr,
-    renewalDate: p.renewalDate,
-    policyNoMasked: maskTail(decryptField(familyId, p.policyNoEnc)),
+    id: r.id,
+    familyId: r.family_id,
+    kind: r.kind,
+    status: r.status,
+    hospital: r.hospital ?? "",
+    amountClaimedInr: Number(r.amount_claimed_inr ?? 0),
+    amountSettledInr: r.amount_settled_inr == null ? undefined : Number(r.amount_settled_inr),
+    openedAt: r.opened_at,
+    slaDueAt: r.sla_due_at,
+    missing: (r.requirements ?? []).filter((q: Row) => !q.received_at).map((q: Row) => q.label),
+    requirements: (r.requirements ?? []).map((q: Row) => ({ id: q.id, label: q.label, receivedAt: q.received_at ?? undefined, documentId: q.document_id ?? undefined })),
   };
 }
 
-export const tasksFor = (familyId?: string) =>
-  db().tasks.filter((t) => !familyId || t.familyId === familyId);
-
-export const allTasks = () => db().tasks;
-export const getTask = (id: string) => db().tasks.find((t) => t.id === id);
-export const timeFor = (familyId?: string) =>
-  db().time.filter((t) => !familyId || t.familyId === familyId);
-export const timeForTask = (taskId: string) => db().time.filter((t) => t.taskId === taskId);
-
-export function familyHours(familyId: string) {
-  return hoursFor(timeFor(familyId));
+export async function claimsFor(familyId: string) {
+  if (!isUuid(familyId)) return [];
+  const r = await rows(
+    `select c.*, coalesce((select json_agg(q order by q.created_at) from claim_requirements q where q.claim_id = c.id), '[]') as requirements
+     from claims c where c.family_id = $1 order by c.opened_at desc`,
+    [familyId],
+  );
+  return r.map(toClaim);
 }
 
-export const approvalsFor = (familyId: string) =>
-  db().approvals.filter((a) => a.familyId === familyId);
-
-export function decideApproval(id: string, status: "approved" | "declined", actorId: string) {
-  const a = db().approvals.find((x) => x.id === id);
-  if (!a || a.status !== "pending") return undefined;
-  a.status = status;
-  a.decidedAt = new Date().toISOString();
-  a.undoUntil = undoUntil(new Date());
-  logAudit(actorId, `approval_${status}`, "approval", id);
-  db().events.unshift({
-    id: nid("e"),
-    familyId: a.familyId,
-    at: a.decidedAt,
-    actor: "human",
-    actorName: getFamily(a.familyId)?.owner.name ?? "Owner",
-    kind: "approval",
-    text: `${status === "approved" ? "Approved" : "Declined"}: ${a.summary}`,
-  });
-  return a;
+// ---------- documents and policies ----------
+export interface StoredField {
+  value: string;
+  confidence: number;
 }
 
-export function undoApproval(id: string, actorId: string) {
-  const a = db().approvals.find((x) => x.id === id);
-  if (!a || a.status === "pending" || !a.undoUntil) return undefined;
-  if (Date.now() > new Date(a.undoUntil).getTime()) return undefined;
-  a.status = "pending";
-  a.decidedAt = undefined;
-  a.undoUntil = undefined;
-  logAudit(actorId, "approval_undone", "approval", id);
-  db().events.unshift({
-    id: nid("e"),
-    familyId: a.familyId,
-    at: new Date().toISOString(),
-    actor: "system",
-    actorName: "Desk",
-    kind: "approval",
-    text: `Undone: ${a.summary}`,
-  });
-  return a;
-}
-
-export function addTime(taskId: string, minutes: number, note: string, userId: string) {
-  const task = getTask(taskId);
-  if (!task || minutes <= 0 || minutes > 600) return undefined;
-  const entry: TimeEntry = {
-    id: nid("te"),
-    taskId,
-    familyId: task.familyId,
-    userId,
-    minutes: Math.round(minutes),
-    note: note.slice(0, 280),
-    at: new Date().toISOString(),
+function toDocument(r: Row): DocumentRecord {
+  let fields: Record<string, StoredField> = {};
+  if (r.extracted_enc) {
+    try {
+      fields = JSON.parse(decryptField(r.family_id, r.extracted_enc));
+    } catch {
+      fields = {};
+    }
+  }
+  return {
+    id: r.id,
+    familyId: r.family_id,
+    kind: r.kind,
+    title: r.title,
+    uploadedAt: r.created_at,
+    confidence: Number(r.confidence ?? 0),
+    extracted: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.value])),
+    fieldConfidence: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.confidence])),
+    preparedBy: "ai",
+    checkedBy: r.checked_at ? (r.checker_name ?? "the desk") : undefined,
+    consentPurposes: r.purposes ?? [],
+    scanStatus: r.scan_status,
+    extractionStatus: r.extraction_status,
   };
-  db().time.push(entry);
-  logAudit(userId, "log_time", "task", taskId);
-  return entry;
 }
 
-export function setTaskStatus(taskId: string, status: TaskStatus, userId: string) {
-  const task = getTask(taskId);
-  if (!task) return undefined;
-  task.status = status;
-  logAudit(userId, `task_${status}`, "task", taskId);
-  return task;
-}
+const DOC_SELECT = `
+  select d.*, c.name as checker_name,
+    coalesce((select array_agg(x.purpose order by x.purpose) from document_consents x where x.document_id = d.id and x.withdrawn_at is null), '{}') as purposes
+  from documents d left join profiles c on c.id = d.checked_by`;
 
-/** Handles an inbound parent message: logs it, flags emergencies, never auto-replies with advice. */
-export function receiveParentMessage(phone: string, text: string) {
-  const fam = db().families.find((f) => f.parent.phone.replace(/\D/g, "") === phone.replace(/\D/g, ""));
-  if (!fam) return { matched: false as const };
-  const at = new Date().toISOString();
-  db().messages.push({ id: nid("m"), familyId: fam.id, direction: "in", body: text.slice(0, 2000), at, language: fam.parent.language });
-  const emergency = isEmergency(text);
-  db().events.unshift({
-    id: nid("e"),
-    familyId: fam.id,
-    at,
-    actor: "human",
-    actorName: fam.parent.name,
-    kind: "message",
-    text: emergency ? `Message from ${fam.parent.name} looks like an emergency. Coordinator alerted.` : `Message from ${fam.parent.name} received.`,
+export async function documentsFor(familyId: string, viewerId?: string) {
+  if (!isUuid(familyId)) return [];
+  return tx(async (t) => {
+    const r = await t.rows(`${DOC_SELECT} where d.family_id = $1 order by d.created_at desc`, [familyId]);
+    if (r.length > 0) await auditIn(t, "view_document_list", "family", familyId, familyId, undefined, viewerId);
+    return r.map(toDocument);
   });
-  if (emergency) {
-    db().tasks.unshift({
-      id: nid("t"),
-      familyId: fam.id,
-      title: "EMERGENCY: call the parent now",
-      kind: "errand",
-      status: "todo",
-      ownerId: fam.coordinatorId,
-      dueAt: at,
-      slaAt: new Date(Date.now() + 10 * 60_000).toISOString(),
-      hourBudget: 1,
-      needsApproval: false,
-    });
+}
+
+export async function policyFor(familyId: string, viewerId?: string) {
+  if (!isUuid(familyId)) return undefined;
+  return tx(async (t) => {
+    const p = await t.one<Row>("select * from policies where family_id = $1 order by renewal_date nulls last limit 1", [familyId]);
+    if (!p) return undefined;
+    await auditIn(t, "view_policy", "policy", p.id, familyId, undefined, viewerId);
+    return {
+      id: p.id as string,
+      insurer: p.insurer as string,
+      sumInsuredInr: Number(p.sum_insured_inr ?? 0),
+      renewalDate: p.renewal_date as string,
+      policyNoMasked: maskTail(decryptField(familyId, p.policy_no_enc)),
+    };
+  });
+}
+
+// ---------- tasks and time ----------
+function toTask(r: Row): Task {
+  return {
+    id: r.id,
+    familyId: r.family_id,
+    title: r.title,
+    kind: r.kind,
+    status: r.status,
+    ownerId: r.owner_id,
+    dueAt: r.due_at,
+    slaAt: r.sla_at,
+    hourBudget: Number(r.hour_budget),
+    needsApproval: r.needs_approval,
+    checklist: r.checklist ?? [],
+  };
+}
+
+export async function tasksFor(familyId?: string) {
+  if (familyId && !isUuid(familyId)) return [];
+  const r = familyId ? await rows("select * from tasks where family_id = $1", [familyId]) : await rows("select * from tasks");
+  return r.map(toTask);
+}
+
+export const allTasks = () => tasksFor();
+
+export async function getTask(id: string) {
+  if (!isUuid(id)) return undefined;
+  const r = await one("select * from tasks where id = $1", [id]);
+  return r ? toTask(r) : undefined;
+}
+
+function toTime(r: Row): TimeEntry {
+  return { id: r.id, taskId: r.task_id, familyId: r.family_id, userId: r.user_id, minutes: r.minutes, note: r.note ?? "", at: r.at };
+}
+
+export async function timeFor(familyId?: string) {
+  if (familyId && !isUuid(familyId)) return [];
+  const r = familyId ? await rows("select * from time_entries where family_id = $1", [familyId]) : await rows("select * from time_entries");
+  return r.map(toTime);
+}
+
+export async function timeForTask(taskId: string) {
+  if (!isUuid(taskId)) return [];
+  return (await rows("select * from time_entries where task_id = $1 order by at desc", [taskId])).map(toTime);
+}
+
+export async function familyHours(familyId: string) {
+  return hoursFor(await timeFor(familyId));
+}
+
+// ---------- approvals ----------
+function toApproval(r: Row): Approval {
+  return {
+    id: r.id,
+    familyId: r.family_id,
+    taskId: r.task_id,
+    summary: r.summary,
+    amountInr: Number(r.amount_inr),
+    payee: r.payee ?? "",
+    feesInr: Number(r.fees_inr),
+    when: r.when_text ?? "",
+    evidenceIds: r.evidence_ids ?? [],
+    status: r.status,
+    decidedAt: r.decided_at ?? undefined,
+    undoUntil: r.undo_until ?? undefined,
+  };
+}
+
+export async function approvalsFor(familyId: string) {
+  if (!isUuid(familyId)) return [];
+  return (await rows("select * from approvals where family_id = $1 order by created_at", [familyId])).map(toApproval);
+}
+
+/** The database function enforces that only the family owner can decide. */
+export async function decideApproval(id: string, status: "approved" | "declined", _actorId?: string) {
+  if (!isUuid(id)) return undefined;
+  try {
+    const r = await one("select * from decide_approval($1, $2)", [id, status]);
+    return r ? toApproval(r) : undefined;
+  } catch {
+    return undefined;
   }
-  return { matched: true as const, familyId: fam.id, emergency };
 }
 
-/** Coordinator drafts go through the advice filter before they can be sent. */
-export function sendCoordinatorMessage(familyId: string, body: string, userId: string) {
-  const fam = getFamily(familyId);
-  if (!fam) return { ok: false as const, reason: "Family not found" };
-  if (looksLikeAdvice(body)) {
-    logAudit(userId, "message_blocked_advice", "family", familyId);
-    return { ok: false as const, reason: "This reads like medical, legal or tax advice. Route it to a licensed professional." };
+export async function undoApproval(id: string, _actorId?: string) {
+  if (!isUuid(id)) return undefined;
+  try {
+    const r = await one("select * from undo_approval($1)", [id]);
+    return r ? toApproval(r) : undefined;
+  } catch {
+    return undefined;
   }
-  const at = new Date().toISOString();
-  db().messages.push({ id: nid("m"), familyId, direction: "out", body: body.slice(0, 2000), at, language: fam.parent.language });
-  logAudit(userId, "message_sent", "family", familyId);
-  return { ok: true as const };
 }
 
-export const messagesFor = (familyId: string) =>
-  db().messages.filter((m) => m.familyId === familyId).sort((a, b) => a.at.localeCompare(b.at));
-
-export function addWaitlist(entry: Omit<WaitlistEntry, "id" | "at">) {
-  db().waitlist.push({ id: nid("w"), at: new Date().toISOString(), ...entry });
+// ---------- ops writes ----------
+export async function addTime(taskId: string, minutes: number, note: string, userId: string) {
+  if (!isUuid(taskId) || minutes <= 0 || minutes > 600) return undefined;
+  return tx(async (t) => {
+    const task = await t.one<Row>("select id, family_id from tasks where id = $1", [taskId]);
+    if (!task) return undefined;
+    const r = await t.one("insert into time_entries(task_id, family_id, user_id, minutes, note) values ($1,$2,$3,$4,$5) returning *", [taskId, task.family_id, userId, Math.round(minutes), note.slice(0, 280)]);
+    await auditIn(t, "log_time", "task", taskId, task.family_id, undefined, userId);
+    return r ? toTime(r) : undefined;
+  });
 }
 
-export const waitlistCount = () => db().waitlist.length;
-export const auditLog = () => db().audit.slice(0, 50);
+export async function setTaskStatus(taskId: string, status: TaskStatus, userId: string) {
+  if (!isUuid(taskId)) return undefined;
+  return tx(async (t) => {
+    const r = await t.one("update tasks set status = $2 where id = $1 returning *", [taskId, status]);
+    if (!r) return undefined;
+    await auditIn(t, `task_${status}`, "task", taskId, r.family_id as string, undefined, userId);
+    return toTask(r);
+  });
+}
+
+// ---------- messages ----------
+/** Inbound parent message: stored, emergencies flagged, never auto-answered. Service context. */
+export async function receiveParentMessage(phone: string, text: string) {
+  return asService(() =>
+    tx(async (t) => {
+      const fam = await t.one<Row>(
+        `select p.id as parent_id, p.name, p.language, f.id as family_id, f.coordinator_id
+         from parents p join families f on f.id = p.family_id
+         where regexp_replace(p.phone, '\\D', '', 'g') = $1`,
+        [phone.replace(/\D/g, "")],
+      );
+      if (!fam) return { matched: false as const };
+      await t.run("insert into messages(family_id, direction, body, language) values ($1,'in',$2,$3)", [fam.family_id, text.slice(0, 2000), fam.language]);
+      const emergency = isEmergency(text);
+      await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'message','human',$2,$3)", [
+        fam.family_id,
+        fam.name,
+        emergency ? `Message from ${fam.name} looks like an emergency. Coordinator alerted.` : `Message from ${fam.name} received.`,
+      ]);
+      if (emergency) {
+        await t.run(
+          `insert into tasks(family_id, title, kind, status, owner_id, due_at, sla_at, hour_budget, needs_approval)
+           values ($1,'EMERGENCY: call the parent now','errand','todo',$2,now(),now() + interval '10 minutes',1,false)`,
+          [fam.family_id, fam.coordinator_id],
+        );
+      }
+      return { matched: true as const, familyId: fam.family_id as string, emergency };
+    }),
+  );
+}
+
+export async function sendCoordinatorMessage(familyId: string, body: string, userId: string) {
+  if (!isUuid(familyId)) return { ok: false as const, reason: "Family not found" };
+  return tx(async (t) => {
+    const fam = await t.one<Row>("select p.language from families f join parents p on p.family_id = f.id where f.id = $1 limit 1", [familyId]);
+    if (!fam) return { ok: false as const, reason: "Family not found" };
+    if (looksLikeAdvice(body)) {
+      await auditIn(t, "message_blocked_advice", "family", familyId, familyId, undefined, userId);
+      return { ok: false as const, reason: "This reads like medical, legal or tax advice. Route it to a licensed professional." };
+    }
+    await t.run("insert into messages(family_id, direction, body, language) values ($1,'out',$2,$3)", [familyId, body.slice(0, 2000), fam.language]);
+    await auditIn(t, "message_sent", "family", familyId, familyId, undefined, userId);
+    return { ok: true as const };
+  });
+}
+
+function toMessage(r: Row): WhatsAppMessage {
+  return { id: r.id, familyId: r.family_id, direction: r.direction, body: r.body ?? "", at: r.created_at, language: r.language };
+}
+
+export async function messagesFor(familyId: string) {
+  if (!isUuid(familyId)) return [];
+  return (await rows("select * from messages where family_id = $1 order by created_at", [familyId])).map(toMessage);
+}
+
+// ---------- waitlist ----------
+export async function addWaitlist(entry: Omit<WaitlistEntry, "id" | "at">) {
+  await asService(() => run("insert into waitlist(email, country, note) values ($1,$2,$3)", [entry.email, entry.country, entry.note]));
+}
+
+export async function waitlistCount() {
+  const r = await asService(() => one<{ n: number }>("select count(*)::int as n from waitlist"));
+  return r?.n ?? 0;
+}
+
+// ---------- audit view ----------
+export async function auditLog(familyId?: string): Promise<AuditEntry[]> {
+  const r = familyId
+    ? isUuid(familyId)
+      ? await rows<Row>("select * from audit_log where family_id = $1 order by at desc limit 200", [familyId])
+      : []
+    : await rows<Row>("select * from audit_log order by at desc limit 50");
+  return r.map((x) => ({ id: String(x.id), at: x.at, actorId: x.actor_id ?? "", action: x.action, entity: x.entity, entityId: x.entity_id }));
+}

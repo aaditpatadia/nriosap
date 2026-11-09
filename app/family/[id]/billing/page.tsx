@@ -4,7 +4,7 @@ import { fmtDate } from "@/lib/format";
 
 export default async function Billing({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const fam = getFamily(id);
+  const fam = (await getFamily(id));
   if (!fam) notFound();
   const next = new Date(new Date(fam.startedAt).getTime() + 30 * 86400000 * 2);
   return (

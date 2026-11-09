@@ -25,6 +25,6 @@ export async function POST(req: Request) {
   } catch {
     return new Response("Bad request", { status: 400 });
   }
-  for (const m of parseInbound(payload)) receiveParentMessage(m.from, m.text);
+  for (const m of parseInbound(payload)) await receiveParentMessage(m.from, m.text);
   return NextResponse.json({ ok: true });
 }

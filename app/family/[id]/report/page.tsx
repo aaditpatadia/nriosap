@@ -4,13 +4,13 @@ import { fmtShort, inr } from "@/lib/format";
 
 export default async function Report({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const fam = getFamily(id);
+  const fam = (await getFamily(id));
   if (!fam) notFound();
-  const events = timeline(id).filter((e) => Date.now() - new Date(e.at).getTime() < 31 * 86400000);
-  const done = tasksFor(id).filter((t) => t.status === "done");
-  const open = tasksFor(id).filter((t) => t.status !== "done");
-  const claims = claimsFor(id);
-  const hours = familyHours(id);
+  const events = (await timeline(id)).filter((e) => Date.now() - new Date(e.at).getTime() < 31 * 86400000);
+  const done = (await tasksFor(id)).filter((t) => t.status === "done");
+  const open = (await tasksFor(id)).filter((t) => t.status !== "done");
+  const claims = (await claimsFor(id));
+  const hours = (await familyHours(id));
   return (
     <section className="grid max-w-2xl gap-4">
       <h1 className="text-[length:var(--text-h1)] font-bold">Monthly report for {fam.parent.name}</h1>

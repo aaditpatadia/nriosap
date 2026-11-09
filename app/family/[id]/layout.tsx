@@ -1,35 +1,38 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AccountBar } from "@/components/AccountBar";
 import { SiteHeader } from "@/components/SiteHeader";
 import { FamilyNav } from "@/components/FamilyNav";
-import { approvalsFor, getCoordinator, getFamily, listFamilies } from "@/lib/store";
+import { requireViewer } from "@/lib/auth";
+import { approvalsFor, getCoordinator, getFamily, listFamilies, logAudit } from "@/lib/store";
+
+export const dynamic = "force-dynamic";
 
 export default async function FamilyLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const fam = getFamily(id);
+  const viewer = await requireViewer(`/family/${id}`);
+  const fam = await getFamily(id);
   if (!fam) notFound();
-  const coord = getCoordinator(fam.coordinatorId);
-  const pending = approvalsFor(id).filter((a) => a.status === "pending").length;
+  const [coord, approvals, families] = await Promise.all([getCoordinator(fam.coordinatorId), approvalsFor(id), listFamilies(), logAudit(viewer.id, "view_family", "family", id, id)]);
+  const pending = approvals.filter((a) => a.status === "pending").length;
 
   return (
     <>
       <SiteHeader />
       <div className="mx-auto w-full max-w-[1120px] px-4">
-        <aside aria-label="Demo notice" className="flex flex-wrap items-center justify-between gap-3 py-2 text-[length:var(--text-small)] text-muted">
-          <p>Demo view as <strong className="text-ink">{fam.owner.name}</strong> ({fam.owner.city}). Sign-in is mocked in this demo.</p>
-          <p className="flex flex-wrap gap-3">
-            {listFamilies().map((f) => (
-              <Link key={f.id} href={`/family/${f.id}`} className={f.id === id ? "font-semibold text-ink" : "underline"}>{f.name}</Link>
-            ))}
-          </p>
-        </aside>
+        <AccountBar name={viewer.name} families={families} currentId={id} />
         <FamilyNav base={`/family/${id}`} pendingCount={pending} />
         <main id="main" className="py-6 pb-24">
           <div className="mb-6 flex flex-wrap items-center gap-3 text-muted">
             <span>Your desk contact:</span>
-            <strong className="text-ink">{coord?.name}</strong>
-            <span>in {coord?.city}</span>
-            <a className="btn btn-secondary" href="https://wa.me/910000000000">Talk to {coord?.name.split(" ")[0]}</a>
+            {coord ? (
+              <>
+                <strong className="text-ink">{coord.name}</strong>
+                <span>in {coord.city}</span>
+                <a className="btn btn-secondary" href="https://wa.me/910000000000">Talk to {coord.name.split(" ")[0]}</a>
+              </>
+            ) : (
+              <strong className="text-ink">We are assigning a person to your family.</strong>
+            )}
           </div>
           {children}
         </main>

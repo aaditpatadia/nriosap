@@ -8,6 +8,6 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const p = schema.safeParse(body);
   if (!p.success) return NextResponse.json({ ok: false }, { status: 400 });
-  addWaitlist({ email: p.data.email, country: p.data.country, note: p.data.note ?? "" });
+  await addWaitlist({ email: p.data.email, country: p.data.country, note: p.data.note ?? "" });
   return NextResponse.json({ ok: true });
 }
