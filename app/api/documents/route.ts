@@ -1,0 +1,27 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getViewer } from "@/lib/auth";
+import { getFamily } from "@/lib/store";
+import { sameOrigin } from "@/lib/http";
+import { MAX_WEB_UPLOAD_BYTES, PURPOSES, type Purpose } from "@/lib/upload-rules";
+import { ingestDocument } from "@/lib/vault";
+
+export const maxDuration = 120;
+
+export async function POST(req: Request) {
+  if (!sameOrigin(req)) return NextResponse.json({ ok: false, reason: "Bad origin." }, { status: 403 });
+  const viewer = await getViewer();
+  if (!viewer) return NextResponse.json({ ok: false, reason: "Please sign in." }, { status: 401 });
+  const form = await req.formData().catch(() => null);
+  const file = form?.get("file");
+  const fid = z.string().uuid().safeParse(form?.get("familyId"));
+  if (!form || !(file instanceof File) || !fid.success) return NextResponse.json({ ok: false, reason: "Please choose a file." }, { status: 400 });
+  // RLS decides here: a family the viewer cannot see does not exist for them.
+  const fam = await getFamily(fid.data);
+  if (!fam) return NextResponse.json({ ok: false, reason: "Family not found." }, { status: 404 });
+  if (file.size > MAX_WEB_UPLOAD_BYTES) return NextResponse.json({ ok: false, reason: "Please send a file under 4 MB, or send it on WhatsApp." }, { status: 413 });
+  const purposes = form.getAll("purpose").filter((p): p is Purpose => PURPOSES.includes(p as Purpose));
+  const r = await ingestDocument({ familyId: fam.id, filename: file.name, bytes: new Uint8Array(await file.arrayBuffer()), maxBytes: MAX_WEB_UPLOAD_BYTES, purposes: [...new Set(purposes)], uploaderId: viewer.id, source: "web" });
+  if (!r.ok) return NextResponse.json({ ok: false, reason: r.reason }, { status: r.status });
+  return NextResponse.json(r);
+}

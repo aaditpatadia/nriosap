@@ -2,6 +2,9 @@ import { defineConfig } from "@playwright/test";
 import { APP_PORT, localEnv } from "./scripts/local/env.mjs";
 
 const env = { ...process.env, ...localEnv(), NODE_ENV: "production" } as Record<string, string>;
+// Tests must only ever use the fake key above, whatever credentials this shell happens to hold.
+delete env.ANTHROPIC_AUTH_TOKEN;
+delete env.OPENAI_API_KEY;
 const reuse = !process.env.CI && process.env.PW_REUSE === "1";
 
 export default defineConfig({

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { actionViewer, isStaff } from "@/lib/auth";
 import { addManualTime, addNote, createTaskFromTemplate, escalate, startTimer, stopTimer } from "@/lib/ops";
+import { saveCheck } from "@/lib/vault";
 
 const id = z.string().uuid();
 
@@ -66,6 +67,17 @@ export async function escalateAction(taskId: string, contactId: string) {
   const r = await escalate(taskId, contactId, v.id);
   revalidatePath("/ops", "layout");
   return r;
+}
+
+export async function checkDocumentAction(_prev: unknown, form: FormData) {
+  const v = await staff();
+  const p = z.object({ id, kind: z.enum(["policy", "discharge_summary", "bill", "id", "report"]) }).safeParse({ id: form.get("id"), kind: form.get("kind") });
+  if (!v || !p.success) return { ok: false, message: "Please check the form." };
+  const values = Object.fromEntries([...form.entries()].filter(([k]) => k.startsWith("f:")).map(([k, val]) => [k.slice(2), String(val)]));
+  const ok = await saveCheck(p.data.id, values, p.data.kind, v.id);
+  revalidatePath("/ops", "layout");
+  revalidatePath("/family", "layout");
+  return { ok, message: ok ? "Checked. Thank you." : "Could not save." };
 }
 
 export async function newTaskAction(_prev: unknown, form: FormData) {

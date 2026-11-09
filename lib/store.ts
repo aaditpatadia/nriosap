@@ -150,7 +150,7 @@ function toDocument(r: Row): DocumentRecord {
     title: r.title,
     uploadedAt: r.created_at,
     confidence: Number(r.confidence ?? 0),
-    extracted: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.value])),
+    extracted: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, k === "Policy number" ? maskTail(v.value) : v.value])),
     fieldConfidence: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v.confidence])),
     preparedBy: "ai",
     checkedBy: r.checked_at ? (r.checker_name ?? "the desk") : undefined,
@@ -168,7 +168,7 @@ const DOC_SELECT = `
 export async function documentsFor(familyId: string, viewerId?: string) {
   if (!isUuid(familyId)) return [];
   return tx(async (t) => {
-    const r = await t.rows(`${DOC_SELECT} where d.family_id = $1 order by d.created_at desc`, [familyId]);
+    const r = await t.rows(`${DOC_SELECT} where d.family_id = $1 and d.deleted_at is null order by d.created_at desc`, [familyId]);
     if (r.length > 0) await auditIn(t, "view_document_list", "family", familyId, familyId, undefined, viewerId);
     return r.map(toDocument);
   });
@@ -204,6 +204,7 @@ function toTask(r: Row): Task {
     hourBudget: Number(r.hour_budget),
     needsApproval: r.needs_approval,
     checklist: r.checklist ?? [],
+    documentId: r.document_id ?? undefined,
   };
 }
 

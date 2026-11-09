@@ -83,6 +83,7 @@ export interface Task {
   hourBudget: number;
   needsApproval: boolean;
   checklist?: string[];
+  documentId?: string;
 }
 
 export interface TimeEntry {

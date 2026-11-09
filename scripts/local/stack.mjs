@@ -1,7 +1,9 @@
 // Starts real Postgres plus the Auth and Storage emulator, applies migrations, seeds the demo family.
 // Usage: node scripts/local/stack.mjs [--fresh]
 import path from "node:path";
-import { EMU_PORT, JWT_SECRET, localEnv, PG_PORT } from "./env.mjs";
+import { EMU_PORT, FAKES_PORT, JWT_SECRET, localEnv, PG_PORT } from "./env.mjs";
+import { startFakes } from "./fakes.mjs";
+import { setupStorage } from "../setup-storage.mjs";
 import { migrate, ROOT, startPostgres } from "./pg.mjs";
 import { startEmulator } from "./supabase-emulator.mjs";
 import { seedDemo } from "../seed.mjs";
@@ -14,10 +16,13 @@ const { server, url } = await startPostgres({ name: "pg", port: PG_PORT, fresh }
 console.log("postgres up, migrations applied:", await migrate(url));
 const emu = await startEmulator({ port: EMU_PORT, dbUrl: url, jwtSecret: JWT_SECRET, storageDir: path.join(ROOT, ".local", "storage") });
 console.log("emulator up at", emu.url);
+const fakes = await startFakes({ port: FAKES_PORT });
+await setupStorage();
 await seedDemo();
 console.log("local stack ready");
 
 async function shutdown() {
+  fakes.stop();
   await emu.stop().catch(() => {});
   await server.stop().catch(() => {});
   process.exit(0);

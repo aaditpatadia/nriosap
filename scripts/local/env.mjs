@@ -21,5 +21,8 @@ export function localEnv() {
     WHATSAPP_VERIFY_TOKEN: "local-verify-token",
     WHATSAPP_APP_SECRET: "local-app-secret",
     WHATSAPP_SEND_ENABLED: "0",
+    ANTHROPIC_API_KEY: "fake-local-key",
+    ANTHROPIC_BASE_URL: `http://127.0.0.1:${FAKES_PORT}`,
+    EXTRACTOR: "claude",
   };
 }

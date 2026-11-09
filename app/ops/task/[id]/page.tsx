@@ -27,6 +27,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           <p className="text-muted">Due {fromNow(t.dueAt)} · hour budget {t.hourBudget} h · logged {hrs} h</p>
           {t.needsApproval && <span className="chip w-fit" data-tone="warn">Needs owner approval before action</span>}
           <Link className="btn btn-ghost w-fit" href={`/family/${fam.id}`}>Open family</Link>
+          {t.documentId && <Link className="btn btn-secondary w-fit" href={`/ops/documents/${t.documentId}`}>Check the fields</Link>}
         </div>
         {t.checklist && t.checklist.length > 0 && (
           <div className="card">
