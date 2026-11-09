@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { hardenCookie, isLocalHost } from "@/lib/cookies";
+import { emailSignInEnabled } from "@/lib/backend";
 import { demoLoginEnabled } from "@/lib/demo-login";
 import { httpsTarget } from "@/lib/http";
 import { safeNext } from "@/lib/auth";
@@ -50,6 +51,13 @@ describe("redirect after sign-in", () => {
   });
   it("keeps same-site paths", () => {
     expect(safeNext("/family/1?tab=2")).toBe("/family/1?tab=2");
+  });
+});
+
+describe("sign-in options", () => {
+  it("email links stay on unless they are switched off", () => {
+    expect(emailSignInEnabled({})).toBe(true);
+    expect(emailSignInEnabled({ EMAIL_SIGNIN: "0" })).toBe(false);
   });
 });
 

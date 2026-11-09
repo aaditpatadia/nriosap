@@ -14,7 +14,7 @@ function GoogleMark() {
   );
 }
 
-export function SignInForms({ next, google = false }: { next: string; google?: boolean }) {
+export function SignInForms({ next, google = false, email = true }: { next: string; google?: boolean; email?: boolean }) {
   const [link, linkAction, linkPending] = useActionState(sendMagicLink, null);
   const [staff, staffAction, staffPending] = useActionState(staffSignIn, null);
   return (
@@ -24,17 +24,17 @@ export function SignInForms({ next, google = false }: { next: string; google?: b
         {google && (
           <>
             <a className="btn btn-secondary w-full" href={`/auth/google?next=${encodeURIComponent(next)}`}><GoogleMark />Continue with Google</a>
-            <p className="text-center text-muted">or</p>
+            {email ? <p className="text-center text-muted">or</p> : <p className="text-muted">New here? This creates your account. No password to remember.</p>}
           </>
         )}
-        <p className="text-muted">We email you a link. No password to remember.</p>
-        <form action={linkAction} className="grid gap-4">
+        {email && <p className="text-muted">We email you a link. No password to remember.</p>}
+        {email && <form action={linkAction} className="grid gap-4">
           <input type="hidden" name="next" value={next} />
           <label className="field">Your email<input className="input" type="email" name="email" autoComplete="email" required /></label>
           <button className="btn btn-primary" disabled={linkPending}>{linkPending ? "Sending..." : "Email me a link"}</button>
           <p role="status" aria-live="polite" className={link?.ok ? "text-ok" : "text-danger"}>{link?.message}</p>
           {link?.devLink && <a className="btn btn-primary" href={link.devLink}>Open my sign-in link</a>}
-        </form>
+        </form>}
       </section>
       <section aria-labelledby="desk-in" className="card grid gap-4">
         <h2 id="desk-in" className="text-[length:var(--text-h2)] font-bold">For the desk team</h2>

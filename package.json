@@ -17,7 +17,8 @@
     "local:dev": "node scripts/local/with-env.mjs next dev -p 3100",
     "db:seed": "node --env-file=.env.local scripts/seed.mjs",
     "user:create": "node --env-file=.env.local scripts/create-user.mjs",
-    "lint:setup": "npm --prefix tools/lint install"
+    "lint:setup": "npm --prefix tools/lint install",
+    "go-live": "node scripts/go-live.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

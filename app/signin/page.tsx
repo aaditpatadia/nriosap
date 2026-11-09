@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { PageHero } from "@/components/PageHero";
 import { SignInForms } from "@/components/SignInForms";
 import { getViewer, safeNext } from "@/lib/auth";
-import { backendReady, googleSignInEnabled } from "@/lib/backend";
+import { backendReady, emailSignInEnabled, googleSignInEnabled } from "@/lib/backend";
 import { DEMO_PEOPLE, demoLoginEnabled } from "@/lib/demo-login";
 
 export const metadata = { title: "Sign in" };
@@ -41,7 +41,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
             </div>
           </section>
         )}
-        {backendReady() ? <SignInForms next={safeNext(sp.next)} google={googleSignInEnabled()} /> : (
+        {backendReady() ? <SignInForms next={safeNext(sp.next)} google={googleSignInEnabled()} email={emailSignInEnabled()} /> : (
           <section className="card grid gap-3 lg:col-span-2">
             <h2 className="text-[length:var(--text-h2)] font-bold">Accounts are not open yet</h2>
             <p className="text-muted">We are starting with a small number of families. You can see how it works now, with a fictional family and no account.</p>

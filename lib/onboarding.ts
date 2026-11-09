@@ -21,7 +21,7 @@ export interface NewFamily {
 }
 
 async function leastBusyCoordinator(t: Tx): Promise<string | null> {
-  const r = await t.one<Row>("select p.id from profiles p left join families f on f.coordinator_id = p.id where p.role = 'coordinator' group by p.id order by count(f.id), p.created_at limit 1");
+  const r = await t.one<Row>("select p.id from profiles p left join families f on f.coordinator_id = p.id where p.role in ('coordinator','admin') group by p.id order by (p.role = 'coordinator') desc, count(f.id), p.created_at limit 1");
   return r?.id ?? null;
 }
 

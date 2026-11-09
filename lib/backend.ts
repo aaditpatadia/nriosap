@@ -13,6 +13,11 @@ export function googleSignInEnabled(env: Env = process.env): boolean {
   return env.GOOGLE_SIGNIN === "1" && backendReady(env);
 }
 
+/** Supabase's built-in email only reaches your own team, so the form is hidden until a real mail sender is set up. */
+export function emailSignInEnabled(env: Env = process.env): boolean {
+  return env.EMAIL_SIGNIN !== "0";
+}
+
 /** Where Auth should send people back to. Locally, the address in the browser, so its cookies stay with it. */
 export function authBase(req: Pick<NextRequest, "headers" | "nextUrl">): string {
   if (demoLoginEnabled()) return `http://${req.headers.get("host")}`;
