@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/* ---------- Tokens: palette A "Haldi" (default). See specs/design-system.md ---------- */
+:root {
+  --bg: #fbf7ef;
+  --surface: #ffffff;
+  --ink: #1e1a16;
+  --muted: #5e554c;
+  --accent: #1f6f5c;
+  --on-accent: #ffffff;
+  --warn: #9a4a07;
+  --danger: #b3261e;
+  --ok: #1b6b44;
+  --line: #e7dfd2;
+  --tint: color-mix(in srgb, var(--accent) 9%, var(--bg));
+
+  --font-sans: var(--font-loaded), system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Noto Sans Gujarati", sans-serif;
+
+  --text-display: clamp(2.25rem, 1.6rem + 3vw, 3.75rem);
+  --text-h1: clamp(1.75rem, 1.4rem + 1.6vw, 2.5rem);
+  --text-h2: clamp(1.375rem, 1.2rem + 0.8vw, 1.75rem);
+  --text-h3: 1.125rem;
+  --text-body: 1.125rem;
+  --text-small: 1rem;
+  --text-micro: 0.875rem;
+
+  --dur-instant: 100ms;
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-slow: 360ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --tap: 48px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14110e; --surface: #1d1915; --ink: #f4eee4; --muted: #b9aea0;
+    --accent: #5cc3a6; --on-accent: #0b1f1a; --warn: #f0a55a; --danger: #ff8a80;
+    --ok: #6fd39b; --line: #2b251f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14110e; --surface: #1d1915; --ink: #f4eee4; --muted: #b9aea0;
+  --accent: #5cc3a6; --on-accent: #0b1f1a; --warn: #f0a55a; --danger: #ff8a80;
+  --ok: #6fd39b; --line: #2b251f;
+}
+
+/* Palette B: Monsoon */
+:root[data-palette="monsoon"] { --bg:#f6f7fb; --ink:#171a2b; --muted:#555b75; --accent:#3b4ba6; --on-accent:#fff; --line:#e1e4f0; }
+@media (prefers-color-scheme: dark) {
+  :root[data-palette="monsoon"]:not([data-theme="light"]) { --bg:#0f1120; --surface:#171a2e; --ink:#eef0fa; --muted:#a9aec8; --accent:#9aa7ff; --on-accent:#0e1236; --line:#262a45; }
+}
+:root[data-palette="monsoon"][data-theme="dark"] { --bg:#0f1120; --surface:#171a2e; --ink:#eef0fa; --muted:#a9aec8; --accent:#9aa7ff; --on-accent:#0e1236; --line:#262a45; }
+
+/* Palette C: Kesar */
+:root[data-palette="kesar"] { --bg:#fff8f1; --ink:#2a1810; --muted:#6b5547; --accent:#b8400a; --on-accent:#fff; --line:#efdfd0; }
+@media (prefers-color-scheme: dark) {
+  :root[data-palette="kesar"]:not([data-theme="light"]) { --bg:#17100b; --surface:#211812; --ink:#fbefe6; --muted:#c4ae9f; --accent:#ff9a63; --on-accent:#2a1004; --line:#33261c; }
+}
+:root[data-palette="kesar"][data-theme="dark"] { --bg:#17100b; --surface:#211812; --ink:#fbefe6; --muted:#c4ae9f; --accent:#ff9a63; --on-accent:#2a1004; --line:#33261c; }
+
+/* Large text mode for older readers */
+html[data-text="large"] { font-size: 120%; }
+html[data-text="large"] { --tap: 56px; }
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-line: var(--line);
+  --color-tint: var(--tint);
+  --font-sans: var(--font-sans);
+}
+
+html { background: var(--bg); }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; text-wrap: balance; }
+p { text-wrap: pretty; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ---------- Components ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: var(--tap); padding: 0 1.25rem; border-radius: 999px;
+  font-weight: 600; font-size: var(--text-small);
+  border: 1.5px solid transparent; cursor: pointer;
+  transition: transform var(--dur-instant) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: var(--on-accent); min-height: 56px; padding: 0 1.75rem; }
+.btn-secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost { background: transparent; color: var(--accent); padding: 0 .5rem; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-card); padding: 1.25rem;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: .4rem; font-size: var(--text-micro);
+  font-weight: 600; padding: .25rem .7rem; border-radius: 999px;
+  background: var(--tint); color: var(--ink); border: 1px solid var(--line);
+}
+.chip[data-tone="ok"] { color: var(--ok); }
+.chip[data-tone="warn"] { color: var(--warn); }
+.chip[data-tone="danger"] { color: var(--danger); }
+.chip[data-tone="accent"] { color: var(--accent); }
+
+.input {
+  width: 100%; min-height: var(--tap); padding: .6rem .9rem;
+  background: var(--surface); color: var(--ink);
+  border: 1.5px solid var(--line); border-radius: var(--radius-control);
+  font: inherit; font-size: var(--text-small);
+}
+label.field { display: grid; gap: .35rem; font-size: var(--text-small); font-weight: 600; }
+
+.skeleton { position: relative; overflow: hidden; background: var(--line); border-radius: 10px; }
+.skeleton::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 70%, transparent), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Cross-document view transitions on the marketing site (progressive enhancement) */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-base); animation-timing-function: var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .btn:active { transform: none; }
+  .skeleton::after { animation: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}

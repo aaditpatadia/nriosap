@@ -1,0 +1,16 @@
+import { SiteHeader } from "@/components/SiteHeader";
+import { OnboardingForm } from "@/components/OnboardingForm";
+
+export const metadata = { title: "Get started" };
+
+export default function Onboarding() {
+  return (
+    <>
+      <SiteHeader />
+      <main id="main" className="mx-auto grid w-full max-w-xl gap-6 px-4 pb-24 pt-4">
+        <h1 className="text-[length:var(--text-h1)] font-bold">Let us meet your parent</h1>
+        <OnboardingForm />
+      </main>
+    </>
+  );
+}
