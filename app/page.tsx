@@ -15,9 +15,9 @@ import { WorryPicker } from "@/components/WorryPicker";
 import { backendReady } from "@/lib/backend";
 
 const PLANS = [
-  { name: "Lite", price: 40, blurb: "Records vault, renewals, monthly report, up to 3 tasks a month.", note: "For parents who are independent." },
-  { name: "Family", price: 79, blurb: "Everything in Lite plus claims help, bills and errands, WhatsApp check-ins every week.", note: "A good place to start.", featured: true },
-  { name: "Plus", price: 119, blurb: "Everything in Family plus priority response, in-person visits and hospital desk support.", note: "For parents who need more hands-on help." },
+  { name: "Lite", price: 40, blurb: "Records vault, renewals, monthly report, up to 3 tasks a month.", note: "For a few things a month." },
+  { name: "Family", price: 79, blurb: "Everything in Lite plus bills, errands, property and paper chasing, claims help and weekly WhatsApp updates.", note: "A good place to start.", featured: true },
+  { name: "Plus", price: 119, blurb: "Everything in Family plus priority response, in-person visits and hospital desk support.", note: "When you need someone on the ground." },
 ];
 
 const COMPARE: [string, boolean, boolean, boolean][] = [
@@ -27,37 +27,40 @@ const COMPARE: [string, boolean, boolean, boolean][] = [
   ["A named coordinator", true, true, true],
   ["Health insurance claims help", false, true, true],
   ["Bills and errands, with your approval", false, true, true],
-  ["Weekly WhatsApp check-in", false, true, true],
+  ["Weekly WhatsApp update", false, true, true],
   ["In-person visits", false, false, true],
   ["Hospital desk support", false, false, true],
   ["Priority response", false, false, true],
 ];
 
 const STEPS = [
-  ["You tell us who to look after", "Add your parent, their language and what worries you. A coordinator calls them to confirm consent in their own words."],
+  ["You tell us what you need", "Say it in your own words, from wherever you live. If someone else is involved, a coordinator calls them first to confirm consent."],
   ["The desk prepares, a person checks", "An assistant reads documents and tracks deadlines. Your coordinator checks everything before it moves."],
-  ["You approve, we do", "Payments and filings wait for your yes. Your parent just chats on WhatsApp, in Hindi, Gujarati, Marathi or English."],
+  ["You approve, we do", "Payments and filings wait for your yes. Anyone involved just chats on WhatsApp, in Hindi, Gujarati, Marathi or English."],
 ];
 
 const WONT = [
   "We do not give medical, legal or tax advice. Doctors, CAs and advocates do, and we say who.",
   "We never pay or file anything without your approval.",
-  "We do not hold your money or your parents' money.",
+  "We do not hold your money or your family's money.",
   "We are not an insurer, a broker, a bank or a hospital. We do not sell policies.",
   "We do not take a cut of any claim.",
-  "We do not start until your parent has agreed, in their own words, on a call.",
+  "If someone else is involved, we do not start until they agree, in their own words, on a call.",
 ];
 
 const FAQ = [
-  ["Does my parent need an app?", "No. They use WhatsApp, in Hindi, Gujarati, Marathi or English. They can send a photo or a voice note."],
+  ["What can you actually get done?", "If it is legal and a person can do it in India, ask. Property work, government papers, bills, repairs, looking after family. If we cannot do something, we say so plainly."],
+  ["Does my family need an app?", "No. Anyone involved can use WhatsApp, in Hindi, Gujarati, Marathi or English. They can send a photo or a voice note."],
+  ["Can I send money home through Ally?", "Not yet. Moving money across borders needs a licensed partner, and we are not one. Today we can arrange a payment in India, and a person completes it only after you approve."],
+  ["Is this only for India?", "India comes first. We plan to add other countries once this works well here."],
   ["Who actually does the work?", "A named coordinator in India. An AI assistant reads documents and tracks dates. A person checks anything it is unsure of, and everything that leaves the desk."],
   ["Will you tell me what to do about a diagnosis, a dispute or my taxes?", "No. We prepare the papers and hand them to a licensed doctor, advocate or CA. What they say is theirs, and we label it that way."],
   ["How are bills paid?", "Today a person completes each payment only after you approve it, and you get 5 minutes to change your mind. We do not hold money."],
   ["Who can see our documents?", "You and your coordinator. Every time someone opens one, it goes in an access log you can read."],
-  ["Can I leave?", "Any time. No lock-in. You can download everything, or delete it all, yourself. Your parent can stop by sending STOP on WhatsApp."],
+  ["Can I leave?", "Any time. No lock-in. You can download everything, or delete it all, yourself. Anyone involved can stop by sending STOP on WhatsApp."],
 ];
 
-const TICKER = ["Electricity bills", "Health insurance claims", "Policy renewals", "Hospital papers", "Property tax receipts", "Repair visits", "Voice notes in Gujarati", "Pharmacy runs", "Monthly reports", "Gas connections"];
+const TICKER = ["Property tax", "PAN and Aadhaar updates", "Certified copies", "Electricity bills", "Rent receipts", "Repair visits", "Insurance claims", "Visits to parents", "Hospital papers", "Monthly reports", "Gifts delivered"];
 
 function Tick({ on, plan, row }: { on: boolean; plan: string; row: string }) {
   return <span aria-label={`${plan}: ${row}: ${on ? "included" : "not included"}`} className={on ? "font-semibold text-ok" : "text-muted"}>{on ? "Yes" : "No"}</span>;
@@ -80,9 +83,9 @@ export default function Home() {
         <section className="band wrap relative grid gap-10 overflow-hidden py-12 md:grid-cols-[1.15fr_1fr] md:items-center md:gap-14 lg:min-h-[calc(100vh-74px)]">
           <span aria-hidden className="aurora" />
           <div className="relative">
-            <p className="chip rise" data-tone="accent">For families spread across countries</p>
-            <h1 className="mt-5 text-[length:var(--text-display)] font-extrabold"><Kinetic text="Mum and Dad are in India. You do not have to be." start={80} /></h1>
-            <p className="rise mt-5 max-w-2xl text-muted">A named person and a careful assistant look after your parents&apos; paperwork, health insurance claims, bills and errands. You see everything. You approve everything.</p>
+            <p className="chip rise" data-tone="accent">For anyone earning abroad</p>
+            <h1 className="mt-5 text-[length:var(--text-display)] font-extrabold"><Kinetic text="Anything you need done in India, done." start={80} /></h1>
+            <p className="rise mt-5 max-w-2xl text-muted">Property, government papers, bills, repairs, looking after your family. Tell a named person what you need, from wherever you live. You see everything. You approve everything.</p>
             <div className="rise mt-7 flex flex-wrap gap-3">
               <Link href="/demo" className="btn btn-primary">Try the live demo <IconArrow className="arrow" /></Link>
               <a href="#waitlist" className="btn btn-secondary">Join the waitlist</a>
@@ -102,7 +105,7 @@ export default function Home() {
 
         <section aria-labelledby="worry" className="wrap grid gap-8 py-16 lg:py-24">
           <div className="grid gap-2">
-            <h2 id="worry" className="text-[length:var(--text-display)] font-extrabold">What is on your mind tonight?</h2>
+            <h2 id="worry" className="text-[length:var(--text-display)] font-extrabold">What do you need done?</h2>
             <p className="max-w-2xl text-muted">Pick one. See who does what, and where you stay in charge.</p>
           </div>
           <WorryPicker />
@@ -167,7 +170,7 @@ export default function Home() {
             <section aria-labelledby="founder" className="card grid gap-2">
               <h3 id="founder" className="text-[length:var(--text-h3)] font-semibold">A note from the founder</h3>
               <p>I am Aadit, and I live in Mumbai. Ally is a working name for something I am testing with a small number of families.</p>
-              <p>Can a named person and a careful assistant take the paperwork off a family&apos;s shoulders, and how many hours does that really take? I am doing the first families myself and logging every minute.</p>
+              <p>Can a named person and a careful assistant get things done back home for people living abroad, and how many hours does that really take? I am doing the first requests myself and logging every minute.</p>
               <p className="text-muted">Some things are not finished. Legal review of claims help and payments is still to be done, and prices may change. I will tell you plainly when something changes.</p>
             </section>
           </div>
@@ -185,7 +188,7 @@ export default function Home() {
           <span aria-hidden className="aurora" />
           <div className="relative">
             <h2 id="join" className="text-[length:var(--text-display)] font-extrabold">Join the waitlist</h2>
-            <p className="mt-3 text-muted">We are starting with a small number of families. Tell us about yours.</p>
+            <p className="mt-3 text-muted">We are starting with a small number of people. Tell us what you need done.</p>
             <ThreadArc className="mt-8 max-w-xl" />
           </div>
           <div className="relative">

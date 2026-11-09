@@ -1,5 +1,7 @@
 import "server-only";
 import { WORDING_VERSION } from "./consent";
+import type { RequestCategory } from "./requests";
+import { asksForAdvice, looksLikeAdvice } from "./rules";
 import { asService, isUuid, rows, tx, type Tx } from "./db";
 import { supabaseAdmin } from "./supabase";
 import type { Language } from "./types";
@@ -18,6 +20,9 @@ export interface NewFamily {
   /** Purposes the owner has already agreed to. Empty when the desk starts the onboarding for them. */
   ownerPurposes: Purpose[];
   actorId: string;
+  /** The customer is the contact person. Nobody else is involved, so no consent call is needed. */
+  forSelf?: boolean;
+  request?: { category: RequestCategory; text: string };
 }
 
 async function leastBusyCoordinator(t: Tx): Promise<string | null> {
@@ -31,19 +36,34 @@ export async function createFamily(n: NewFamily): Promise<{ ok: true; familyId: 
       tx(async (t) => {
         const coordinator = n.coordinatorId ?? (await leastBusyCoordinator(t));
         const surname = n.parentName.trim().split(/\s+/).at(-1);
+        const self = !!n.forSelf;
         const f = await t.one<Row>("insert into families(owner_id, coordinator_id, name, plan_usd, status) values ($1,$2,$3,$4,'onboarding') returning id", [n.ownerId, coordinator, `${surname} family`, n.planUsd]);
-        const p = await t.one<Row>("insert into parents(family_id, name, phone, language, city, consent_status) values ($1,$2,$3,$4,$5,'pending') returning id", [f!.id, n.parentName.trim(), n.phone, n.language, n.city.trim()]);
+        const p = await t.one<Row>("insert into parents(family_id, name, phone, language, city, consent_status, is_self) values ($1,$2,$3,$4,$5,$6,$7) returning id", [f!.id, n.parentName.trim(), n.phone, n.language, n.city.trim(), self ? "granted" : "pending", self]);
         for (const purpose of PURPOSES) {
-          await t.run("insert into consents(parent_id, subject, purpose, granted_at, wording_version, language) values ($1,'parent',$2,null,$3,$4)", [p!.id, purpose, WORDING_VERSION, n.language]);
           const given = n.ownerPurposes.includes(purpose);
+          // When it is the customer's own work, their consent here is the consent of the person involved.
+          const selfGiven = self && given;
+          await t.run("insert into consents(parent_id, subject, purpose, granted_at, confirmed_by, confirmed_at, confirm_method, wording_version, language) values ($1,'parent',$2,$3,$4,$5,$6,$7,$8)", [p!.id, purpose, selfGiven ? new Date() : null, selfGiven ? n.ownerId : null, selfGiven ? new Date() : null, selfGiven ? "owner_web" : null, WORDING_VERSION, n.language]);
           await t.run("insert into consents(parent_id, subject, purpose, granted_at, confirmed_by, confirmed_at, confirm_method, wording_version) values ($1,'owner',$2,$3,$4,$5,$6,$7)", [p!.id, purpose, given ? new Date() : null, given ? n.ownerId : null, given ? new Date() : null, given ? "owner_web" : null, WORDING_VERSION]);
         }
-        await t.run(
-          `insert into tasks(family_id, kind, title, status, owner_id, due_at, sla_at, hour_budget, needs_approval, checklist)
-           values ($1,'checkin',$2,'todo',$3, now() + interval '2 days', now() + interval '2 days', 0.5, false, $4)`,
-          [f!.id, `Consent call: ${n.parentName.trim()}`, coordinator, ["Call in the parent's language", "Read each purpose aloud", "Record only what they agree to"]],
-        );
-        await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'system','system','Desk',$2)", [f!.id, `Welcome. A coordinator will call ${n.parentName.trim()} in ${n.language} to confirm consent before anything starts.`]);
+        if (!self) {
+          await t.run(
+            `insert into tasks(family_id, kind, title, status, owner_id, due_at, sla_at, hour_budget, needs_approval, checklist)
+             values ($1,'checkin',$2,'todo',$3, now() + interval '2 days', now() + interval '2 days', 0.5, false, $4)`,
+            [f!.id, `Consent call: ${n.parentName.trim()}`, coordinator, ["Call in their language", "Read each purpose aloud", "Record only what they agree to"]],
+          );
+        }
+        if (n.request) {
+          const checklist = ["Confirm exactly what is needed", "Say plainly if this cannot be done", "Get approval before any cost or filing"];
+          if (looksLikeAdvice(n.request.text) || asksForAdvice(n.request.text)) checklist.unshift("This may need a licensed professional. Do not advise. Send it to one.");
+          const task = await t.one<Row>(
+            `insert into tasks(family_id, kind, title, status, owner_id, due_at, sla_at, hour_budget, needs_approval, checklist)
+             values ($1,'errand',$2,'todo',$3, now() + interval '1 day', now() + interval '1 day', 1, false, $4) returning id`,
+            [f!.id, `${n.request.category}: ${n.request.text.slice(0, 120)}`, coordinator, checklist],
+          );
+          await t.run("insert into task_notes(task_id, family_id, author_id, body) values ($1,$2,$3,$4)", [task!.id, f!.id, n.ownerId, n.request.text]);
+        }
+        await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'system','system','Desk',$2)", [f!.id, self ? "Welcome. Your request is with the desk. A coordinator will write to you." : `Welcome. A coordinator will call ${n.parentName.trim()} in ${n.language} to confirm consent before anything starts.`]);
         await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'family_onboarded','family',$2,$3)", [n.actorId, f!.id, f!.id]);
         return f!.id as string;
       }),

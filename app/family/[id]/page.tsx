@@ -32,7 +32,7 @@ export default async function Overview({ params }: { params: Promise<{ id: strin
       <section aria-labelledby="status" className="grid content-start gap-4">
         <div>
           <h1 id="status" className="flex items-center gap-3 text-[length:var(--text-h1)] font-bold"><span aria-hidden className="orb" data-tone={needs === 0 ? "ok" : "warn"} />{headline}</h1>
-          <p className="mt-1 text-muted">for {fam.parent.name} in {fam.parent.city}</p>
+          <p className="mt-1 text-muted">{fam.parent.isSelf ? `Your work in ${fam.parent.city}` : `for ${fam.parent.name} in ${fam.parent.city}`}</p>
         </div>
         {ownerPending && <OwnerConsentForm familyId={id} items={PURPOSES.map((p) => ({ purpose: p, text: OWNER_CONSENT_TEXT[p] }))} />}
         {pending.length > 0 && (
@@ -51,13 +51,13 @@ export default async function Overview({ params }: { params: Promise<{ id: strin
         <h2 className="mt-2 text-[length:var(--text-h2)] font-bold">What is happening</h2>
         <Timeline events={events} />
       </section>
-      <aside className="grid content-start gap-4" aria-label="Parent">
+      <aside className="grid content-start gap-4" aria-label="Who this is for">
         <IndiaClock city={fam.parent.city} />
         <div className="card grid gap-1">
-          <p className="text-[length:var(--text-h3)] font-semibold">{fam.parent.name}</p>
-          <p className="text-muted">{fam.parent.city} · speaks {fam.parent.language}</p>
-          <span className="chip mt-2 w-fit" data-tone={c.tone}>{c.label}</span>
-          <p className="mt-2 text-[length:var(--text-small)] text-muted">Your parent only uses WhatsApp. No app, no login.</p>
+          <p className="text-[length:var(--text-h3)] font-semibold">{fam.parent.isSelf ? "Where we are working" : fam.parent.name}</p>
+          <p className="text-muted">{fam.parent.city}{fam.parent.isSelf ? "" : ` · speaks ${fam.parent.language}`}</p>
+          {!fam.parent.isSelf && <span className="chip mt-2 w-fit" data-tone={c.tone}>{c.label}</span>}
+          <p className="mt-2 text-[length:var(--text-small)] text-muted">{fam.parent.isSelf ? "Message your coordinator on WhatsApp any time." : "They only use WhatsApp. No app, no login."}</p>
           {isDemoMode() && <Link className="btn btn-secondary mt-2" href={`/chat/${id}`}>See their WhatsApp view</Link>}
         </div>
         <div className="card text-[length:var(--text-small)] text-muted">

@@ -89,7 +89,7 @@ describe("secrets", () => {
     expect(read(".gitignore")).toMatch(/^\.env\*\.local$/m);
   });
   it("no file in the repository holds a live credential", () => {
-    const pattern = /sk-ant-[\w-]{10,}|sk_live_\w{10,}|GOCSPX-[\w-]{10,}|AIza[\w-]{30,}|ghp_\w{30,}|github_pat_\w{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|postgres(ql)?:\/\/[^:@/\s]+:[^@/\s$]{6,}@(?!127\.0\.0\.1|localhost)/;
+    const pattern = /sk-ant-[\w-]{10,}|sk_live_\w{10,}|GOCSPX-[\w-]{10,}|AIza[\w-]{30,}|ghp_\w{30,}|github_pat_\w{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|postgres(ql)?:\/\/[^:@/\s]+:[^@/\s$[]{6,}@(?!127\.0\.0\.1|localhost)/;
     expect(textFiles.filter((f) => pattern.test(read(f)))).toEqual([]);
   });
   it("server-only modules that touch keys are marked so they cannot reach the browser", () => {
@@ -98,6 +98,9 @@ describe("secrets", () => {
 });
 
 describe("injection", () => {
+  it("no source file holds stray control characters", () => {
+    expect(source.filter((f) => /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(read(f)))).toEqual([]);
+  });
   it("no component writes raw HTML", () => {
     expect(source.filter((f) => /dangerouslySetInnerHTML|\.innerHTML\s*=|new Function\(|\beval\(/.test(read(f)))).toEqual([]);
   });

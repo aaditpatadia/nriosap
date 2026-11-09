@@ -56,6 +56,10 @@ const ADVICE_PATTERNS: RegExp[] = [
   /\byou (will|would) (win|lose) (the|this|your) case\b/i,
   /\b(no|not) (need to|required to) (pay|file) (any )?tax\b/i,
   /\byou should\b.*\b(sue|surgery|operation|treatment|medicine|tax return|court|lawyer's|deduct)/i,
+  /\byou should (sell|buy|invest|hold)\b/i,
+  /\b(i|we) (recommend|advise) (you )?(to )?(invest|hold)\b/i,
+  /\b(good|bad) investment\b/i,
+  /\b(capital gains|stamp duty|tds)\b.*\b(no need|not (need|required|payable)|exempt|avoid)\b/i,
   // Hindi and Hinglish
   /दवा (ले|लेनी|बंद|मत)|इलाज (करवा|कराना)|केस (जीत|हार)|टैक्स (नहीं|मत) (देना|भरना)/,
   /\b(dawa|dawai|goli) (le lo|lena|band|mat)\b/i,
@@ -67,6 +71,22 @@ const ADVICE_PATTERNS: RegExp[] = [
 
 export function looksLikeAdvice(text: string): boolean {
   return ADVICE_PATTERNS.some((p) => p.test(text));
+}
+
+const ASKS_FOR_ADVICE: RegExp[] = [
+  /\bshould (i|we)\b/i,
+  /\b(is|are) (it|this|that) (legal|illegal|taxable|safe)\b/i,
+  /\bhow much (tax|stamp duty|capital gains)\b/i,
+  /\b(what|which) (tax|medicine|treatment|dose)\b/i,
+  /\b(can|could) (i|we) (sue|avoid|save (on )?tax)\b/i,
+  /\b(will|would) (i|we) (win|lose)\b/i,
+  /\bwhat (are|is) my (legal )?(rights?|options?)\b/i,
+  /\b(salah|sujhav)\b/i,
+];
+
+/** A person asking for a judgement. The desk may still help with the work, but a licensed professional must answer. */
+export function asksForAdvice(text: string): boolean {
+  return ASKS_FOR_ADVICE.some((p) => p.test(text));
 }
 
 const EMERGENCY = [

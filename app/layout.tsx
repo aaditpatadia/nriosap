@@ -4,9 +4,9 @@ import { sans } from "./fonts";
 import { MotionProvider } from "@/components/MotionProvider";
 
 export const metadata: Metadata = {
-  title: { default: "Ally: your family's India desk", template: "%s | Ally" },
+  title: { default: "Ally: get anything done in India", template: "%s | Ally" },
   description:
-    "A named person and a careful assistant look after your parents' paperwork, health insurance claims, bills and errands in India. You see everything. You approve everything.",
+    "Living abroad? A named person in India gets it done: property, government papers, bills, repairs and looking after your family. You see everything. You approve everything.",
 };
 
 export const viewport: Viewport = {

@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 import { createHmac } from "node:crypto";
 import Stripe from "stripe";
 import { localEnv } from "../scripts/local/env.mjs";
-import { DEMO, FAM, magicLink, signInOwner, signInStaff } from "./helpers";
+import { DEMO, FAM, magicLink, signInOwner, signInStaff, describeRequest } from "./helpers";
 
 const env = localEnv();
 
@@ -76,8 +76,10 @@ test("parent sends STOP on WhatsApp: consent ends at once and uploads stop", asy
 test("owner deletes a family: rows, files and account are gone, the audit trail stays", async ({ page }) => {
   const email = `to-delete-${Date.now()}@${DEMO}`;
   await magicLink(page, email);
-  await page.getByLabel("Parent's name").fill("Delia Gone");
-  await page.getByLabel("Parent's WhatsApp number").fill(`+9196${String(Date.now()).slice(-8)}`);
+  await describeRequest(page);
+  await page.getByRole("radio", { name: "Someone back home" }).check();
+  await page.getByLabel("Their name").fill("Delia Gone");
+  await page.getByLabel("Their WhatsApp number").fill(`+9196${String(Date.now()).slice(-8)}`);
   await page.getByLabel("City in India").fill("Goa");
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Continue" }).click();

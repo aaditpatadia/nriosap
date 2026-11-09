@@ -1,5 +1,10 @@
 # Changelog
 
+## Anything done back home
+- The site now speaks to anyone earning abroad who needs something done in India, not only people with parents to look after.
+- Sign-up starts from the request. A customer can ask for their own work, with no parent and no consent call. Migration 010.
+- Each request becomes a task for the desk. Requests that ask for advice are flagged for a licensed professional.
+
 ## Security and motion pass
 - Session cookies are now HttpOnly, Secure and SameSite=Lax.
 - Sign-in limits per mailbox and per account, as well as per address. Google and link sign-in are limited too.

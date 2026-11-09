@@ -13,7 +13,7 @@ export function WaitlistForm() {
       <label className="field">Where do you live now?
         <input className="input" name="country" required placeholder="Canada, UAE, UK, USA, Singapore..." autoComplete="country-name" />
       </label>
-      <label className="field">What worries you most about your parents&apos; paperwork? (optional)
+      <label className="field">What do you need done in India? (optional)
         <textarea className="input" name="note" rows={3} maxLength={400} />
       </label>
       <button className="btn btn-primary" disabled={pending}>{pending ? "Sending..." : "Join the waitlist"}</button>

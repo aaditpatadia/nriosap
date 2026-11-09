@@ -27,8 +27,8 @@ export default async function Privacy({ params }: { params: Promise<{ id: string
             <li key={c.id}>{c.subject === "parent" ? fam.parent.name : "You"}: {PURPOSE_LABEL[c.purpose]}. <span className="text-muted">{c.withdrawnAt ? `Withdrawn ${fmtDate(c.withdrawnAt)}` : c.grantedAt ? `Given ${fmtDate(c.grantedAt)}` : "Not given"}</span></li>
           ))}
         </ul>
-        {fam.parent.consentStatus !== "withdrawn" && (owner || isStaff(viewer)) && <WithdrawParentButton familyId={id} parentName={fam.parent.name} />}
-        <p className="text-[length:var(--text-small)] text-muted">Your parent can also withdraw at any time by sending STOP on WhatsApp.</p>
+        {fam.parent.consentStatus !== "withdrawn" && (owner || isStaff(viewer)) && <WithdrawParentButton familyId={id} parentName={fam.parent.name} self={fam.parent.isSelf} />}
+        <p className="text-[length:var(--text-small)] text-muted">{fam.parent.isSelf ? "You" : fam.parent.name} can also withdraw at any time by sending STOP on WhatsApp.</p>
       </div>
 
       {owner && (

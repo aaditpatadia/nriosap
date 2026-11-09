@@ -14,7 +14,7 @@ const SECTIONS: Section[] = [
     title: "What we collect about you",
     points: [
       "Your name and email address, so you can sign in.",
-      "Your parents' names, phone numbers and preferred language.",
+      "Your WhatsApp number, and the name, phone number and preferred language of anyone you ask us to help.",
       "The approvals you give or refuse, and your choices about consent.",
       "Your plan and billing status.",
       "If you join the waitlist: your email, your country and any note you add.",
@@ -23,16 +23,16 @@ const SECTIONS: Section[] = [
   {
     title: "What we collect to do the work",
     points: [
-      "Documents you or your parents share, such as bills, insurance policies and hospital papers. Some of these hold health details.",
+      "Documents you or your family share, such as property papers, IDs, bills, insurance policies and hospital papers. Some of these hold health details.",
       "Policy numbers, dates and amounts read from those documents.",
-      "WhatsApp messages, photos, files and voice notes your parents send the desk.",
-      "Tasks, claims and the time our coordinators spend on your family.",
+      "WhatsApp messages, photos, files and voice notes sent to the desk, and what you ask us to do.",
+      "Tasks, claims and the time our coordinators spend on your requests.",
     ],
   },
   {
     title: "Why we use it",
     points: [
-      "To run errands, track bills and renewals, and prepare claims and forms.",
+      "To do what you ask: run errands, track bills and renewals, and prepare claims and forms.",
       "To show you what was done and how many hours it took.",
       "To ask for your approval before any money goes out or anything is filed.",
       "To keep the service safe and to fix faults.",
@@ -47,8 +47,8 @@ const SECTIONS: Section[] = [
     title: "Consent",
     points: [
       "We ask for each purpose separately, and for each document.",
-      "A coordinator calls your parent in their own language before work starts.",
-      "A parent can stop at any time by sending STOP on WhatsApp. Work for that parent stops and your coordinator confirms it with the family.",
+      "If someone else is involved, a coordinator calls them in their own language before work starts.",
+      "Anyone involved can stop at any time by sending STOP on WhatsApp. Work for them stops and your coordinator confirms it with you.",
     ],
   },
   {
@@ -95,7 +95,7 @@ const PROVIDERS: [string, string][] = [
   ["Google", "Sign-in, if you choose it"],
   ["Anthropic", "AI that reads documents to pull out dates and amounts"],
   ["Sarvam", "Turns voice notes into text"],
-  ["Meta (WhatsApp)", "Carries messages to and from your parents"],
+  ["Meta (WhatsApp)", "Carries messages to and from the desk"],
   ["Stripe", "Subscription billing. We never hold your card number"],
   ["Sentry", "Error reports, with personal details removed"],
   ["Inngest", "Runs timed background jobs"],
@@ -106,7 +106,7 @@ export default function Privacy() {
     <>
       <SiteHeader />
       <main id="main">
-        <PageHero title="Privacy policy" lead={<p>What we hold about your family, why we hold it, and how you stay in charge of it. Last updated {UPDATED}.</p>} />
+        <PageHero title="Privacy policy" lead={<p>What we hold about you and your family, why we hold it, and how you stay in charge of it. Last updated {UPDATED}.</p>} />
         <div className="wrap grid gap-6 pb-24 pt-8">
         <section className="card grid gap-1 border-warn" aria-labelledby="draft-notice">
           <h2 id="draft-notice" className="text-[length:var(--text-h3)] font-semibold text-warn">This is a draft</h2>

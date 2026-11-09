@@ -10,9 +10,9 @@ const ITEMS: [string, string][] = [
   ["Who can see your documents", "You and the coordinator assigned to your family. The founder can see them when checking the work. Nobody else."],
   ["Every look is written down", "Each time someone opens a document or a policy, it goes in an access log you can read on your Privacy page."],
   ["Policy numbers are locked", "Policy numbers and details read from documents are encrypted before they are stored, with a separate key for each family. Files sit in private storage and open through links that expire in 60 seconds."],
-  ["Consent comes first, and piece by piece", "We ask for each purpose separately, and for each document. A coordinator calls your parent in their own language before anything starts."],
+  ["Consent comes first, and piece by piece", "We ask for each purpose separately, and for each document. If someone else is involved, a coordinator calls them in their own language before anything starts."],
   ["An AI service reads the documents", "We send files to an AI provider to pull out key facts such as dates and amounts. It gives a confidence score for each one. Anything under 90% is checked by a person. AI never pays, files or sends anything by itself."],
-  ["You can leave with everything", "Download your family's data yourself, as a file or a ZIP. Delete it yourself. Your parent can stop by sending STOP on WhatsApp, and we stop at once."],
+  ["You can leave with everything", "Download your family's data yourself, as a file or a ZIP. Delete it yourself. Anyone involved can stop by sending STOP on WhatsApp, and we stop at once."],
 ];
 
 export default function Trust() {
@@ -20,7 +20,7 @@ export default function Trust() {
     <>
       <SiteHeader />
       <main id="main">
-        <PageHero title="How we look after your family" lead={<p>Short and plain. If something here is not good enough for your family, please tell us. The full detail is in our <Link className="underline" href="/privacy">privacy policy</Link>.</p>} />
+        <PageHero title="How we look after your data" lead={<p>Short and plain. If something here is not good enough for your family, please tell us. The full detail is in our <Link className="underline" href="/privacy">privacy policy</Link>.</p>} />
         <div className="wrap grid gap-6 pb-24 pt-8">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {ITEMS.map(([t, d], i) => (

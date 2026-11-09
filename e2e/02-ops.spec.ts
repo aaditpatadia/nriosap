@@ -20,8 +20,8 @@ test("timer survives a refresh, then hours and margin update", async ({ page }) 
   expect(clock).not.toBe("00:00");
 
   await page.goto("/ops");
-  await expect(page.getByText("Timer running:")).toBeVisible();
-  await page.getByText("Timer running:").click();
+  await expect(page.getByText("Timer running:").filter({ visible: true })).toBeVisible();
+  await page.getByText("Timer running:").filter({ visible: true }).click();
   await page.getByLabel("What are you doing?").fill("Compared renewal quotes");
   await page.getByRole("button", { name: "Stop and log" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Logged 1 min" })).toBeVisible();

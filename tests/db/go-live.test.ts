@@ -10,7 +10,7 @@ const good = {
   NEXT_PUBLIC_SUPABASE_URL: "https://abc123.supabase.co",
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_publishable_x",
   SUPABASE_SERVICE_ROLE_KEY: "sb_secret_y",
-  DATABASE_URL: "postgresql://postgres.abc:pw12345@aws-0.pooler.supabase.com:6543/postgres",
+  DATABASE_URL: "postgresql://postgres.abc:pw1@aws-0.pooler.supabase.com:6543/postgres",
   ADMIN_EMAIL: "you@example.test",
   APP_ENCRYPTION_KEY: "k".repeat(44),
 };
@@ -37,8 +37,8 @@ describe("go-live database steps", () => {
   it("applies every migration to an empty database", async () => {
     const applied = await applyMigrations(fresh);
     expect(applied[0]).toBe("001_init.sql");
-    expect(applied.at(-1)).toBe("009_security_alerts.sql");
-    expect(applied).toHaveLength(9);
+    expect(applied.at(-1)).toBe("010_requests_for_self.sql");
+    expect(applied).toHaveLength(10);
   });
 
   it("does nothing the second time", async () => {

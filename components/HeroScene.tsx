@@ -7,14 +7,14 @@ import { ease, spring } from "@/lib/motion";
 import { useMotionPaused } from "@/lib/motion-pref";
 
 const STORIES = [
-  { tab: "Bill", title: "An electricity bill", rows: ["Bijli ka bill aaya hai. Photo bhej rahi hoon.", "Read the bill: Rs 4,200, due in 6 days.", "Meera checked the consumer number.", "Pay electricity bill: Rs 4,200?"], done: "Paid after your yes. Receipt saved." },
-  { tab: "Claim", title: "A hospital claim", rows: ["Discharge papers mil gaye hain.", "Sorted 6 papers. 1 is missing.", "Meera asked the hospital for it.", "Submit the claim file to the insurer?"], done: "Filed after your yes. Tracking it now." },
-  { tab: "Renewal", title: "A policy renewal", rows: ["Yeh insurance ka kagaz aaya hai.", "Renewal date found: 30 days away.", "Meera confirmed the premium.", "Renew the policy for Rs 18,500?"], done: "Renewed after your yes. Policy saved." },
-  { tab: "Errand", title: "An errand at home", rows: ["AC theek nahi chal raha.", "Added a task with your plan's hours.", "Meera booked a repair visit.", "Book the visit for Rs 600?"], done: "Booked after your yes. Mum has been told." },
+  { tab: "Property", title: "Property tax on a flat", rows: ["Please pay the property tax on our Pune flat.", "Found the bill: Rs 18,400, due in 12 days.", "Meera checked the owner name and ward.", "Pay property tax: Rs 18,400?"], done: "Paid after your yes. Receipt saved." },
+  { tab: "Papers", title: "A certified copy", rows: ["I need a certified copy of my degree.", "Listed what the university asks for.", "Meera booked the counter visit.", "Approve the Rs 850 fee?"], done: "Collected after your yes. Scan saved." },
+  { tab: "Parents", title: "An electricity bill", rows: ["Bijli ka bill aaya hai. Photo bhej rahi hoon.", "Read the bill: Rs 4,200, due in 6 days.", "Meera checked the consumer number.", "Pay electricity bill: Rs 4,200?"], done: "Paid after your yes. Mum has been told." },
+  { tab: "Repairs", title: "A leak at home", rows: ["The flat has a leak. The tenant sent a video.", "Added a task with your plan's hours.", "Meera booked a plumber visit.", "Book the visit for Rs 600?"], done: "Booked after your yes. Fixed and photographed." },
 ];
 
 const WHO = [
-  { name: "Your parent, on WhatsApp", Icon: IconMessage },
+  { name: "Asked on WhatsApp", Icon: IconMessage },
   { name: "The assistant prepares", Icon: IconSpark },
   { name: "Your coordinator checks", Icon: IconPerson },
   { name: "Only you decide", Icon: IconCheck },

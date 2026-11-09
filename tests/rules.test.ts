@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { breakEvenHours, canAiActAlone, canUndo, hourBudget, hoursFor, isEmergency, isPastSla, looksLikeAdvice, marginPct, overHourBudget, requiresOwnerApproval, undoUntil } from "@/lib/rules";
+import { breakEvenHours, canAiActAlone, asksForAdvice, canUndo, hourBudget, hoursFor, isEmergency, isPastSla, looksLikeAdvice, marginPct, overHourBudget, requiresOwnerApproval, undoUntil } from "@/lib/rules";
 import { decryptField, encryptField, maskTail } from "@/lib/crypto";
 import { createHmac } from "node:crypto";
 import { parseInbound, verifySignature } from "@/lib/whatsapp";
@@ -109,5 +109,14 @@ describe("whatsapp webhook", () => {
   });
   it("parses text messages", () => {
     expect(parseInbound(JSON.parse(body))).toEqual([{ from: "919800000001", id: "wamid.1", text: "namaste" }]);
+  });
+});
+
+describe("wider advice filter", () => {
+  it.each(["You should sell the flat now", "We recommend you invest in this plot", "This is a good investment", "Capital gains is exempt here, so no need to worry"])("blocks: %s", (s) => expect(looksLikeAdvice(s)).toBe(true));
+  it.each(["Should I sell my flat?", "How much tax do I owe on the rent?", "Is this legal?", "Will we win the case?", "What are my rights as the owner?", "Koi salah dijiye"])("notices a request for advice: %s", (s) => expect(asksForAdvice(s)).toBe(true));
+  it.each(["Pay the property tax on our flat", "Get a certified copy of my degree", "Book a plumber for Tuesday"])("leaves ordinary work alone: %s", (s) => {
+    expect(asksForAdvice(s)).toBe(false);
+    expect(looksLikeAdvice(s)).toBe(false);
   });
 });

@@ -47,7 +47,7 @@ On `/signin`, use the **Try the demo** buttons to open as an owner, a coordinato
 ## Deploy to Vercel and Supabase
 
 1. Create a Supabase project. Choose the Mumbai region if available.
-2. Apply `supabase/migrations/001` to `009` in order, in the SQL editor or with `supabase db push`. Never apply `supabase/local/`.
+2. Apply `supabase/migrations/001` to `010` in order, in the SQL editor or with `supabase db push`. Never apply `supabase/local/`.
 3. In Supabase Auth, turn on email. Set the Site URL to your domain and add `https://YOUR-DOMAIN/auth/callback` to the redirect URLs.
 4. Copy `.env.example` to `.env.local` and fill it in. Use the transaction pooler string (port 6543) for `DATABASE_URL`.
 5. Create the private bucket:

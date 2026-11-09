@@ -15,6 +15,8 @@ export interface Parent extends Person {
   phone: string;
   language: Language;
   consentStatus: "granted" | "pending" | "withdrawn";
+  /** True when the customer is the contact, with no parent or relative involved. */
+  isSelf: boolean;
 }
 
 export interface Family {

@@ -6,15 +6,16 @@ import { IconCheck, IconMessage, IconPerson, IconSpark } from "./Icons";
 import { dur, ease, spring, staggerDelay } from "@/lib/motion";
 
 const WORRIES = [
-  { key: "A hospital stay", parent: "Sends a photo of the discharge papers.", ai: "Sorts the papers and lists what the insurer still needs.", person: "Chases the hospital and builds the claim file.", you: "Approve before anything is filed.", note: "The insurer decides the claim. Doctors decide care. We carry the paperwork." },
-  { key: "Bills piling up", parent: "Forwards the bill on WhatsApp.", ai: "Reads the amount and due date.", person: "Checks it and pays once you agree.", you: "Say yes, then have 5 minutes to change your mind.", note: "We never hold your money or your parents' money." },
-  { key: "A policy lapsing", parent: "Shares the policy, once.", ai: "Finds the renewal date and tracks it.", person: "Confirms the premium and reminds the family.", you: "Approve the renewal.", note: "We do not sell insurance, and we take no commission." },
-  { key: "Lost paperwork", parent: "Sends whatever they find.", ai: "Pulls out key facts, and flags what it is unsure of.", person: "Checks anything under 90% sure.", you: "See it all in one private vault.", note: "Each document needs consent. Every look is written down." },
-  { key: "Errands at home", parent: "Sends a voice note in their own language.", ai: "Turns it into a clear task.", person: "Books the visit and follows up.", you: "Approve any cost, and see the hours used.", note: "Every minute is counted against your plan." },
+  { key: "Property back home", parent: "Share the address and what needs doing.", ai: "Lists the papers, dates and dues.", person: "Visits, queues and follows up for you.", you: "Approve any cost before it is paid.", note: "Advocates and CAs give legal and tax advice. We carry the paperwork." },
+  { key: "Government papers", parent: "Send photos of what you have.", ai: "Finds what is missing and tracks deadlines.", person: "Prepares the forms and goes where a representative is allowed.", you: "Check and sign what only you can sign.", note: "Some offices need you there in person. We tell you before you spend anything." },
+  { key: "Bills piling up", parent: "Forwards the bill on WhatsApp.", ai: "Reads the amount and due date.", person: "Checks it and pays once you agree.", you: "Say yes, then have 5 minutes to change your mind.", note: "We never hold your money or your family's money." },
+  { key: "Looking after parents", parent: "They just send a WhatsApp or a voice note.", ai: "Sorts their papers and tracks renewals.", person: "Arranges visits and handles hospital paperwork.", you: "See it all, and approve every cost.", note: "Doctors decide care. We ask your parents' consent first, on a call, in their language." },
+  { key: "Repairs and errands", parent: "Send a photo or a voice note.", ai: "Turns it into a clear task.", person: "Books the visit and follows up.", you: "Approve any cost, and see the hours used.", note: "Every minute is counted against your plan." },
+  { key: "Something else", parent: "Tell us in your own words.", ai: "Works out the steps involved.", person: "Says plainly if we can do it, and what it takes.", you: "Decide whether to go ahead.", note: "If it is legal and a person can do it in India, ask." },
 ];
 
 const LANES = [
-  { field: "parent", label: "Your parent", Icon: IconMessage },
+  { field: "parent", label: "You, or your family", Icon: IconMessage },
   { field: "ai", label: "The assistant", Icon: IconSpark },
   { field: "person", label: "Your coordinator", Icon: IconPerson },
   { field: "you", label: "You", Icon: IconCheck },

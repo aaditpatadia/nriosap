@@ -6,6 +6,7 @@ import { z } from "zod";
 import { actionViewer, isDemoMode, isStaff } from "@/lib/auth";
 import { normalisePhone, PLAN_PRICES, REQUIRED_PURPOSES } from "@/lib/consent";
 import { confirmOwnerConsent, createFamily } from "@/lib/onboarding";
+import { REQUEST_CATEGORIES } from "@/lib/requests";
 import { PURPOSES, type Purpose } from "@/lib/upload-rules";
 import { actionIp } from "@/lib/action-ip";
 import { rateLimit } from "@/lib/ratelimit";
@@ -79,7 +80,10 @@ export async function parentSays(familyId: string, text: string) {
 }
 
 const onboardingBase = z.object({
-  parentName: z.string().trim().min(2).max(120),
+  category: z.enum(REQUEST_CATEGORIES),
+  request: z.string().trim().min(5).max(1000),
+  who: z.enum(["me", "someone"]),
+  parentName: z.string().trim().max(120),
   phone: z.string().min(8).max(24),
   language: z.enum(["Hindi", "Gujarati", "Marathi", "English"]),
   city: z.string().trim().min(2).max(80),
@@ -92,11 +96,14 @@ export async function recordOnboarding(_prev: unknown, form: FormData) {
   const v = await actionViewer();
   if (!v) return { ok: false as const, message: "Please sign in first." };
   if (!p.success) return { ok: false as const, message: "Please fill in every field." };
+  const forSelf = p.data.who === "me";
+  const contactName = forSelf ? (v.name.trim().length >= 2 ? v.name.trim() : "Family owner") : p.data.parentName;
+  if (contactName.length < 2) return { ok: false as const, message: "Please tell us their name." };
   const phone = normalisePhone(p.data.phone);
   if (!phone) return { ok: false as const, message: "Please enter the WhatsApp number with its country code, like +91 98000 00000." };
   const purposes = form.getAll("purpose").filter((x): x is Purpose => PURPOSES.includes(x as Purpose));
   if (!REQUIRED_PURPOSES.every((r) => purposes.includes(r))) return { ok: false as const, message: "We cannot start without consent to read and keep documents." };
-  const r = await createFamily({ ownerId: v.id, parentName: p.data.parentName, phone, language: p.data.language, city: p.data.city, planUsd: p.data.plan, ownerPurposes: [...new Set(purposes)], actorId: v.id });
+  const r = await createFamily({ ownerId: v.id, parentName: contactName, forSelf, request: { category: p.data.category, text: p.data.request }, phone, language: p.data.language, city: p.data.city, planUsd: p.data.plan, ownerPurposes: [...new Set(purposes)], actorId: v.id });
   if (!r.ok) return { ok: false as const, message: r.reason };
   redirect(`/family/${r.familyId}`);
 }

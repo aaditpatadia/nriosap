@@ -47,7 +47,7 @@ const FAMILY_SELECT = `
   select f.id, f.name, f.owner_id, f.coordinator_id, f.plan_usd, f.status, f.started_at,
          o.name as owner_name, o.city as owner_city, o.country as owner_country,
          p.id as parent_id, p.name as parent_name, p.city as parent_city, p.phone as parent_phone,
-         p.language as parent_language, p.consent_status as parent_consent
+         p.language as parent_language, p.consent_status as parent_consent, p.is_self as parent_is_self
   from families f
   left join profiles o on o.id = f.owner_id
   left join lateral (select * from parents x where x.family_id = f.id order by x.created_at limit 1) p on true`;
@@ -64,6 +64,7 @@ function toFamily(r: Row): Family {
       phone: r.parent_phone ?? "",
       language: (r.parent_language ?? "English") as Language,
       consentStatus: r.parent_consent ?? "pending",
+      isSelf: !!r.parent_is_self,
     },
     coordinatorId: r.coordinator_id,
     planUsd: Number(r.plan_usd),

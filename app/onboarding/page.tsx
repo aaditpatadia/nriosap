@@ -11,7 +11,7 @@ export default async function Onboarding() {
     <>
       <SiteHeader />
       <main id="main" className="wrap grid gap-6 pb-24 pt-4">
-        <h1 className="text-[length:var(--text-h1)] font-bold">Let us meet your parent</h1>
+        <h1 className="text-[length:var(--text-h1)] font-bold">What can we get done for you?</h1>
         <OnboardingForm />
       </main>
     </>

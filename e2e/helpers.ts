@@ -30,3 +30,10 @@ export async function magicLink(page: Page, email: string) {
 export async function signInOwner(page: Page, who: "priya" | "mihir" | "neha" | "outsider") {
   await magicLink(page, `${who}@${DEMO}`);
 }
+
+/** First step of sign-up: what the person needs done. */
+export async function describeRequest(page: Page) {
+  await page.getByRole("button", { name: "Property", exact: true }).click();
+  await page.getByLabel("What do you need done in India?").fill("Pay the property tax on our flat.");
+  await page.getByRole("button", { name: "Continue" }).click();
+}

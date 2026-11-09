@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { SAMPLES } from "./fixtures";
-import { DEMO, FAM, magicLink, signInOwner, signInStaff } from "./helpers";
+import { DEMO, describeRequest, FAM, magicLink, signInOwner, signInStaff } from "./helpers";
 
 test("approve and undo persist across a reload, and only the owner can decide", async ({ page }) => {
   await signInOwner(page, "priya");
@@ -101,8 +101,10 @@ test("full concierge path: coordinator onboards, parent consent call, policy upl
 test("owner signs up on their own and records consent per purpose", async ({ page }) => {
   await magicLink(page, `self-serve-${Date.now()}@${DEMO}`);
   await expect(page).toHaveURL(/\/onboarding/);
-  await page.getByLabel("Parent's name").fill("Sunita Selfserve");
-  await page.getByLabel("Parent's WhatsApp number").fill(`+9197${String(Date.now()).slice(-8)}`);
+  await describeRequest(page);
+  await page.getByRole("radio", { name: "Someone back home" }).check();
+  await page.getByLabel("Their name").fill("Sunita Selfserve");
+  await page.getByLabel("Their WhatsApp number").fill(`+9197${String(Date.now()).slice(-8)}`);
   await page.getByLabel("City in India").fill("Nagpur");
   await page.getByLabel(/Language/).selectOption("Marathi");
   await page.getByRole("button", { name: "Continue" }).click();
@@ -113,6 +115,36 @@ test("owner signs up on their own and records consent per purpose", async ({ pag
   await page.getByRole("button", { name: "Finish" }).click();
   await expect(page).toHaveURL(/\/family\//);
   await expect(page.getByText("Waiting for the consent call")).toBeVisible();
+});
+
+test("someone with no parent involved asks for work, and it reaches the desk", async ({ page }) => {
+  await magicLink(page, `just-me-${Date.now()}@${DEMO}`);
+  await expect(page).toHaveURL(/\/onboarding/);
+  await describeRequest(page);
+  await expect(page.getByRole("radio", { name: "Just me" })).toBeChecked();
+  await page.getByLabel("Your WhatsApp number").fill(`+1416${String(Date.now()).slice(-7)}`);
+  await page.getByLabel("City in India").fill("Pune");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("checkbox").nth(0).check();
+  await page.getByRole("checkbox").nth(1).check();
+  await page.getByRole("button", { name: "Finish" }).click();
+  await expect(page).toHaveURL(/\/family\//);
+  await expect(page.getByText("Your work in Pune").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Your request is with the desk").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Waiting for the consent call")).toHaveCount(0);
+  const staff = await page.context().browser()!.newPage({ baseURL: "http://localhost:3100" });
+  await signInStaff(staff, "admin");
+  await staff.goto("/ops");
+  await expect(staff.getByRole("link", { name: /Property: Pay the property tax/ }).filter({ visible: true }).first()).toBeVisible();
+  await staff.close();
+});
+
+test("the request must be written before moving on", async ({ page }) => {
+  await magicLink(page, `empty-${Date.now()}@${DEMO}`);
+  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+  await page.getByRole("button", { name: "Property", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
 });
 
 test("an owner cannot record their parent's consent", async ({ page }) => {

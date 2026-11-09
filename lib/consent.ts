@@ -2,14 +2,14 @@ import type { Language } from "./types";
 import type { Purpose } from "./upload-rules";
 
 /** Draft wording, not reviewed by a lawyer. Bump the version when it changes so each record shows what was read. */
-export const WORDING_VERSION = "draft-2026-11";
+export const WORDING_VERSION = "draft-2026-11-2";
 
 export const REQUIRED_PURPOSES: Purpose[] = ["read_records", "store"];
 
 export const OWNER_CONSENT_TEXT: Record<Purpose, string> = {
-  read_records: "The desk may read my parent's documents to prepare tasks. An AI service reads them first and a person checks.",
-  store: "The desk may keep my parent's documents in a private vault.",
-  share_named_third_party: "The desk may share a document with a named insurer or hospital, after asking.",
+  read_records: "The desk may read the documents I or my family share, to prepare tasks. An AI service reads them first and a person checks.",
+  store: "The desk may keep those documents in a private vault.",
+  share_named_third_party: "The desk may share a document with a named office, insurer or hospital, after asking.",
   act_on_named_task: "The desk may prepare tasks for my approval. Nothing is paid or sent without me.",
 };
 

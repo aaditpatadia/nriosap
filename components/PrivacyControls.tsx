@@ -3,13 +3,13 @@
 import { useActionState, useState, useTransition } from "react";
 import { checkoutAction, deleteFamilyAction, portalAction, withdrawParentAction } from "@/app/family/actions";
 
-export function WithdrawParentButton({ familyId, parentName }: { familyId: string; parentName: string }) {
+export function WithdrawParentButton({ familyId, parentName, self = false }: { familyId: string; parentName: string; self?: boolean }) {
   const [sure, setSure] = useState(false);
   const [pending, start] = useTransition();
-  if (!sure) return <button type="button" className="btn btn-secondary w-fit" onClick={() => setSure(true)}>Withdraw {parentName}&apos;s consent</button>;
+  if (!sure) return <button type="button" className="btn btn-secondary w-fit" onClick={() => setSure(true)}>Withdraw {self ? "your" : `${parentName}'s`} consent</button>;
   return (
     <div className="grid gap-2">
-      <p className="text-danger">The desk will stop work for {parentName} straight away.</p>
+      <p className="text-danger">The desk will stop work for {self ? "you" : parentName} straight away.</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-secondary" disabled={pending} onClick={() => start(async () => { await withdrawParentAction(familyId); setSure(false); })}>Yes, withdraw</button>
         <button type="button" className="btn btn-ghost" onClick={() => setSure(false)}>Keep it</button>
