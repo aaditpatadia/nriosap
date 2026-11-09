@@ -1,6 +1,7 @@
 // Seeds three fictional families. Refuses to run unless DEMO_MODE=1.
 // Usage: node --env-file=.env.local scripts/seed.mjs
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import pg from "pg";
 import { encryptField } from "../lib/crypto.ts";
@@ -67,7 +68,9 @@ export async function seedDemo() {
 
   const doc = async (fid, kind, title, days, confidence, fields, checkedBy, purposes) => {
     const enc = encryptField(fid, JSON.stringify(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, { value: v, confidence }]))));
-    const r = await c.query(`insert into documents(family_id,kind,title,storage_path,extracted_enc,confidence,checked_by,checked_at,created_at) values ($1,$2,$3,$4,$5,$6,$7,${checkedBy ? "now()" : "null"},${at(-days)}) returning id`, [fid, kind, title, `demo/${title}`, enc, confidence, checkedBy]);
+    const path = `${fid}/demo-${randomUUID()}.pdf`;
+    await admin.storage.from("vault").upload(path, Buffer.from(`%PDF-1.4\nFictional demo document: ${title}\n%%EOF\n`), { contentType: "application/pdf" });
+    const r = await c.query(`insert into documents(family_id,kind,title,storage_path,extracted_enc,confidence,checked_by,checked_at,created_at,source,extraction_status) values ($1,$2,$3,$4,$5,$6,$7,${checkedBy ? "now()" : "null"},${at(-days)},'seed','done') returning id`, [fid, kind, title, path, enc, confidence, checkedBy]);
     for (const p of purposes) await c.query("insert into document_consents(document_id,family_id,purpose,granted_by) values ($1,$2,$3,null)", [r.rows[0].id, fid, p]);
     return r.rows[0].id;
   };

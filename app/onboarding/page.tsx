@@ -1,9 +1,12 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { OnboardingForm } from "@/components/OnboardingForm";
+import { requireViewer } from "@/lib/auth";
 
 export const metadata = { title: "Get started" };
+export const dynamic = "force-dynamic";
 
-export default function Onboarding() {
+export default async function Onboarding() {
+  await requireViewer("/onboarding");
   return (
     <>
       <SiteHeader />

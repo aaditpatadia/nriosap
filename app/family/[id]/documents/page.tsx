@@ -47,7 +47,7 @@ export default async function Documents({ params }: { params: Promise<{ id: stri
               )}
               <p className="text-[length:var(--text-micro)] text-muted">Allowed: {d.consentPurposes.map((p) => PURPOSE_LABEL[p as Purpose] ?? p).join(", ") || "Nothing"}</p>
               <div className="flex flex-wrap items-center gap-2">
-                {d.scanStatus !== undefined && d.title && !d.title.startsWith("demo/") && <a className="btn btn-secondary" href={`/api/documents/${d.id}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${d.title}`}>Open</a>}
+                {<a className="btn btn-secondary" href={`/api/documents/${d.id}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${d.title}`}>Open</a>}
                 <WithdrawButton documentId={d.id} purpose="store" label="Remove from vault" warn="This deletes the file for good." />
               </div>
             </li>

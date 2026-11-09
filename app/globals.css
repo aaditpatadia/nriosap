@@ -157,6 +157,18 @@ label.field { display: grid; gap: .35rem; font-size: var(--text-small); font-wei
 @view-transition { navigation: auto; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-base); animation-timing-function: var(--ease-out); }
 
+@media print {
+  @page { margin: 16mm; }
+  :root, :root[data-theme="dark"] {
+    --bg: #fff; --surface: #fff; --ink: #000; --muted: #333; --accent: #000; --warn: #000; --danger: #000; --ok: #000; --line: #999;
+  }
+  html, body { background: #fff; color: #000; font-size: 11pt; }
+  .no-print, nav, header, aside, footer, .btn { display: none !important; }
+  main { padding: 0 !important; }
+  .report { max-width: none; }
+  .card { border: 1px solid #999; break-inside: avoid; padding: 10pt; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .001ms !important; animation-iteration-count: 1 !important;

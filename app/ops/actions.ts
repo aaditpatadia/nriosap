@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { actionViewer, isStaff } from "@/lib/auth";
 import { addManualTime, addNote, createTaskFromTemplate, escalate, startTimer, stopTimer } from "@/lib/ops";
+import { normalisePhone, PLAN_PRICES } from "@/lib/consent";
+import { addClaim, addRequirement, confirmParentConsent, createFamily, ensureOwner, pauseForCounsel, requestApproval, setClaimStatus, setRequirementReceived } from "@/lib/onboarding";
+import { looksLikeAdvice } from "@/lib/rules";
+import { PURPOSES, type Purpose } from "@/lib/upload-rules";
 import { saveCheck } from "@/lib/vault";
+import { approveAndSend, saveDraft, sendTemplateMessage, TEMPLATES, type TemplateName } from "@/lib/wa-outbound";
 
 const id = z.string().uuid();
 
@@ -78,6 +83,125 @@ export async function checkDocumentAction(_prev: unknown, form: FormData) {
   revalidatePath("/ops", "layout");
   revalidatePath("/family", "layout");
   return { ok, message: ok ? "Checked. Thank you." : "Could not save." };
+}
+
+export async function saveDraftAction(familyId: string, body: string) {
+  const v = await staff();
+  const p = z.object({ familyId: id, body: z.string().trim().min(1).max(2000) }).safeParse({ familyId, body });
+  if (!v || !p.success) return { ok: false, reason: "Message is empty or too long." };
+  const r = await saveDraft(p.data.familyId, p.data.body, v.id);
+  revalidatePath("/ops", "layout");
+  return r;
+}
+
+export async function sendDraftAction(messageId: string) {
+  const v = await staff();
+  if (!v || !id.safeParse(messageId).success) return { ok: false, reason: "Please sign in again." };
+  const r = await approveAndSend(messageId, v.id);
+  revalidatePath("/ops", "layout");
+  return r;
+}
+
+export async function sendTemplateAction(familyId: string, name: string, params: string[]) {
+  const v = await staff();
+  const p = z.object({ familyId: id, name: z.enum(Object.keys(TEMPLATES) as [TemplateName, ...TemplateName[]]), params: z.array(z.string().trim().min(1).max(120)).max(5) }).safeParse({ familyId, name, params });
+  if (!v || !p.success) return { ok: false, reason: "Please fill in every box." };
+  const r = await sendTemplateMessage(p.data.familyId, p.data.name, p.data.params, v.id);
+  revalidatePath("/ops", "layout");
+  return r;
+}
+
+const onboard = z.object({
+  ownerName: z.string().trim().min(2).max(120),
+  ownerEmail: z.string().email().max(200),
+  parentName: z.string().trim().min(2).max(120),
+  phone: z.string().min(8).max(24),
+  city: z.string().trim().min(2).max(80),
+  language: z.enum(["Hindi", "Gujarati", "Marathi", "English"]),
+  plan: z.coerce.number().refine((n) => (PLAN_PRICES as readonly number[]).includes(n)),
+});
+
+export async function staffOnboardAction(_prev: unknown, form: FormData) {
+  const v = await staff();
+  const p = onboard.safeParse(Object.fromEntries(form));
+  if (!v) return { ok: false, message: "Please sign in again." };
+  if (!p.success) return { ok: false, message: "Please fill in every field." };
+  const phone = normalisePhone(p.data.phone);
+  if (!phone) return { ok: false, message: "Please enter the WhatsApp number with its country code." };
+  let ownerId: string;
+  try {
+    ownerId = await ensureOwner(p.data.ownerEmail, p.data.ownerName);
+  } catch {
+    return { ok: false, message: "That email belongs to a desk team member." };
+  }
+  const r = await createFamily({ ownerId, coordinatorId: v.role === "coordinator" ? v.id : undefined, parentName: p.data.parentName, phone, language: p.data.language, city: p.data.city, planUsd: p.data.plan, ownerPurposes: [], actorId: v.id });
+  if (!r.ok) return { ok: false, message: r.reason };
+  revalidatePath("/ops", "layout");
+  redirect(`/ops/consent/${r.familyId}`);
+}
+
+export async function consentCallAction(_prev: unknown, form: FormData) {
+  const v = await staff();
+  const p = z.object({ parentId: id, familyId: id, notes: z.string().max(500).optional() }).safeParse({ parentId: form.get("parentId"), familyId: form.get("familyId"), notes: form.get("notes") ?? "" });
+  if (!v || !p.success) return { ok: false, message: "Please sign in again." };
+  const purposes = form.getAll("purpose").filter((x): x is Purpose => PURPOSES.includes(x as Purpose));
+  const r = await confirmParentConsent(p.data.parentId, purposes, p.data.notes ?? "");
+  revalidatePath("/ops", "layout");
+  revalidatePath(`/family/${p.data.familyId}`, "layout");
+  if (!r) return { ok: false, message: "That did not save." };
+  return { ok: true, message: r === "granted" ? "Recorded. Consent is on file and the desk can start." : "Recorded. The desk cannot start until they agree to reading and keeping documents." };
+}
+
+export async function pauseCounselAction(familyId: string, parentId: string, reason: string) {
+  const v = await staff();
+  const p = z.object({ familyId: id, parentId: id, reason: z.string().trim().min(1).max(500) }).safeParse({ familyId, parentId, reason });
+  if (!v || !p.success) return { ok: false };
+  const ok = await pauseForCounsel(p.data.parentId, p.data.reason);
+  revalidatePath("/ops", "layout");
+  return { ok };
+}
+
+export async function requestApprovalAction(_prev: unknown, form: FormData) {
+  const v = await staff();
+  const p = z.object({ taskId: id, summary: z.string().trim().min(3).max(200), payee: z.string().trim().min(1).max(120), amount: z.coerce.number().int().min(0).max(100000000), fees: z.coerce.number().int().min(0).max(100000000), when: z.string().trim().min(1).max(80) }).safeParse(Object.fromEntries(form));
+  if (!v || !p.success) return { ok: false, message: "Please fill in every field." };
+  if (looksLikeAdvice(p.data.summary)) return { ok: false, message: "This reads like advice. Route it to a licensed professional." };
+  const ok = await requestApproval({ taskId: p.data.taskId, summary: p.data.summary, amountInr: p.data.amount, payee: p.data.payee, feesInr: p.data.fees, when: p.data.when, evidenceIds: [], userId: v.id });
+  revalidatePath("/ops", "layout");
+  revalidatePath("/family", "layout");
+  return { ok, message: ok ? "Sent to the owner. Nothing happens until they say yes." : "That did not save." };
+}
+
+export async function addClaimAction(_prev: unknown, form: FormData) {
+  const v = await staff();
+  const p = z.object({ familyId: id, hospital: z.string().trim().min(2).max(160), kind: z.enum(["cashless", "reimbursement"]), amount: z.coerce.number().int().min(0), missing: z.string().max(1000) }).safeParse(Object.fromEntries(form));
+  if (!v || !p.success) return { ok: false, message: "Please fill in every field." };
+  const ok = await addClaim(p.data.familyId, p.data.kind, p.data.hospital, p.data.amount, p.data.missing.split("\n").map((s) => s.trim()).filter(Boolean));
+  revalidatePath("/family", "layout");
+  return { ok, message: ok ? "Claim opened." : "That did not save." };
+}
+
+export async function toggleRequirementAction(reqId: string, received: boolean) {
+  if (!(await staff()) || !id.safeParse(reqId).success) return { ok: false };
+  const ok = await setRequirementReceived(reqId, received);
+  revalidatePath("/family", "layout");
+  return { ok };
+}
+
+export async function addRequirementAction(_prev: unknown, form: FormData) {
+  const p = z.object({ claimId: id, label: z.string().trim().min(2).max(120) }).safeParse(Object.fromEntries(form));
+  if (!(await staff()) || !p.success) return { message: "Please write what is missing." };
+  await addRequirement(p.data.claimId, p.data.label);
+  revalidatePath("/family", "layout");
+  return { message: "" };
+}
+
+export async function setClaimStatusAction(claimId: string, status: string) {
+  const p = z.object({ claimId: id, status: z.enum(["preparing", "submitted", "query", "approved", "settled"]) }).safeParse({ claimId, status });
+  if (!(await staff()) || !p.success) return { ok: false };
+  const ok = await setClaimStatus(p.data.claimId, p.data.status);
+  revalidatePath("/family", "layout");
+  return { ok };
 }
 
 export async function newTaskAction(_prev: unknown, form: FormData) {

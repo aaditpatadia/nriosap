@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { decideAction, undoAction } from "@/app/actions";
 import { spring } from "@/lib/motion";
@@ -12,11 +12,20 @@ type View = Pick<Approval, "id" | "summary" | "amountInr" | "payee" | "feesInr" 
   undoUntil?: string;
 };
 
-export function ApprovalCard({ approval }: { approval: View }) {
+export function ApprovalCard({ approval, canDecide = true }: { approval: View; canDecide?: boolean }) {
   const [pending, start] = useTransition();
   const [status, setStatus] = useOptimistic<Approval["status"], Approval["status"]>(approval.status, (_s, n) => n);
   const [undoUntil, setUndoUntil] = useState<string | undefined>(approval.undoUntil);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!undoUntil) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, [undoUntil]);
+  const leftMs = undoUntil ? new Date(undoUntil).getTime() - now : 0;
+  const leftMin = Math.max(1, Math.ceil(leftMs / 60_000));
 
   function decide(next: "approved" | "declined") {
     setError(null);
@@ -54,7 +63,9 @@ export function ApprovalCard({ approval }: { approval: View }) {
 
       <div className="mt-4 min-h-14" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
-          {status === "pending" ? (
+          {!canDecide && status === "pending" ? (
+            <p key="wait" className="text-muted">Waiting for the family owner. Only they can decide.</p>
+          ) : status === "pending" ? (
             <m.div key="ask" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="flex flex-wrap gap-3">
               <button type="button" className="btn btn-primary" disabled={pending} onClick={() => decide("approved")}>
                 {approval.amountInr ? "Approve payment" : "Approve action"}
@@ -68,9 +79,9 @@ export function ApprovalCard({ approval }: { approval: View }) {
               <span className="chip" data-tone={status === "approved" ? "ok" : "warn"}>
                 {status === "approved" ? "Approved" : "Declined"}
               </span>
-              {undoUntil && (
+              {canDecide && leftMs > 0 && (
                 <button type="button" className="btn btn-ghost" disabled={pending} onClick={undo}>
-                  Undo (5 minutes)
+                  Undo ({leftMin} min left)
                 </button>
               )}
             </m.div>

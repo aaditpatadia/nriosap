@@ -40,7 +40,10 @@ export default async function Queue({ searchParams }: { searchParams: Promise<Fi
     <section className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[length:var(--text-h1)] font-bold">Task queue</h1>
-        <Link className="btn btn-primary" href="/ops/new">New task</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn btn-secondary" href="/ops/onboard">Onboard a family</Link>
+          <Link className="btn btn-primary" href="/ops/new">New task</Link>
+        </div>
       </div>
       {timer && (
         <Link className="card flex flex-wrap items-center justify-between gap-2" href={`/ops/task/${timer.taskId}`} style={{ borderColor: "var(--accent)" }}>

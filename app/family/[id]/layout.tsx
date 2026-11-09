@@ -22,7 +22,7 @@ export default async function FamilyLayout({ children, params }: { children: Rea
         <AccountBar name={viewer.name} families={families} currentId={id} />
         <FamilyNav base={`/family/${id}`} pendingCount={pending} />
         <main id="main" className="py-6 pb-24">
-          <div className="mb-6 flex flex-wrap items-center gap-3 text-muted">
+          <div className="no-print mb-6 flex flex-wrap items-center gap-3 text-muted">
             <span>Your desk contact:</span>
             {coord ? (
               <>

@@ -1,15 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { actionViewer, isDemoMode, isStaff } from "@/lib/auth";
-import { asService, tx } from "@/lib/db";
+import { normalisePhone, PLAN_PRICES, REQUIRED_PURPOSES } from "@/lib/consent";
+import { confirmOwnerConsent, createFamily } from "@/lib/onboarding";
+import { PURPOSES, type Purpose } from "@/lib/upload-rules";
+import { storeInbound } from "@/lib/wa-inbound";
 import {
   addTime,
   addWaitlist,
   decideApproval,
   getFamily,
-  receiveParentMessage,
   sendCoordinatorMessage,
   setTaskStatus,
   undoApproval,
@@ -66,34 +69,44 @@ export async function parentSays(familyId: string, text: string) {
   if (!p.success || !isDemoMode() || !(await actionViewer())) return { ok: false as const };
   const fam = await getFamily(p.data.familyId);
   if (!fam) return { ok: false as const };
-  const r = await receiveParentMessage(fam.parent.phone, p.data.text);
+  const r = await storeInbound({ from: fam.parent.phone, id: "simulated", type: "text", text: p.data.text }, false);
   revalidatePath(`/family/${fam.id}`, "layout");
   revalidatePath("/ops", "layout");
   return { ok: r.matched, emergency: r.matched ? r.emergency : false };
 }
 
+const onboardingBase = z.object({
+  parentName: z.string().trim().min(2).max(120),
+  phone: z.string().min(8).max(24),
+  language: z.enum(["Hindi", "Gujarati", "Marathi", "English"]),
+  city: z.string().trim().min(2).max(80),
+  plan: z.coerce.number().refine((n) => (PLAN_PRICES as readonly number[]).includes(n)),
+});
+
+/** The owner signs up themselves and gives their own consent here. */
 export async function recordOnboarding(_prev: unknown, form: FormData) {
-  const p = z
-    .object({
-      parentName: z.string().min(2).max(120),
-      phone: z.string().min(8).max(20),
-      language: z.enum(["Hindi", "Gujarati", "Marathi", "English"]),
-      consentRead: z.literal("on"),
-      consentAct: z.literal("on"),
-    })
-    .safeParse(Object.fromEntries(form));
-  if (!p.success) return { ok: false as const, message: "Please fill in every field and tick both consent boxes." };
+  const p = onboardingBase.safeParse(Object.fromEntries(form));
   const v = await actionViewer();
   if (!v) return { ok: false as const, message: "Please sign in first." };
-  await asService(() =>
-    tx(async (t) => {
-      const f = await t.one<{ id: string }>("insert into families(owner_id, name, plan_usd, status) values ($1,$2,79,'onboarding') returning id", [v.id, `${p.data.parentName.split(" ").at(-1)} family`]);
-      const parent = await t.one<{ id: string }>("insert into parents(family_id, name, phone, language) values ($1,$2,$3,$4) returning id", [f!.id, p.data.parentName, p.data.phone, p.data.language]);
-      for (const purpose of ["read_records", "store", "act_on_named_task"]) await t.run("insert into consents(parent_id, purpose, evidence_ref) values ($1,$2,'onboarding form')", [parent!.id, purpose]);
-      await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'onboarding_consent_recorded','family',$2,$3)", [v.id, f!.id, f!.id]);
-    }),
-  );
-  return { ok: true as const, message: `Thanks. A coordinator will call ${p.data.parentName} in ${p.data.language} to confirm consent in their own words before anything starts.` };
+  if (!p.success) return { ok: false as const, message: "Please fill in every field." };
+  const phone = normalisePhone(p.data.phone);
+  if (!phone) return { ok: false as const, message: "Please enter the WhatsApp number with its country code, like +91 98000 00000." };
+  const purposes = form.getAll("purpose").filter((x): x is Purpose => PURPOSES.includes(x as Purpose));
+  if (!REQUIRED_PURPOSES.every((r) => purposes.includes(r))) return { ok: false as const, message: "We cannot start without consent to read and keep documents." };
+  const r = await createFamily({ ownerId: v.id, parentName: p.data.parentName, phone, language: p.data.language, city: p.data.city, planUsd: p.data.plan, ownerPurposes: [...new Set(purposes)], actorId: v.id });
+  if (!r.ok) return { ok: false as const, message: r.reason };
+  redirect(`/family/${r.familyId}`);
+}
+
+/** The owner confirms their own consent when the desk started the onboarding for them. */
+export async function ownerConsentAction(_prev: unknown, form: FormData) {
+  const fid = z.string().uuid().safeParse(form.get("familyId"));
+  const purposes = form.getAll("purpose").filter((x): x is Purpose => PURPOSES.includes(x as Purpose));
+  if (!fid.success || !(await actionViewer())) return { ok: false, message: "Please sign in again." };
+  if (!REQUIRED_PURPOSES.every((r) => purposes.includes(r))) return { ok: false, message: "We cannot start without consent to read and keep documents." };
+  const ok = await confirmOwnerConsent(fid.data, purposes);
+  revalidatePath(`/family/${fid.data}`, "layout");
+  return { ok, message: ok ? "Thank you. Your consent is recorded." : "That did not save." };
 }
 
 export async function coordinatorSends(familyId: string, body: string) {

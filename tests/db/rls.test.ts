@@ -134,6 +134,44 @@ describe("approval decide and undo", () => {
   });
 });
 
+describe("later tables stay walled off", () => {
+  const LATER = ["timers", "task_notes", "escalations", "webhook_unmatched"];
+  for (const t of LATER) {
+    it(`outsider and owner read 0 rows from ${t}`, async () => {
+      expect(await count(ID.outsider, t)).toBe(0);
+      expect(await count(ID.owner, t)).toBe(0);
+      expect(await count(null, t, "anon")).toBe(0);
+    });
+  }
+  it("templates and partner contacts are staff only", async () => {
+    expect(await count(ID.outsider, "task_templates")).toBe(0);
+    expect(await count(ID.owner, "partner_contacts")).toBe(0);
+    expect(await count(ID.coord, "task_templates")).toBeGreaterThan(0);
+  });
+  it("an owner cannot start a timer or write a note", async () => {
+    expect(await denied(ID.owner, "insert into timers(user_id,task_id,family_id) values ($1,$2,$3)", [ID.owner, ID.task, ID.fam])).toContain("row-level security");
+    expect(await denied(ID.owner, "insert into task_notes(task_id,family_id,author_id,body) values ($1,$2,$3,'x')", [ID.task, ID.fam, ID.owner])).toContain("row-level security");
+  });
+  it("a coordinator cannot start a timer on an unassigned family", async () => {
+    expect(await denied(ID.coord, "insert into timers(user_id,task_id,family_id) values ($1,$2,$3)", [ID.coord, ID.task2, ID.fam2])).toContain("row-level security");
+  });
+  it("owners cannot record a parent's consent, or anyone else's", async () => {
+    expect(await denied(ID.owner, "select confirm_parent_consent($1,'{store}','x')", [ID.parent])).toContain("not allowed");
+    expect(await denied(ID.outsider, "select confirm_owner_consent($1,'{store}')", [ID.fam])).toContain("not allowed");
+    expect(await denied(ID.coord2, "select confirm_parent_consent($1,'{store}','x')", [ID.parent])).toContain("not allowed");
+  });
+  it("nobody can edit a consent row directly", async () => {
+    expect(await denied(ID.owner, "update consents set withdrawn_at = null")).toBe("no-rows");
+    expect(await denied(ID.coord, "update consents set granted_at = now()")).toBe("no-rows");
+  });
+  it("document consent can only be withdrawn for a family you can see", async () => {
+    expect(await denied(ID.outsider, "select withdraw_document_consent($1,'store')", [ID.doc])).toContain("not allowed");
+  });
+  it("an owner cannot read or forge an approval's execution", async () => {
+    expect(await denied(ID.owner, "update approvals set executed_at = now()")).toBe("no-rows");
+  });
+});
+
 describe("new sign-ups", () => {
   it("always start as an owner, whatever metadata they send", async () => {
     const pg = (await import("pg")).default;
