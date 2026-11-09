@@ -20,7 +20,6 @@ export function ApprovalCard({ approval, canDecide = true }: { approval: View; c
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!undoUntil) return;
-    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
   }, [undoUntil]);

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { OwnerConsentForm } from "@/components/OwnerConsentForm";
 import { Timeline } from "@/components/Timeline";
 import { getViewer, isDemoMode } from "@/lib/auth";
-import { OWNER_CONSENT_TEXT } from "@/lib/consent";
+import { OWNER_CONSENT_TEXT, REQUIRED_PURPOSES } from "@/lib/consent";
 import { consentsFor } from "@/lib/onboarding";
 import { approvalsFor, claimsFor, getFamily, timeline } from "@/lib/store";
 import { PURPOSES } from "@/lib/upload-rules";
@@ -21,7 +21,7 @@ export default async function Overview({ params }: { params: Promise<{ id: strin
   const [approvals, claims, events, consents, viewer] = await Promise.all([approvalsFor(id), claimsFor(id), timeline(id), consentsFor(id), getViewer()]);
   const pending = approvals.filter((a) => a.status === "pending");
   const open = claims.filter((c) => c.status === "query" || c.missing.length > 0);
-  const ownerPending = viewer?.id === fam.owner.id && consents.some((c) => c.subject === "owner" && !c.grantedAt);
+  const ownerPending = viewer?.id === fam.owner.id && REQUIRED_PURPOSES.some((p) => !consents.find((c) => c.subject === "owner" && c.purpose === p)?.grantedAt);
   const needs = pending.length + (ownerPending ? 1 : 0);
   const headline = needs === 0 ? "All on track" : `${needs} thing${needs === 1 ? "" : "s"} need${needs === 1 ? "s" : ""} you`;
   const c = CONSENT[fam.parent.consentStatus];

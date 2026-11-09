@@ -6,7 +6,7 @@ import { requireStaff } from "@/lib/auth";
 import { contacts, KIND_LABEL, notesFor, runningTimer } from "@/lib/ops";
 import { getFamily, getTask, timeForTask } from "@/lib/store";
 import { hoursFor } from "@/lib/rules";
-import { fromNow } from "@/lib/format";
+import { fromNow, todayIst } from "@/lib/format";
 
 export default async function TaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,7 +16,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
   const [fam, entries, notes, timer, partners] = await Promise.all([getFamily(t.familyId), timeForTask(id), notesFor(id), runningTimer(viewer.id), contacts()]);
   if (!fam) notFound();
   const hrs = hoursFor(entries);
-  const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const today = todayIst();
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <section className="grid content-start gap-4">

@@ -88,6 +88,20 @@ export function isEmergency(text: string): boolean {
   return EMERGENCY.some((p) => p.test(text));
 }
 
+/** A parent ends consent with one message. Deliberately narrow, so a stray "stop" in a sentence does not. */
+const WITHDRAW = [
+  /^\s*stop\s*[.!]?\s*$/i,
+  /\b(withdraw|cancel|take back) (my )?consent\b/i,
+  /\bdelete my data\b/i,
+  /सहमति (वापस|रद्द)/,
+  /સંમતિ (પાછી|રદ)/,
+  /संमती (मागे|रद्द)/,
+];
+
+export function isConsentWithdrawal(text: string): boolean {
+  return WITHDRAW.some((p) => p.test(text));
+}
+
 export const UNDO_WINDOW_MS = 5 * 60 * 1000;
 
 export function undoUntil(now: Date): string {

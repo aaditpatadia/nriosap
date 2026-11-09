@@ -63,7 +63,7 @@ export async function addNoteAction(_prev: unknown, form: FormData) {
   if (!v || !p.success) return { ok: false, message: "Please write a note first." };
   const ok = await addNote(p.data.taskId, p.data.body, v.id);
   revalidatePath("/ops", "layout");
-  return { ok, message: ok ? "Note saved." : "Could not save the note." };
+  return { ok, message: ok ? "Note saved." : "Could not save the note.", nonce: crypto.randomUUID() };
 }
 
 export async function escalateAction(taskId: string, contactId: string) {

@@ -1,29 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
+
+function read(): boolean {
+  try {
+    return localStorage.getItem("textSize") === "large";
+  } catch {
+    return false; // storage can be blocked; the page still works
+  }
+}
 
 export function TextSizeToggle() {
-  const [large, setLarge] = useState(false);
+  const large = useSyncExternalStore(subscribe, read, () => false);
 
   useEffect(() => {
-    try {
-      const v = localStorage.getItem("textSize") === "large";
-      setLarge(v);
-      document.documentElement.dataset.text = v ? "large" : "normal";
-    } catch {
-      /* storage can be blocked; the page still works */
-    }
-  }, []);
+    document.documentElement.dataset.text = large ? "large" : "normal";
+  }, [large]);
 
   function toggle() {
-    const next = !large;
-    setLarge(next);
-    document.documentElement.dataset.text = next ? "large" : "normal";
     try {
-      localStorage.setItem("textSize", next ? "large" : "normal");
+      localStorage.setItem("textSize", large ? "normal" : "large");
     } catch {
-      /* ignore */
+      document.documentElement.dataset.text = large ? "normal" : "large";
     }
+    listeners.forEach((fn) => fn());
   }
 
   return (

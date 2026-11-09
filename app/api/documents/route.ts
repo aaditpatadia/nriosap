@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getViewer } from "@/lib/auth";
 import { getFamily } from "@/lib/store";
 import { sameOrigin } from "@/lib/http";
+import { rateLimit } from "@/lib/ratelimit";
 import { MAX_WEB_UPLOAD_BYTES, PURPOSES, type Purpose } from "@/lib/upload-rules";
 import { ingestDocument } from "@/lib/vault";
 
@@ -12,6 +13,7 @@ export async function POST(req: Request) {
   if (!sameOrigin(req)) return NextResponse.json({ ok: false, reason: "Bad origin." }, { status: 403 });
   const viewer = await getViewer();
   if (!viewer) return NextResponse.json({ ok: false, reason: "Please sign in." }, { status: 401 });
+  if (!(await rateLimit(`upload:${viewer.id}`, 60, 600))) return NextResponse.json({ ok: false, reason: "Too many uploads. Please wait a few minutes." }, { status: 429 });
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   const fid = z.string().uuid().safeParse(form?.get("familyId"));

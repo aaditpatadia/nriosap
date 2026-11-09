@@ -29,10 +29,14 @@ export function TaskPanel({ taskId, status, timerStartedAt, otherTimer, today, e
   const [noteState, noteAction, notePending] = useActionState(addNoteAction, null);
   const [sent, setSent] = useState<{ brief: string; href: string | null } | null>(null);
 
-  useEffect(() => setOptimistic(status), [status]);
+  // When the server sends a new status, it replaces the optimistic one.
+  const [serverStatus, setServerStatus] = useState(status);
+  if (serverStatus !== status) {
+    setServerStatus(status);
+    setOptimistic(status);
+  }
   useEffect(() => {
     if (!startedAt) return;
-    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [startedAt]);
@@ -74,7 +78,7 @@ export function TaskPanel({ taskId, status, timerStartedAt, otherTimer, today, e
     <div className="grid content-start gap-4">
       <div className="card grid gap-3">
         <h2 className="text-[length:var(--text-h3)] font-semibold">Timer</h2>
-        <p className="text-3xl font-bold tabular-nums" data-testid="timer-clock">{clock}</p>
+        <p className="text-3xl font-bold tabular-nums" data-testid="timer-clock" suppressHydrationWarning>{clock}</p>
         <label className="field">What are you doing?<input className="input" value={note} maxLength={280} onChange={(e) => setNote(e.target.value)} /></label>
         {!startedAt ? (
           <button type="button" className="btn btn-primary" disabled={pending || otherTimer} onClick={begin}>Start timer</button>
@@ -109,7 +113,7 @@ export function TaskPanel({ taskId, status, timerStartedAt, otherTimer, today, e
         </div>
       </div>
 
-      <form action={noteAction} key={noteState?.ok ? noteState.message + Date.now() : "note"} className="card grid gap-3">
+      <form action={noteAction} key={noteState?.nonce ?? "note"} className="card grid gap-3">
         <h2 className="text-[length:var(--text-h3)] font-semibold">Add a note</h2>
         <input type="hidden" name="taskId" value={taskId} />
         <label className="field">Note for the desk<textarea className="input" name="body" rows={3} maxLength={2000} required /></label>

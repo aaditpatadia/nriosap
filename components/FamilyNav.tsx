@@ -13,6 +13,7 @@ const ITEMS = [
   { href: "/approvals", label: "Approvals" },
   { href: "/report", label: "Monthly report" },
   { href: "/billing", label: "Billing" },
+  { href: "/privacy", label: "Privacy" },
 ];
 
 export function FamilyNav({ base, pendingCount }: { base: string; pendingCount: number }) {

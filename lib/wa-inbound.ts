@@ -1,6 +1,7 @@
 import "server-only";
 import { asService, one, tx } from "./db";
-import { isEmergency } from "./rules";
+import { withdrawByParentMessage } from "./privacy";
+import { isConsentWithdrawal, isEmergency } from "./rules";
 import { supabaseAdmin } from "./supabase";
 import { getTranscriber } from "./transcribe";
 import { MAX_WHATSAPP_MEDIA_BYTES, type Purpose } from "./upload-rules";
@@ -9,7 +10,7 @@ import { BUCKET, ingestDocument } from "./vault";
 import { downloadMedia } from "./wa-client";
 import type { InboundMessage } from "./whatsapp";
 
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;  
 
 async function raiseEmergency(t: { run(sql: string, p?: unknown[]): Promise<number> }, familyId: string, coordinatorId: string | null, parentName: string) {
   await t.run(
@@ -99,7 +100,9 @@ async function handleVoice(m: InboundMessage, s: StoredInbound) {
 
 /** Slow work for one message. Runs after the webhook has already answered Meta. */
 export async function processMedia(m: InboundMessage, s: StoredInbound) {
-  if (!s.matched || s.duplicate || !m.mediaId) return;
+  if (!s.matched || s.duplicate) return;
+  if (m.type === "text" && m.text && isConsentWithdrawal(m.text)) return withdrawByParentMessage(s.parent!.id);
+  if (!m.mediaId) return;
   if (m.type === "audio") await handleVoice(m, s);
   else await handleDocument(m, s);
 }

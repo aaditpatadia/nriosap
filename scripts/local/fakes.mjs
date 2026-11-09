@@ -40,6 +40,11 @@ export async function startFakes({ port }) {
         if (text.includes("[fail]")) return json(200, { id: "m", type: "message", role: "assistant", model: body.model, content: [], stop_reason: "refusal", usage: { input_tokens: 1, output_tokens: 0 } });
         return json(200, { id: "m", type: "message", role: "assistant", model: body.model, content: [{ type: "text", text: JSON.stringify(fakeExtract(text)) }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } });
       }
+      // Stripe (test mode shapes only)
+      if (url.pathname === "/v1/checkout/sessions" && req.method === "POST") return json(200, { id: "cs_test_1", object: "checkout.session", url: `http://127.0.0.1:${port}/fake-checkout` });
+      if (url.pathname === "/v1/billing_portal/sessions" && req.method === "POST") return json(200, { id: "bps_1", object: "billing_portal.session", url: `http://127.0.0.1:${port}/fake-portal` });
+      if (url.pathname === "/fake-checkout" || url.pathname === "/fake-portal") { res.writeHead(200, { "content-type": "text/html" }); return res.end("<title>fake stripe</title><h1>Fake Stripe page</h1>"); }
+      if (url.pathname.startsWith("/v1/subscriptions/") && req.method === "DELETE") return json(200, { id: url.pathname.split("/").pop(), object: "subscription", status: "canceled" });
       // WhatsApp Graph API
       const media = url.pathname.match(/^\/v\d+\.\d+\/(media-[\w-]+)$/);
       if (media) return json(200, { url: `http://127.0.0.1:${port}/download/${media[1]}`, mime_type: media[1].includes("audio") ? "audio/ogg" : "application/pdf" });

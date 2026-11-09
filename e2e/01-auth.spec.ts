@@ -23,14 +23,14 @@ test("owner cannot open ops", async ({ page }) => {
 
 test("coordinator signs in with a password and sees only assigned families", async ({ page }) => {
   await signInStaff(page, "meera");
-  await expect(page.getByText("Pay November electricity bill")).toBeVisible();
+  await expect(page.locator("table").getByText("Pay November electricity bill")).toBeVisible();
   await expect(page.getByText("Assemble reimbursement claim documents")).toHaveCount(0);
 });
 
 test("admin signs in and sees every family", async ({ page }) => {
   await signInStaff(page, "admin");
-  await expect(page.getByText("Pay November electricity bill")).toBeVisible();
-  await expect(page.getByText("Assemble reimbursement claim documents")).toBeVisible();
+  await expect(page.locator("table").getByText("Pay November electricity bill")).toBeVisible();
+  await expect(page.locator("table").getByText("Assemble reimbursement claim documents")).toBeVisible();
 });
 
 test("wrong password is refused without saying why", async ({ page }) => {

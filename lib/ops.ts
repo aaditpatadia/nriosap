@@ -10,7 +10,11 @@ export interface Template { id: string; name: string; kind: Task["kind"]; title:
 export interface PartnerContact { id: string; kind: EscalationKind; name: string; phone: string | null; email: string | null; city: string | null }
 export interface TaskNote { id: string; body: string; at: string; author: string }
 
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;  
+
+export async function openAlerts(): Promise<{ id: string; kind: string; body: string }[]> {
+  return (await rows<Row>("select id, kind, body from alerts where resolved_at is null order by created_at desc limit 20")).map((a) => ({ id: a.id, kind: a.kind, body: a.body }));
+}
 
 export async function runningTimer(userId: string): Promise<RunningTimer | undefined> {
   const r = (await rows<Row>("select t.task_id, t.family_id, t.started_at, k.title from timers t join tasks k on k.id = t.task_id where t.user_id = $1", [userId]))[0];

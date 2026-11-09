@@ -1,0 +1,10 @@
+{
+  "name": "gharsaath-lint",
+  "private": true,
+  "description": "Separate install: typescript-eslint does not support TypeScript 7 yet, and the app uses 7.",
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.5",
+    "typescript": "~6.0.0"
+  }
+}

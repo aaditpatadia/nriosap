@@ -82,11 +82,9 @@ test("full concierge path: coordinator onboards, parent consent call, policy upl
   await expect(page.getByText("Sample General Insurance").first()).toBeVisible();
 
   // Work on it and see the money.
-  await page.goto("/ops");
-  await page.locator("table").getByRole("link", { name: "Consent call: Ramesh Testwala" }).first().waitFor({ state: "detached" }).catch(() => {});
   await page.goto("/ops/new");
-  await page.getByLabel("Family").selectOption({ label: "Testwala family" });
-  await page.getByLabel("Template").selectOption({ label: "Records collection (2 h budget)" });
+  await page.getByLabel("Family").filter({ visible: true }).selectOption({ label: "Testwala family" });
+  await page.getByLabel("Template").filter({ visible: true }).selectOption({ label: "Records collection (2 h budget)" });
   await page.getByRole("button", { name: "Create task" }).click();
   await page.getByLabel("Hours", { exact: true }).fill("7");
   await page.getByLabel("Minutes", { exact: true }).fill("0");

@@ -28,7 +28,7 @@ export default async function FamilyLayout({ children, params }: { children: Rea
               <>
                 <strong className="text-ink">{coord.name}</strong>
                 <span>in {coord.city}</span>
-                <a className="btn btn-secondary" href="https://wa.me/910000000000">Talk to {coord.name.split(" ")[0]}</a>
+                {coord.phone && <a className="btn btn-secondary" href={`https://wa.me/${coord.phone.replace(/\D/g, "")}`}>Talk to {coord.name.split(" ")[0]}</a>}
               </>
             ) : (
               <strong className="text-ink">We are assigning a person to your family.</strong>

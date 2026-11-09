@@ -24,6 +24,6 @@ export function sniffMime(b: Uint8Array): { mime: string; ext: string } | null {
 
 export function cleanTitle(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? "Document";
-  // eslint-disable-next-line no-control-regex
+   
   return base.replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 120) || "Document";
 }

@@ -7,6 +7,8 @@ import { actionViewer, isDemoMode, isStaff } from "@/lib/auth";
 import { normalisePhone, PLAN_PRICES, REQUIRED_PURPOSES } from "@/lib/consent";
 import { confirmOwnerConsent, createFamily } from "@/lib/onboarding";
 import { PURPOSES, type Purpose } from "@/lib/upload-rules";
+import { actionIp } from "@/lib/action-ip";
+import { rateLimit } from "@/lib/ratelimit";
 import { storeInbound } from "@/lib/wa-inbound";
 import {
   addTime,
@@ -59,6 +61,7 @@ export async function joinWaitlist(_prev: unknown, form: FormData) {
     .object({ email: z.string().email().max(200), country: z.string().max(80), note: z.string().max(400).optional() })
     .safeParse({ email: form.get("email"), country: form.get("country"), note: form.get("note") ?? "" });
   if (!p.success) return { ok: false as const, message: "Please enter a valid email and country." };
+  if (!(await rateLimit(`waitlist:${await actionIp()}`, 10, 3600))) return { ok: false as const, message: "That is a lot of tries. Please come back in an hour." };
   await addWaitlist({ email: p.data.email, country: p.data.country, note: p.data.note ?? "" });
   return { ok: true as const, message: "You are on the list. A person from the desk will write to you within two days." };
 }

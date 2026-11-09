@@ -1,4 +1,7 @@
 import { after, NextResponse } from "next/server";
+import { clientIp } from "@/lib/http";
+import { log } from "@/lib/log";
+import { rateLimit } from "@/lib/ratelimit";
 import { parseInboundAll, verifySignature, type InboundMessage } from "@/lib/whatsapp";
 import { processMedia, storeInbound, type StoredInbound } from "@/lib/wa-inbound";
 
@@ -18,6 +21,7 @@ export async function GET(req: Request) {
  */
 export async function POST(req: Request) {
   const secret = process.env.WHATSAPP_APP_SECRET;
+  if (!(await rateLimit(`wa:${clientIp(req)}`, 600, 60))) return new Response("Too many requests", { status: 429 });
   const raw = await req.text();
   if (!secret || !verifySignature(raw, req.headers.get("x-hub-signature-256"), secret)) {
     return new Response("Invalid signature", { status: 401 });
@@ -36,7 +40,7 @@ export async function POST(req: Request) {
       try {
         await processMedia(m, s);
       } catch (e) {
-        console.error(JSON.stringify({ level: "error", event: "whatsapp_media_failed", type: m.type, error: (e as Error).constructor.name }));
+        log("error", "whatsapp_media_failed", { type: m.type, error: (e as Error).constructor.name });
       }
     }
   });

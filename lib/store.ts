@@ -24,7 +24,7 @@ import type {
  * Functions that have no user (webhook, jobs, waitlist) run in the service context.
  */
 
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;  
 
 // ---------- audit ----------
 export async function logAudit(_actorId: string, action: string, entity: string, entityId: string, familyId?: string, ip?: string) {
@@ -82,8 +82,8 @@ export async function getFamily(id: string) {
 
 export async function getCoordinator(id: string | null | undefined): Promise<Coordinator | undefined> {
   if (!isUuid(id)) return undefined;
-  const r = await one<Row>("select id, name, city, role from profiles where id = $1", [id]);
-  return r ? { id: r.id, name: r.name, city: r.city ?? "", role: r.role } : undefined;
+  const r = await one<Row>("select id, name, city, role, phone from profiles where id = $1", [id]);
+  return r ? { id: r.id, name: r.name, city: r.city ?? "", role: r.role, phone: r.phone ?? undefined } : undefined;
 }
 
 export async function listCoordinators(): Promise<Coordinator[]> {

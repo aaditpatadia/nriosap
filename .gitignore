@@ -10,3 +10,4 @@ qa/node_modules/
 qa/out/
 .env
 
+tools/lint/node_modules/

@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
-import { runningTimer } from "@/lib/ops";
+import { openAlerts, runningTimer } from "@/lib/ops";
 import { allTasks, getCoordinator, listFamilies } from "@/lib/store";
 import { fromNow } from "@/lib/format";
 import { slaState } from "@/lib/rules";
@@ -25,7 +25,7 @@ export default async function Queue({ searchParams }: { searchParams: Promise<Fi
   const sp = await searchParams;
   const viewer = await requireStaff();
   const now = new Date();
-  const [all, families, timer] = await Promise.all([allTasks(), listFamilies(), runningTimer(viewer.id)]);
+  const [all, families, timer, alerts] = await Promise.all([allTasks(), listFamilies(), runningTimer(viewer.id), openAlerts()]);
   const status = sp.status ?? "open";
   const tasks = all
     .filter((t) => (status === "open" ? t.status !== "done" : status === "all" || t.status === status))
@@ -50,6 +50,12 @@ export default async function Queue({ searchParams }: { searchParams: Promise<Fi
           <span><span className="font-semibold">Timer running:</span> {timer.title}</span>
           <span className="text-muted">started {fromNow(timer.startedAt)}</span>
         </Link>
+      )}
+      {alerts.length > 0 && (
+        <div className="card grid gap-2" style={{ borderColor: "var(--warn)" }}>
+          <h2 className="text-[length:var(--text-h3)] font-semibold">Alerts</h2>
+          <ul className="grid gap-1">{alerts.map((a) => <li key={a.id}><span className="chip mr-2" data-tone="warn">{a.kind === "sla" ? "SLA" : a.kind === "hours" ? "Hours" : a.kind === "no_reply" ? "No reply" : a.kind === "renewal" ? "Renewal" : "Bill"}</span>{a.body}</li>)}</ul>
+        </div>
       )}
       <form className="card grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end" aria-label="Filter tasks">
         <label className="field">Owner

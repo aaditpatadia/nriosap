@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { PURPOSE_LABEL, PURPOSES, type Purpose } from "@/lib/upload-rules";
 
 const DEFAULTS: Purpose[] = ["read_records", "store"];
+const subscribeNothing = () => () => {};
 
 export function UploadForm({ familyId, blocked }: { familyId: string; blocked?: string }) {
   const router = useRouter();
@@ -13,8 +14,7 @@ export function UploadForm({ familyId, blocked }: { familyId: string; blocked?: 
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   // Uploading needs the script loaded, so the button waits for it.
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
+  const ready = useSyncExternalStore(subscribeNothing, () => true, () => false);
 
   async function upload(e: React.FormEvent) {
     e.preventDefault();

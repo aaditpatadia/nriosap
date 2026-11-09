@@ -16,6 +16,10 @@ export function fromNow(iso: string, now = Date.now()): string {
   const unit = m < 60 ? `${m} min` : h < 24 ? `${h} h` : `${d} day${d === 1 ? "" : "s"}`;
   return diff >= 0 ? `in ${unit}` : `${unit} ago`;
 }
+/** Today's date in India as YYYY-MM-DD. */
+export function todayIst(): string {
+  return new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+}
 export function inr(n: number): string {
   return "Rs " + n.toLocaleString("en-IN");
 }

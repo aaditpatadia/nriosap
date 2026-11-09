@@ -30,6 +30,7 @@ export interface Family {
 
 export interface Coordinator extends Person {
   role: "coordinator" | "admin";
+  phone?: string;
 }
 
 export interface Policy {

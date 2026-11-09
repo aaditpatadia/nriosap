@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { decryptField, encryptField } from "./crypto";
 import { asService, isUuid, one, rows, tx, type Tx } from "./db";
 import { getExtractor, type ExtractionResult } from "./extract";
+import { log as writeLog } from "./log";
 import { canAiActAlone } from "./rules";
 import { getScanner } from "./scan";
 import type { StoredField } from "./store";
@@ -10,12 +11,10 @@ import { supabaseAdmin } from "./supabase";
 import { cleanTitle, sniffMime, type Purpose } from "./upload-rules";
 
 export const BUCKET = "vault";
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>;  
 
-function log(event: string, data: Record<string, string | number | boolean>) {
-  // Ids, timings and error classes only. Never file names, text or field values.
-  console.log(JSON.stringify({ level: "info", event, ...data }));
-}
+// Logs carry ids, timings and error classes only. Never file names, text or field values.
+const log = (event: string, data: Record<string, unknown>) => writeLog("info", event, data);
 
 export type IngestResult = { ok: true; documentId: string; needsCheck: boolean; confidence: number } | { ok: false; reason: string; status: number };
 

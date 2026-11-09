@@ -40,7 +40,7 @@ export async function seedDemo() {
 
   const person = async (email, name, role, city, country, password) => {
     const id = await ensureUser(admin, email, name, password);
-    await c.query("update profiles set role=$2, name=$3, city=$4, country=$5, email=$6 where id=$1", [id, role, name, city, country, email]);
+    await c.query("update profiles set role=$2, name=$3, city=$4, country=$5, email=$6, phone=$7 where id=$1", [id, role, name, city, country, email, role === "coordinator" ? "+919800000200" : null]);
     return id;
   };
   const D = "demo.gharsaath.test";

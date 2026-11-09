@@ -18,6 +18,7 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${APP_PORT}`, channel: "chrome", trace: "off", screenshot: "off" },
   webServer: [
     { command: "node scripts/local/stack.mjs --fresh", url: "http://127.0.0.1:54321/auth/v1/health", env, reuseExistingServer: reuse, timeout: 120_000, stdout: "pipe", gracefulShutdown: { signal: "SIGTERM", timeout: 8000 } },
-    { command: `npx next start -p ${APP_PORT}`, url: `http://localhost:${APP_PORT}/`, env, reuseExistingServer: reuse, timeout: 120_000 },
+    // Output goes to a file so the security pass can search it for personal data.
+    { command: `npx next start -p ${APP_PORT} > .local/app.log 2>&1`, url: `http://localhost:${APP_PORT}/`, env, reuseExistingServer: reuse, timeout: 120_000 },
   ],
 });
