@@ -2,7 +2,7 @@ import "server-only";
 import Stripe from "stripe";
 import { asService, one, tx } from "./db";
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 /** Test mode only. Taking a live key needs legal sign-off first, so a live key is treated as not configured. */
 export function stripeClient(): Stripe | null {

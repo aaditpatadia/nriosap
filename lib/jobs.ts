@@ -7,7 +7,7 @@ import { LANGUAGE_CODE } from "./transcribe";
 import type { Language } from "./types";
 import { sendTemplate } from "./wa-client";
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 const service = <T>(fn: Parameters<typeof tx<T>>[0]) => asService(() => tx(fn));
 
@@ -19,6 +19,7 @@ async function alert(t: { run(s: string, p?: unknown[]): Promise<number> }, fami
 export async function runSlaAlerts(): Promise<{ raised: number }> {
   return service(async (t) => {
     let raised = 0;
+    await t.run("update alerts a set resolved_at = now() from tasks k where a.kind = 'sla' and a.resolved_at is null and a.dedupe_key = 'sla:' || k.id and k.status = 'done'");
     const late = await t.rows<Row>("select k.id, k.title, k.family_id, f.name from tasks k join families f on f.id = k.family_id where k.status <> 'done' and k.sla_at < now()");
     for (const k of late) raised += await alert(t, k.family_id, "sla", `sla:${k.id}`, `Past SLA: ${k.title} (${k.name})`);
     const hours = await t.rows<Row>(

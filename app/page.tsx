@@ -71,7 +71,7 @@ export default function Home() {
               <span className="chip w-fit" data-tone="warn">1 thing needs you</span>
               <p className="font-semibold">Pay November electricity bill: Rs 4,200</p>
               <p className="text-muted">Prepared by AI, checked by Meera in Rajkot. Nothing is paid until you approve.</p>
-              <div className="flex gap-3"><span className="btn btn-primary" aria-hidden>Approve payment</span><span className="btn btn-secondary" aria-hidden>Not now</span></div>
+              <div className="flex flex-wrap gap-3"><span className="btn btn-primary" aria-hidden>Approve payment</span><span className="btn btn-secondary" aria-hidden>Not now</span></div>
               <p className="text-[length:var(--text-micro)] text-muted">Illustrative example with a fictional family.</p>
             </div>
           </div>
@@ -104,7 +104,7 @@ export default function Home() {
             ))}
           </div>
           <div role="region" aria-labelledby="compare" tabIndex={0} className="overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface">
-            <table className="w-full min-w-[560px] text-left text-[length:var(--text-small)]">
+            <table className="w-full text-left text-[length:var(--text-small)]">
               <caption id="compare" className="p-3 text-left font-semibold">Compare plans</caption>
               <thead className="text-muted"><tr><th scope="col" className="p-3">What you get</th>{PLANS.map((p) => <th scope="col" key={p.name} className="p-3">{p.name}</th>)}</tr></thead>
               <tbody>

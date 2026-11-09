@@ -12,8 +12,6 @@ const familyPages = (id: string) => ["", "/claims", "/documents", "/calendar", "
 async function staffRoutes(page: Page) {
   await page.goto("/ops");
   const task = await page.locator("table").getByRole("link", { name: "Pay November electricity bill" }).getAttribute("href");
-  const docId = await page.evaluate(() => null);
-  void docId;
   return [
     ["ops-queue", "/ops"], ["ops-hours", "/ops/families"], ["ops-new", "/ops/new"], ["ops-onboard", "/ops/onboard"],
     ["ops-task", task!], ["ops-messages", `/ops/messages/${FAM.shah}`], ["ops-consent", `/ops/consent/${FAM.shah}`], ["chat", `/chat/${FAM.shah}`],
@@ -33,6 +31,8 @@ async function sweep(page: Page, routes: readonly (readonly [string, string])[],
         await page.setViewportSize({ width, height: 900 });
         await page.goto(url);
         await page.waitForLoadState("networkidle");
+        // Scroll through once so sections that fade in on view are shown in the capture.
+        await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 500) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 30)); } window.scrollTo(0, 0); });
         await expect(page.locator("#main:visible, main:visible").first()).toBeVisible();
         // axe on every route, in each scheme, at phone and desktop width.
         if (width !== 768) {
@@ -71,6 +71,8 @@ test("axe, overflow, touch targets and screenshots on every route", async ({ pag
   console.log(JSON.stringify({ ...s, consoleErrors: errors.length }));
   expect(s.violations, results.join("\n")).toBe(0);
   expect(s.overflow, results.join("\n")).toBe(0);
+  expect(s.smallTargets, results.join("\n")).toBe(0);
+  expect(errors).toEqual([]);
 });
 
 test("large text and reduced motion", async ({ page }) => {

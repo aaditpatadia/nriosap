@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { MessageComposer, SendDraftButton } from "@/components/MessageComposer";
 import { requireStaff } from "@/lib/auth";
 import { fmtTime, fmtShort } from "@/lib/format";
-import { getFamily } from "@/lib/store";
+import { getFamily, logAudit } from "@/lib/store";
 import { sendingEnabled } from "@/lib/wa-client";
 import { lastInboundAt } from "@/lib/wa-inbound";
 import { TEMPLATES, thread } from "@/lib/wa-outbound";
@@ -20,11 +20,11 @@ const STATUS: Record<string, { label: string; tone?: string }> = {
 };
 
 export default async function Messages({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const viewer = await requireStaff();
   const { id } = await params;
   const fam = await getFamily(id);
   if (!fam) notFound();
-  const [msgs, last] = await Promise.all([thread(id), lastInboundAt(id)]);
+  const [msgs, last] = await Promise.all([thread(id), lastInboundAt(id), logAudit(viewer.id, "view_messages", "family", id, id)]);
   const open = insideServiceWindow(last, new Date());
   return (
     <section className="grid max-w-2xl gap-4">

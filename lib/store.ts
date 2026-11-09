@@ -24,7 +24,7 @@ import type {
  * Functions that have no user (webhook, jobs, waitlist) run in the service context.
  */
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 // ---------- audit ----------
 export async function logAudit(_actorId: string, action: string, entity: string, entityId: string, familyId?: string, ip?: string) {

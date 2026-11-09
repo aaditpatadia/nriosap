@@ -4,7 +4,7 @@ import { RequestApprovalForm } from "@/components/StaffForms";
 import { TaskPanel } from "@/components/TaskPanel";
 import { requireStaff } from "@/lib/auth";
 import { contacts, KIND_LABEL, notesFor, runningTimer } from "@/lib/ops";
-import { getFamily, getTask, timeForTask } from "@/lib/store";
+import { getFamily, getTask, logAudit, timeForTask } from "@/lib/store";
 import { hoursFor } from "@/lib/rules";
 import { fromNow, todayIst } from "@/lib/format";
 
@@ -13,7 +13,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
   const viewer = await requireStaff();
   const t = await getTask(id);
   if (!t) notFound();
-  const [fam, entries, notes, timer, partners] = await Promise.all([getFamily(t.familyId), timeForTask(id), notesFor(id), runningTimer(viewer.id), contacts()]);
+  const [fam, entries, notes, timer, partners] = await Promise.all([getFamily(t.familyId), timeForTask(id), notesFor(id), runningTimer(viewer.id), contacts(), logAudit(viewer.id, "view_task", "task", id, t.familyId)]);
   if (!fam) notFound();
   const hrs = hoursFor(entries);
   const today = todayIst();

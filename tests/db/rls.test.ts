@@ -167,6 +167,14 @@ describe("later tables stay walled off", () => {
   it("document consent can only be withdrawn for a family you can see", async () => {
     expect(await denied(ID.outsider, "select withdraw_document_consent($1,'store')", [ID.doc])).toContain("not allowed");
   });
+  it("a signed-in owner cannot forge consent or insert a document through the REST surface", async () => {
+    expect(await denied(ID.owner, "insert into consents(parent_id,subject,purpose,granted_at) values ($1,'parent','act_on_named_task',now())", [ID.parent])).toContain("row-level security");
+    expect(await denied(ID.owner, "insert into documents(family_id,kind,storage_path) values ($1,'policy','x')", [ID.fam])).toContain("row-level security");
+    expect(await denied(ID.owner, "insert into document_consents(document_id,family_id,purpose,granted_by) values ($1,$2,'share_named_third_party',$3)", [ID.doc, ID.fam, ID.owner])).toContain("row-level security");
+    expect(await denied(ID.owner, "update parents set consent_status='granted'")).toBe("no-rows");
+    expect(await denied(ID.owner, "update families set plan_usd=1")).toBe("no-rows");
+    expect(await denied(ID.owner, "delete from families")).toBe("no-rows");
+  });
   it("an owner cannot read or forge an approval's execution", async () => {
     expect(await denied(ID.owner, "update approvals set executed_at = now()")).toBe("no-rows");
   });

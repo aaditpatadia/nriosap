@@ -6,7 +6,7 @@ import type { Language } from "./types";
 import { sendTemplate, sendText } from "./wa-client";
 import { insideServiceWindow } from "./whatsapp";
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 /** Names must match templates approved in the WhatsApp Business account. */
 export const TEMPLATES = {

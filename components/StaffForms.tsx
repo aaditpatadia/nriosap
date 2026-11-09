@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { addClaimAction, addRequirementAction, consentCallAction, pauseCounselAction, requestApprovalAction, setClaimStatusAction, staffOnboardAction, toggleRequirementAction } from "@/app/ops/actions";
+import { addClaimAction, addRequirementAction, consentCallAction, pauseCounselAction, requestApprovalAction, resolveAlertAction, setClaimStatusAction, staffOnboardAction, toggleRequirementAction } from "@/app/ops/actions";
 import { PLAN_NAME, PLAN_PRICES } from "@/lib/consent";
 import type { Purpose } from "@/lib/upload-rules";
 
@@ -100,6 +100,11 @@ export function ClaimControls({ claimId, status }: { claimId: string; status: st
       {s?.message && <p role="status" className="text-danger">{s.message}</p>}
     </div>
   );
+}
+
+export function ClearAlert({ id }: { id: string }) {
+  const [pending, start] = useTransition();
+  return <button type="button" className="btn btn-ghost" disabled={pending} onClick={() => start(async () => { await resolveAlertAction(id); })}>Clear</button>;
 }
 
 export function RequirementToggle({ id, received, label }: { id: string; received: boolean; label: string }) {

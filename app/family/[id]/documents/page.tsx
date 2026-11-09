@@ -35,11 +35,11 @@ export default async function Documents({ params }: { params: Promise<{ id: stri
               </div>
               <p className="text-muted">Added {fmtDate(d.uploadedAt)} · confidence {Math.round(d.confidence * 100)}%</p>
               {Object.keys(d.extracted).length > 0 && (
-                <dl className="grid grid-cols-[auto_1fr_auto] gap-x-4 gap-y-1 text-[length:var(--text-small)]">
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-4 gap-y-1 text-[length:var(--text-small)]">
                   {Object.entries(d.extracted).map(([k, v]) => (
                     <div key={k} className="contents">
                       <dt className="text-muted">{k}</dt>
-                      <dd className="break-words">{v}</dd>
+                      <dd className="[overflow-wrap:anywhere]">{v}</dd>
                       <dd className="text-muted tabular-nums">{Math.round((d.fieldConfidence?.[k] ?? d.confidence) * 100)}%</dd>
                     </div>
                   ))}

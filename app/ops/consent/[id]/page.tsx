@@ -5,17 +5,17 @@ import { requireStaff } from "@/lib/auth";
 import { CALL_SCRIPT } from "@/lib/consent";
 import { fmtDate } from "@/lib/format";
 import { consentsFor } from "@/lib/onboarding";
-import { getFamily } from "@/lib/store";
+import { getFamily, logAudit } from "@/lib/store";
 import { PURPOSE_LABEL, PURPOSES } from "@/lib/upload-rules";
 
 export const metadata = { title: "Consent call" };
 
 export default async function ConsentCall({ params }: { params: Promise<{ id: string }> }) {
-  await requireStaff();
+  const viewer = await requireStaff();
   const { id } = await params;
   const fam = await getFamily(id);
   if (!fam) notFound();
-  const records = await consentsFor(id);
+  const [records] = await Promise.all([consentsFor(id), logAudit(viewer.id, "view_consent", "family", id, id)]);
   const parentRecords = records.filter((r) => r.subject === "parent");
   return (
     <section className="grid max-w-2xl gap-4">

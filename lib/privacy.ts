@@ -7,7 +7,7 @@ import { cancelForDeletion } from "./billing";
 import { supabaseAdmin } from "./supabase";
 import { BUCKET } from "./vault";
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 const TABLES = ["parents", "documents", "policies", "claims", "claim_requirements", "tasks", "time_entries", "approvals", "events", "messages", "document_consents", "subscriptions"] as const;
 

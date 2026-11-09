@@ -11,7 +11,7 @@ import { supabaseAdmin } from "./supabase";
 import { cleanTitle, sniffMime, type Purpose } from "./upload-rules";
 
 export const BUCKET = "vault";
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 // Logs carry ids, timings and error classes only. Never file names, text or field values.
 const log = (event: string, data: Record<string, unknown>) => writeLog("info", event, data);

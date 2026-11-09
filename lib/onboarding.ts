@@ -5,7 +5,7 @@ import { supabaseAdmin } from "./supabase";
 import type { Language } from "./types";
 import { PURPOSES, type Purpose } from "./upload-rules";
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 export interface NewFamily {
   ownerId: string;

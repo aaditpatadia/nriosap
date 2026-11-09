@@ -35,6 +35,7 @@ export function localEnv() {
     STRIPE_PRICE_79: "price_79",
     STRIPE_PRICE_119: "price_119",
     RATE_LIMIT_SIGNIN: "1000",
+    INNGEST_DEV: "1",
     WHATSAPP_ACCESS_TOKEN: "fake-local-token",
     WHATSAPP_PHONE_NUMBER_ID: "000000",
   };

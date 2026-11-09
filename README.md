@@ -1,63 +1,100 @@
-# Gharsaath MVP (working name)
+# Gharsaath (working name)
 
-The working tool for the 30 day concierge phase of an India desk for NRIs. Evidence and decisions: `../reports/India desk NRI research.md`. Product spec: `../specs/PRD.md`. Design tokens: `../specs/design-system.md`.
+The working tool for the 30 day concierge: an India desk for NRIs whose parents need paperwork, health insurance claims, records, bills and errands handled. AI prepares and tracks. A named coordinator checks and acts. The number that decides the business is hours per family.
 
-## Run it
-```bash
-npm install
-npm run dev          # http://localhost:3000
-npm test             # 18 unit tests (rules, margin model, encryption, webhook signature)
-npm run build && npm start
-```
-No environment variables are needed for the demo. `.env.example` lists the real ones.
+Assumptions and decisions are in `NOTES.md`. History is in `CHANGELOG.md`.
 
 ## Screens
-| Route | What it is |
+
+| Route | Who | What |
+|---|---|---|
+| `/`, `/trust` | Public | Marketing, plan comparison, FAQ, what we will not do, founder note, waitlist |
+| `/signin` | Everyone | Magic link for owners, email and password for the desk |
+| `/onboarding` | Owner | Add a parent, choose a plan, consent per purpose |
+| `/family/[id]` | Owner, assigned coordinator, admin | Overview, claims, documents, calendar, approvals, report, billing, privacy |
+| `/ops` | Coordinator, admin | Queue with filters, alerts, running timer |
+| `/ops/task/[id]` | Staff | Timer, manual time, notes, checklist, escalation, ask for approval |
+| `/ops/families` | Staff | Hours, margin, budget and SLA flags, weekly trend, CSV |
+| `/ops/new`, `/ops/onboard`, `/ops/consent/[id]`, `/ops/messages/[id]`, `/ops/documents/[id]` | Staff | Templates, onboarding, consent call, WhatsApp thread, field check |
+| `/chat/[id]` | Demo only | Simulated parent chat, only when `DEMO_MODE=1` |
+
+## Local stack (no accounts needed)
+
+This runs real Postgres from npm, plus a local stand-in for Supabase Auth and Storage and fake third-party APIs. Requires Node 24 and Chrome.
+
+```bash
+npm install
+npm run lint:setup
+npm test
+npm run test:db
+npm run local:build
+npx playwright test
+```
+
+To click around, run these in two terminals, then open http://localhost:3100:
+
+```bash
+npm run local:stack
+```
+
+```bash
+npm run local:dev
+```
+
+Sign in as `meera@demo.gharsaath.test` with password `local-staff-password-1`. For an owner, enter `priya@demo.gharsaath.test` and open the link from `http://127.0.0.1:54321/__inbox?email=priya%40demo.gharsaath.test`. These are local throwaway values.
+
+## Deploy to Vercel and Supabase
+
+1. Create a Supabase project. Choose the Mumbai region if available.
+2. Apply `supabase/migrations/001` to `008` in order, in the SQL editor or with `supabase db push`. Never apply `supabase/local/`.
+3. In Supabase Auth, turn on email. Set the Site URL to your domain and add `https://YOUR-DOMAIN/auth/callback` to the redirect URLs.
+4. Copy `.env.example` to `.env.local` and fill it in. Use the transaction pooler string (port 6543) for `DATABASE_URL`.
+5. Create the private bucket:
+
+```bash
+node --env-file=.env.local scripts/setup-storage.mjs
+```
+
+6. Create your own admin and coordinator accounts. The password comes from `STAFF_PASSWORD` and must be 12 characters or more:
+
+```bash
+npm run user:create -- you@example.com "Your Name" admin Mumbai
+```
+
+7. Optional demo family: set `DEMO_MODE=1` and `SEED_STAFF_PASSWORD`, then run `npm run db:seed`.
+8. Import the repo in Vercel (this folder is the repo root), add the same env vars, deploy.
+9. WhatsApp: in Meta, set the webhook to `https://YOUR-DOMAIN/api/whatsapp` with your verify token, and subscribe to `messages`. Leave `WHATSAPP_SEND_ENABLED=0` until business verification is done.
+10. Stripe: in test mode, create three monthly prices ($40, $79, $119) and set `STRIPE_PRICE_40`, `_79`, `_119`. Add a webhook to `https://YOUR-DOMAIN/api/stripe` for `checkout.session.completed` and `customer.subscription.*`.
+11. Inngest: connect the app at `https://YOUR-DOMAIN/api/inngest` and set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY`.
+
+## Environment variables
+
+See `.env.example`, which documents each one. The app runs with only the Supabase, database, `APP_URL` and `APP_ENCRYPTION_KEY` values. Everything else switches a feature on.
+
+## Real and mocked
+
+| Area | State |
 |---|---|
-| `/` | Marketing site: hero, how it works, pricing ($40 / $79 / $119), what we will not do, waitlist |
-| `/onboarding` | Add parent, record two consents, documents step |
-| `/family/shah` (also `kulkarni`, `mehta`) | Family dashboard: overview and timeline, claims, documents, calendar, approvals, monthly report, billing |
-| `/chat/shah` | Simulated parent WhatsApp view. Type "ambulance" to trigger the emergency path |
-| `/ops` | Coordinator queue with SLA flags |
-| `/ops/task/t1` | Task detail with a timer and time log |
-| `/ops/families` | Hours per family, margin, hour budget flags (the number that decides the business) |
-| `/api/whatsapp` | WhatsApp Cloud API webhook (GET handshake, POST with HMAC signature check) |
+| Postgres, RLS, audit log, consent records, approvals with undo | Real. Tested on real Postgres 17 |
+| Supabase Auth and Storage | Real client code. Tested against a local emulator, not a real project |
+| Field encryption, signed links, upload checks | Real |
+| Document extraction | Real Claude API code. Tested against a fake API, so real accuracy is unknown |
+| Virus scan | Hook is real. Without `VIRUS_SCAN_URL` it only catches the EICAR test file and marks files `basic_only` |
+| WhatsApp inbound | Real code. Tested with signed test payloads, not real Meta traffic |
+| WhatsApp outbound | Real code behind `WHATSAPP_SEND_ENABLED`, which is off |
+| Voice transcription | Sarvam adapter written from their docs. Mock until `SARVAM_API_KEY` is set |
+| Third-party payments | Stub only. `PaymentPartner` records a step. No money moves |
+| Subscription billing | Stripe test mode only. Live keys are refused |
+| Background jobs | Real job logic, tested on Postgres. Inngest scheduling itself not exercised |
+| Sentry | Server only, scrubbed. Scrubbing tested, sending not |
 
-## Real vs mocked
-Real:
-- Next.js 16, React 19, Tailwind 4, Motion, Radix dependency, Zod validation on every server action.
-- Approval flow: optimistic UI, 5 minute undo, persisted state, events written to the timeline.
-- Rules in `lib/rules.ts`: approval policy table, advice filter, multilingual emergency detection, SLA and hour budget checks, margin model copied from the research spreadsheet.
-- AES-256-GCM field encryption with a per family key (`lib/crypto.ts`), masked on screen.
-- Audit log entries on document, policy and approval access.
-- WhatsApp webhook: verification handshake, raw-body HMAC-SHA256 signature check with timing-safe compare, text message parsing.
-- Postgres schema with row level security in `supabase/migrations/001_init.sql` (not applied to a live database).
-- Motion tokens (`lib/motion.ts`, `app/globals.css`), reduced motion, large text mode, skeleton loaders, view transitions on the marketing site.
+## What you must do yourself
 
-Mocked or missing:
-- Data is an in-memory store seeded with three fictional families (`lib/store.ts`). It resets on restart. Swap it for a Supabase-backed module with the same exports.
-- Sign-in is mocked. Anyone can open any family. Supabase Auth and the RLS policies are the intended replacement.
-- Document extraction is `MockExtractor` behind the `DocumentExtractor` interface. No real model is called and no files are uploaded.
-- No outbound WhatsApp sending. Business verification has not been done.
-- Payments are display only. No money moves. A `PaymentPartner` interface is not built yet.
-- Background jobs and Sentry are not wired in (listed in the PRD).
-- The brand font is Figtree. Avantt needs a licence from Displaay; see `app/fonts.ts` (one file to change).
-- Insurer, DigiLocker, ABDM and Account Aggregator integrations do not exist.
-
-## Fonts
-`app/fonts.ts` is the only place the font is chosen. To use Avantt after licensing: add the files to `app/fonts/`, change `src` and `variable` in that file.
-
-## Verified in this build (9 Nov 2026, headless Chromium, Linux)
-- Typecheck and production build pass. 18 of 18 unit tests pass.
-- axe-core (WCAG 2.0, 2.1, 2.2 AA and best practices): 0 violations on 13 pages in light and dark at 390px.
-- Lighthouse mobile (simulated throttling): performance 97 to 100, accessibility 100, best practices 100, SEO 100 on four pages. LCP 0.8 s, CLS 0.
-- 78 screenshots at 375, 768 and 1440px, light and dark: no horizontal overflow, no console errors.
-- Interaction flows pass: waitlist, approve, undo, persistence, emergency escalation to the ops queue, timer logging, large text, onboarding with consent, reduced motion, webhook accept and reject.
-
-## Not verified
-- Real mid-range Android device. Frame timing was measured in headless Chromium with 4x CPU throttle: 4 to 7% of frames over 33 ms during approve, undo and navigation, with a worst frame of 93 to 190 ms (route changes). Software rendering without a GPU makes this pessimistic, but it is not a phone test.
-- Real WhatsApp traffic, real documents, real users, any live database.
-- Screen readers (NVDA, VoiceOver, TalkBack). Only automated checks and keyboard-oriented markup.
-- Hindi, Gujarati and Marathi text rendering on web beyond fallback fonts.
-- Motion token values on a real phone. They are proposals.
-- Legal questions in the PRD section 14. Nothing here is legal advice.
+1. Lawyer review of the payments and claims-help boundaries (research report section 4.2).
+2. DPDP consent wording, and native review of the Hindi, Gujarati and Marathi call scripts in `lib/consent.ts`. They are drafts. Include cross-border AI processing.
+3. Licence Avantt from Displaay, then change `app/fonts.ts`. Do not use an unlicensed copy.
+4. WhatsApp business verification and Meta template approval (`doc_reminder`, `task_update`).
+5. Partner agreements with a CA, an advocate and hospital desks. Then add them to `partner_contacts`.
+6. The first 10 customer interviews, in person, as the research says.
+7. Add a real virus scanner before real families upload files.
+8. Run the app against a real Supabase project and re-run the checks in `NOTES.md`.

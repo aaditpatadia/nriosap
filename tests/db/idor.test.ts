@@ -57,6 +57,7 @@ for (const [name, attacker] of [["outsider", ID.outsider], ["other owner", ID.ow
       const o = await import("@/lib/ops");
       const b = await import("@/lib/onboarding");
       const w = await import("@/lib/wa-outbound");
+      const p = await import("@/lib/privacy");
       const before = await Promise.all([snapshot("select status, title from tasks where id=$1", [ID.task]), snapshot("select status from approvals where id=$1", [ID.approval]), snapshot("select count(*) from time_entries where task_id=$1", [ID.task]), snapshot("select checked_at from documents where id=$1", [ID.doc]), snapshot("select status from claims where id=$1", [ID.claim])]);
       await as(attacker, async () => {
         expect(await s.decideApproval(ID.approval, "approved")).toBeUndefined();
@@ -73,7 +74,7 @@ for (const [name, attacker] of [["outsider", ID.outsider], ["other owner", ID.ow
         expect(await b.pauseForCounsel(ID.parent, "x")).toBe(false);
         expect(await b.setClaimStatus(ID.claim, "settled")).toBe(false);
         expect(await b.addRequirement(ID.claim, "x")).toBe(false);
-        await expect(b.withdrawParentConsent(ID.parent, "x")).resolves.toBe(false);
+        await expect(p.withdrawParentConsent(ID.parent, "x")).resolves.toBe(false);
         await expect(v.withdrawDocumentConsent(ID.doc, "store")).rejects.toThrow();
         expect((await w.saveDraft(ID.fam, "hello", attacker)).ok).toBe(false);
         expect((await w.sendTemplateMessage(ID.fam, "doc_reminder", ["a", "b"], attacker)).ok).toBe(false);

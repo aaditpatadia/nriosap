@@ -55,8 +55,17 @@ test("api routes refuse anonymous callers", async ({ request }) => {
   expect((await request.get(`/api/family/${FAM.shah}/export`)).status()).toBe(401);
   expect((await request.get("/api/documents/33333333-0000-4000-8000-000000000001/file")).status()).toBe(401);
   expect((await request.get("/api/messages/33333333-0000-4000-8000-000000000001/voice")).status()).toBe(404);
-  expect((await request.get("/ops/families/export")).status()).toBe(403);
+  // Signed-out visitors are redirected to sign in before the route is reached.
+  const csv = await request.get("/ops/families/export", { maxRedirects: 0 });
+  expect(csv.status()).toBe(307);
+  expect(csv.headers().location).toContain("/signin");
   expect((await request.post("/api/documents", { headers: { origin: "http://localhost:3100" }, multipart: { familyId: FAM.shah } })).status()).toBe(401);
+});
+
+test("the job endpoint serves all six scheduled functions", async ({ request }) => {
+  const r = await request.get("/api/inngest");
+  expect(r.status()).toBe(200);
+  expect((await r.json()).function_count).toBe(6);
 });
 
 test("the emulated storage refuses anyone without the service key", async ({ request }) => {

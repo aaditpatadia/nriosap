@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { actionViewer, isStaff } from "@/lib/auth";
-import { addManualTime, addNote, createTaskFromTemplate, escalate, startTimer, stopTimer } from "@/lib/ops";
+import { addManualTime, addNote, createTaskFromTemplate, escalate, resolveAlert, startTimer, stopTimer } from "@/lib/ops";
 import { normalisePhone, PLAN_PRICES } from "@/lib/consent";
 import { addClaim, addRequirement, confirmParentConsent, createFamily, ensureOwner, pauseForCounsel, requestApproval, setClaimStatus, setRequirementReceived } from "@/lib/onboarding";
 import { looksLikeAdvice } from "@/lib/rules";
@@ -201,6 +201,13 @@ export async function setClaimStatusAction(claimId: string, status: string) {
   if (!(await staff()) || !p.success) return { ok: false };
   const ok = await setClaimStatus(p.data.claimId, p.data.status);
   revalidatePath("/family", "layout");
+  return { ok };
+}
+
+export async function resolveAlertAction(alertId: string) {
+  if (!(await staff()) || !id.safeParse(alertId).success) return { ok: false };
+  const ok = await resolveAlert(alertId);
+  revalidatePath("/ops", "layout");
   return { ok };
 }
 

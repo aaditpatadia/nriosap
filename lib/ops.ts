@@ -10,10 +10,15 @@ export interface Template { id: string; name: string; kind: Task["kind"]; title:
 export interface PartnerContact { id: string; kind: EscalationKind; name: string; phone: string | null; email: string | null; city: string | null }
 export interface TaskNote { id: string; body: string; at: string; author: string }
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 export async function openAlerts(): Promise<{ id: string; kind: string; body: string }[]> {
   return (await rows<Row>("select id, kind, body from alerts where resolved_at is null order by created_at desc limit 20")).map((a) => ({ id: a.id, kind: a.kind, body: a.body }));
+}
+
+export async function resolveAlert(id: string): Promise<boolean> {
+  if (!isUuid(id)) return false;
+  return (await tx((t) => t.run("update alerts set resolved_at = now() where id = $1 and resolved_at is null", [id]))) > 0;
 }
 
 export async function runningTimer(userId: string): Promise<RunningTimer | undefined> {

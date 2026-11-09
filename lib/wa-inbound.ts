@@ -10,7 +10,7 @@ import { BUCKET, ingestDocument } from "./vault";
 import { downloadMedia } from "./wa-client";
 import type { InboundMessage } from "./whatsapp";
 
-type Row = Record<string, any>;  
+type Row = Record<string, any>;
 
 async function raiseEmergency(t: { run(sql: string, p?: unknown[]): Promise<number> }, familyId: string, coordinatorId: string | null, parentName: string) {
   await t.run(

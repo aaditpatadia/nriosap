@@ -4,6 +4,8 @@ import { claimsFor, documentsFor, getFamily, tasksFor, timeFor, timeline } from 
 import { fmtDate, fmtShort, inr } from "@/lib/format";
 import { entriesThisMonth, hoursFor, monthStartIst } from "@/lib/rules";
 
+const STATUS_WORDS = { preparing: "being prepared", submitted: "submitted", query: "the insurer has a question", approved: "approved", settled: "settled" } as const;
+
 export default async function Report({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const fam = await getFamily(id);
@@ -27,13 +29,13 @@ export default async function Report({ params }: { params: Promise<{ id: string 
       <div className="card grid gap-2">
         <h2 className="text-[length:var(--text-h3)] font-semibold">What happened</h2>
         <p>{events.length} update{events.length === 1 ? "" : "s"}, {done.length} task{done.length === 1 ? "" : "s"} finished, {open.length} still open, {newDocs.length} new document{newDocs.length === 1 ? "" : "s"}.</p>
-        <p>Desk time spent on your family this month: about {hours} hours.</p>
+        <p>Desk time spent on your family this month: about {hours.toFixed(1)} hours.</p>
         <ul className="list-disc pl-6">{events.slice(0, 8).map((e) => <li key={e.id}>{fmtShort(e.at)}: {e.text}</li>)}</ul>
       </div>
       <div className="card grid gap-2">
         <h2 className="text-[length:var(--text-h3)] font-semibold">Claims</h2>
         {claims.length === 0 && <p className="text-muted">No claims.</p>}
-        {claims.map((c) => (<p key={c.id}>{c.hospital}: {c.status}{c.amountSettledInr ? `, settled ${inr(c.amountSettledInr)}` : ""}. Next check {fmtShort(c.slaDueAt)}.{c.missing.length ? ` Still missing: ${c.missing.join(", ")}.` : ""}</p>))}
+        {claims.map((c) => (<p key={c.id}>{c.hospital}: {STATUS_WORDS[c.status]}{c.amountSettledInr ? `, settled ${inr(c.amountSettledInr)}` : ""}. Next check {fmtShort(c.slaDueAt)}.{c.missing.length ? ` Still missing: ${c.missing.join(", ")}.` : ""}</p>))}
       </div>
       <div className="card grid gap-2">
         <h2 className="text-[length:var(--text-h3)] font-semibold">Coming up</h2>
