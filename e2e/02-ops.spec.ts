@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { FAM, signInOwner, signInStaff } from "./helpers";
 
-const row = (page: import("@playwright/test").Page, name: string) => page.locator(`tr[data-family="${name}"]`);
+const row = (page: import("@playwright/test").Page, name: string) => page.locator(`tr[data-family="${name}"]:visible`);
 
 test("timer survives a refresh, then hours and margin update", async ({ page }) => {
   await signInStaff(page, "meera");
@@ -84,7 +84,11 @@ test("coordinator cannot open another coordinator's task by id", async ({ page }
   const href = await page.locator("table").getByRole("link", { name: "Assemble reimbursement claim documents" }).getAttribute("href");
   await page.context().clearCookies();
   await signInStaff(page, "meera");
-  expect((await page.goto(href!))?.status()).toBe(404);
+  // The ops loading skeleton starts streaming before the check, so the status can be 200. The body is what matters.
+  await page.goto(href!);
+  await expect(page.getByText("This page could not be found")).toBeVisible();
+  await expect(page.getByText("Assemble reimbursement claim documents")).toHaveCount(0);
+  await expect(page.getByText("Harish Mehta")).toHaveCount(0);
 });
 
 test("owner cannot export hours or open a task", async ({ page }) => {
