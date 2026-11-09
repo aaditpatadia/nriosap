@@ -13,3 +13,5 @@ qa/out/
 tools/lint/node_modules/
 qa/screenshots/
 qa/lighthouse.json
+.vercel
+.env*

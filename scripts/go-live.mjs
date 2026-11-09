@@ -78,10 +78,8 @@ for (const [name, value] of Object.entries(vercelEnv(env, APP_URL))) {
 }
 
 say("5 of 5. Redeploying (about a minute)...");
-// Vercel builds every push to main, and that route is known to work here.
-const commit = spawnSync("git", ["commit", "--allow-empty", "-m", "chore: redeploy with live settings"], { encoding: "utf8" });
-if (commit.status !== 0) stop("git could not make the redeploy commit.");
-if (spawnSync("git", ["push", "origin", "main"], { stdio: "inherit" }).status !== 0) stop("git could not push. Open Vercel, then Deployments, and press Redeploy instead.");
+// A direct redeploy, because Vercel skips a build when a push changes no files.
+if (vercel(["redeploy", APP_URL], { stdio: "inherit" }).status !== 0) stop("Vercel could not redeploy. Open Vercel, then Deployments, and press Redeploy instead.");
 
 for (let i = 0; i < 40; i++) {
   await new Promise((r) => setTimeout(r, 15_000));
