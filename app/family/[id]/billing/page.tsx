@@ -26,7 +26,7 @@ export default async function Billing({ params, searchParams }: { params: Promis
         <p className="text-muted">Started {fmtDate(fam.startedAt)}. Cancel any time. No lock-in, no visit caps.</p>
       </div>
       {owner && billingConfigured(fam.planUsd) && <BillingButtons familyId={id} hasSubscription={!!sub?.hasCustomer && status !== "canceled"} />}
-      <p className="text-[length:var(--text-small)] text-muted">This is only for your Gharsaath subscription. We never handle money for your parents&apos; bills or claims. Those need your approval and, in future, a licensed partner.</p>
+      <p className="text-[length:var(--text-small)] text-muted">This is only for your Ally subscription. We never handle money for your parents&apos; bills or claims. Those need your approval and, in future, a licensed partner.</p>
     </section>
   );
 }

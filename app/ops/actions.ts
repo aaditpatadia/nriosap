@@ -30,7 +30,7 @@ export async function startTimerAction(taskId: string) {
 export async function stopTimerAction(taskId: string, note: string) {
   const v = await staff();
   if (!v || !id.safeParse(taskId).success) return { ok: false as const };
-  const r = await stopTimer(taskId, note.slice(0, 280), v.id);
+  const r = await stopTimer(taskId, String(note ?? "").slice(0, 280), v.id);
   revalidatePath("/ops", "layout");
   return r;
 }
@@ -78,7 +78,9 @@ export async function checkDocumentAction(_prev: unknown, form: FormData) {
   const v = await staff();
   const p = z.object({ id, kind: z.enum(["policy", "discharge_summary", "bill", "id", "report"]) }).safeParse({ id: form.get("id"), kind: form.get("kind") });
   if (!v || !p.success) return { ok: false, message: "Please check the form." };
-  const values = Object.fromEntries([...form.entries()].filter(([k]) => k.startsWith("f:")).map(([k, val]) => [k.slice(2), String(val)]));
+  const fields = [...form.entries()].filter(([k]) => k.startsWith("f:"));
+  if (fields.length > 40 || fields.some(([k, val]) => k.length > 120 || typeof val !== "string" || val.length > 500)) return { ok: false, message: "Please check the form." };
+  const values = Object.fromEntries(fields.map(([k, val]) => [k.slice(2), String(val)]));
   const ok = await saveCheck(p.data.id, values, p.data.kind, v.id);
   revalidatePath("/ops", "layout");
   revalidatePath("/family", "layout");
@@ -174,7 +176,7 @@ export async function requestApprovalAction(_prev: unknown, form: FormData) {
 
 export async function addClaimAction(_prev: unknown, form: FormData) {
   const v = await staff();
-  const p = z.object({ familyId: id, hospital: z.string().trim().min(2).max(160), kind: z.enum(["cashless", "reimbursement"]), amount: z.coerce.number().int().min(0), missing: z.string().max(1000) }).safeParse(Object.fromEntries(form));
+  const p = z.object({ familyId: id, hospital: z.string().trim().min(2).max(160), kind: z.enum(["cashless", "reimbursement"]), amount: z.coerce.number().int().min(0).max(100000000), missing: z.string().max(1000) }).safeParse(Object.fromEntries(form));
   if (!v || !p.success) return { ok: false, message: "Please fill in every field." };
   const ok = await addClaim(p.data.familyId, p.data.kind, p.data.hospital, p.data.amount, p.data.missing.split("\n").map((s) => s.trim()).filter(Boolean));
   revalidatePath("/family", "layout");

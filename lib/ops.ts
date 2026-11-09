@@ -113,7 +113,7 @@ export async function escalate(taskId: string, contactId: string, userId: string
     const task = await t.one<Row>("select k.id, k.title, k.family_id, f.name from tasks k join families f on f.id = k.family_id where k.id = $1", [taskId]);
     const c = await t.one<Row>("select * from partner_contacts where id = $1 and active", [contactId]);
     if (!task || !c) return { ok: false };
-    const brief = `Namaste ${c.name}. The Gharsaath desk needs your professional review for ${task.name}: "${task.title}". Please reply with your own advice for the family. We will not interpret it for them.`;
+    const brief = `Namaste ${c.name}. The Ally desk needs your professional review for ${task.name}: "${task.title}". Please reply with your own advice for the family. We will not interpret it for them.`;
     await t.run("insert into escalations(task_id, family_id, contact_id, kind, brief, created_by) values ($1,$2,$3,$4,$5,$6)", [taskId, task.family_id, contactId, c.kind, brief, userId]);
     await t.run("insert into task_notes(task_id, family_id, author_id, body) values ($1,$2,$3,$4)", [taskId, task.family_id, userId, `Escalated to ${KIND_LABEL[c.kind as EscalationKind]}: ${c.name}.`]);
     await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'system','system','Desk',$2)", [task.family_id, `Sent to a licensed professional (${KIND_LABEL[c.kind as EscalationKind]}) for their review.`]);

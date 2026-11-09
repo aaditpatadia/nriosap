@@ -6,7 +6,7 @@ import { FAM, signInOwner, signInStaff } from "./helpers";
 const OUT = ".local/qa";
 mkdirSync(`${OUT}/shots`, { recursive: true });
 
-const PUBLIC = [["home", "/"], ["demo", "/demo"], ["trust", "/trust"], ["signin", "/signin"], ["goodbye", "/goodbye"]] as const;
+const PUBLIC = [["home", "/"], ["demo", "/demo"], ["trust", "/trust"], ["privacy", "/privacy"], ["signin", "/signin"], ["goodbye", "/goodbye"]] as const;
 const familyPages = (id: string) => ["", "/claims", "/documents", "/calendar", "/approvals", "/report", "/billing", "/privacy"].map((s) => [`family${s.replace("/", "-")}`, `/family/${id}${s}`] as const);
 
 async function staffRoutes(page: Page) {

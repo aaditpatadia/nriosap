@@ -78,7 +78,7 @@ test("sign-in works from 127.0.0.1 as well as localhost", async ({ page }) => {
 
 test("wrong password is refused without saying why",async ({ page }) => {
   await page.goto("/signin");
-  await page.getByLabel("Work email").fill("meera@demo.gharsaath.test");
+  await page.getByLabel("Work email").fill("meera@demo.ally.test");
   await page.getByLabel("Password").fill("not-the-password");
   await page.getByRole("button", { name: "Sign in to the desk" }).click();
   await expect(page.getByText("did not match")).toBeVisible();

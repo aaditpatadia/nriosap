@@ -5,6 +5,7 @@ import { localEnv } from "../scripts/local/env.mjs";
 import { FAM, signInOwner, signInStaff } from "./helpers";
 
 const env = localEnv();
+const SAME_SITE = { origin: "http://localhost:3100" };
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
@@ -37,7 +38,7 @@ test("no secret or sensitive field reaches a page's HTML", async ({ page }) => {
 test("server logs hold no health data or personal details after the whole run", () => {
   const log = readFileSync(".local/app.log", "utf8");
   expect(log.length).toBeGreaterThan(0);
-  const forbidden = ["SGI-44871", "DIA-2291", "Sample General Insurance", "Kusum", "Priya Shah", "ambulance", "chest pain", "Ramesh Testwala", "Spoke for 10 minutes", "9800000001", "@demo.gharsaath.test", "Discharge summary", "sample-policy.pdf", "એમ્બ્યુલન્સ", env.APP_ENCRYPTION_KEY, env.SUPABASE_SERVICE_ROLE_KEY];
+  const forbidden = ["SGI-44871", "DIA-2291", "Sample General Insurance", "Kusum", "Priya Shah", "ambulance", "chest pain", "Ramesh Testwala", "Spoke for 10 minutes", "9800000001", "@demo.ally.test", "Discharge summary", "sample-policy.pdf", "એમ્બ્યુલન્સ", env.APP_ENCRYPTION_KEY, env.SUPABASE_SERVICE_ROLE_KEY];
   for (const f of forbidden) expect(log.includes(f), `found in logs: ${f}`).toBe(false);
 });
 
@@ -82,18 +83,18 @@ test("a sign-in redirect cannot point at another site", async ({ page }) => {
 });
 
 test("waitlist endpoint rejects junk and limits abuse", async ({ request }) => {
-  expect((await request.post("/api/waitlist", { data: { email: "nope" } })).status()).toBe(400);
+  expect((await request.post("/api/waitlist", { headers: SAME_SITE, data: { email: "nope" } })).status()).toBe(400);
   const codes: number[] = [];
-  for (let i = 0; i < 14; i++) codes.push((await request.post("/api/waitlist", { data: { email: `a${i}@x.co`, country: "UK" } })).status());
+  for (let i = 0; i < 14; i++) codes.push((await request.post("/api/waitlist", { headers: SAME_SITE, data: { email: `a${i}@x.co`, country: "UK" } })).status());
   expect(codes).toContain(429);
 });
 
 test("sign-in links are single use", async ({ page, browser }) => {
   await page.goto("/signin");
-  await page.getByLabel("Your email").fill("priya@demo.gharsaath.test");
+  await page.getByLabel("Your email").fill("priya@demo.ally.test");
   await page.getByRole("button", { name: "Email me a link" }).click();
   await expect(page.getByText("Check your email")).toBeVisible();
-  const { link } = (await (await page.request.get("http://127.0.0.1:54321/__inbox?email=priya%40demo.gharsaath.test")).json()) as { link: string };
+  const { link } = (await (await page.request.get("http://127.0.0.1:54321/__inbox?email=priya%40demo.ally.test")).json()) as { link: string };
   await page.goto(link);
   await expect(page).toHaveURL(new RegExp(FAM.shah));
   const other = await browser.newPage();

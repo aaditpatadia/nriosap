@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OwnerConsentForm } from "@/components/OwnerConsentForm";
+import { IndiaClock } from "@/components/IndiaClock";
 import { Timeline } from "@/components/Timeline";
 import { getViewer, isDemoMode } from "@/lib/auth";
 import { OWNER_CONSENT_TEXT, REQUIRED_PURPOSES } from "@/lib/consent";
@@ -30,12 +31,12 @@ export default async function Overview({ params }: { params: Promise<{ id: strin
     <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <section aria-labelledby="status" className="grid content-start gap-4">
         <div>
-          <h1 id="status" className="text-[length:var(--text-h1)] font-bold">{headline}</h1>
+          <h1 id="status" className="flex items-center gap-3 text-[length:var(--text-h1)] font-bold"><span aria-hidden className="orb" data-tone={needs === 0 ? "ok" : "warn"} />{headline}</h1>
           <p className="mt-1 text-muted">for {fam.parent.name} in {fam.parent.city}</p>
         </div>
         {ownerPending && <OwnerConsentForm familyId={id} items={PURPOSES.map((p) => ({ purpose: p, text: OWNER_CONSENT_TEXT[p] }))} />}
         {pending.length > 0 && (
-          <Link href={`/family/${id}/approvals`} className="card flex items-center justify-between gap-3" style={{ borderColor: "var(--warn)" }}>
+          <Link href={`/family/${id}/approvals`} className="card lift flex items-center justify-between gap-3" style={{ borderColor: "var(--warn)" }}>
             <span><span className="font-semibold">Needs you:</span> {pending[0].summary}</span>
             <span className="btn btn-primary">Review</span>
           </Link>
@@ -51,6 +52,7 @@ export default async function Overview({ params }: { params: Promise<{ id: strin
         <Timeline events={events} />
       </section>
       <aside className="grid content-start gap-4" aria-label="Parent">
+        <IndiaClock city={fam.parent.city} />
         <div className="card grid gap-1">
           <p className="text-[length:var(--text-h3)] font-semibold">{fam.parent.name}</p>
           <p className="text-muted">{fam.parent.city} · speaks {fam.parent.language}</p>

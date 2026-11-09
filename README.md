@@ -1,4 +1,4 @@
-# Gharsaath (working name)
+# Ally (working name)
 
 The working tool for the 30 day concierge: an India desk for NRIs whose parents need paperwork, health insurance claims, records, bills and errands handled. AI prepares and tracks. A named coordinator checks and acts. The number that decides the business is hours per family.
 
@@ -47,7 +47,7 @@ On `/signin`, use the **Try the demo** buttons to open as an owner, a coordinato
 ## Deploy to Vercel and Supabase
 
 1. Create a Supabase project. Choose the Mumbai region if available.
-2. Apply `supabase/migrations/001` to `008` in order, in the SQL editor or with `supabase db push`. Never apply `supabase/local/`.
+2. Apply `supabase/migrations/001` to `009` in order, in the SQL editor or with `supabase db push`. Never apply `supabase/local/`.
 3. In Supabase Auth, turn on email. Set the Site URL to your domain and add `https://YOUR-DOMAIN/auth/callback` to the redirect URLs.
 4. Copy `.env.example` to `.env.local` and fill it in. Use the transaction pooler string (port 6543) for `DATABASE_URL`.
 5. Create the private bucket:
@@ -78,6 +78,14 @@ Vercel deploys every push to `main`. Until the database variables are set, `/sig
 4. In Vercel, set `GOOGLE_SIGNIN=1`, then redeploy.
 
 New Google accounts always start as family owners. Desk roles are only given with `npm run user:create`.
+
+## Security settings to set before launch
+
+- `INNGEST_SIGNING_KEY`: required on Vercel. Without it the job endpoint stays shut and no scheduled job runs.
+- `DATABASE_CA_CERT`: base64 of the Supabase CA certificate, so the server identity is verified as well as encrypted.
+- `SENTRY_DSN`: repeated failed sign-ins always appear on the ops page for admins. With this set, Sentry can email you too.
+- `VIRUS_SCAN_URL`: without a real scanner only the standard test file is caught.
+- In Supabase, turn on leaked password protection and keep email confirmations on. Check the Auth rate limits.
 
 ## Environment variables
 

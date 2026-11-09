@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { demoSignIn } from "./actions";
 import { SiteHeader } from "@/components/SiteHeader";
+import { PageHero } from "@/components/PageHero";
 import { SignInForms } from "@/components/SignInForms";
 import { getViewer, safeNext } from "@/lib/auth";
 import { backendReady, googleSignInEnabled } from "@/lib/backend";
@@ -21,8 +22,9 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
   return (
     <>
       <SiteHeader />
-      <main id="main" className="wrap grid gap-6 pb-24 pt-6 lg:grid-cols-2 lg:items-start">
-        <h1 className="text-[length:var(--text-h1)] font-bold lg:col-span-2">Sign in</h1>
+      <main id="main">
+        <PageHero title="Sign in" lead={<p>Everything your family needs, in one private place.</p>} />
+        <div className="wrap grid gap-6 pb-24 pt-8 lg:grid-cols-2 lg:items-start">
         {sp.error && <p role="alert" className="text-danger lg:col-span-2">{ERRORS[sp.error] ?? "That link has expired or was already used. Please ask for a new one."}</p>}
         {demo && (
           <section aria-labelledby="demo-in" className="card grid gap-4 lg:col-span-2" style={{ borderColor: "var(--accent)", borderWidth: 2 }}>
@@ -46,6 +48,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
             <Link href="/demo" className="btn btn-primary w-fit">Try the live demo</Link>
           </section>
         )}
+        </div>
       </main>
     </>
   );

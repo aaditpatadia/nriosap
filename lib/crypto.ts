@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 
 /** Per-family key derived from one master secret. Set APP_ENCRYPTION_KEY in production. */
+// The salt below is a fixed internal value from the old working name. Changing it would make stored data unreadable.
 function keyFor(familyId: string): Buffer {
   const master = process.env.APP_ENCRYPTION_KEY ?? (process.env.NODE_ENV === "production" ? "" : "dev-only-insecure-master-key-change-me");
   if (master.length < 32) throw new Error("APP_ENCRYPTION_KEY must be at least 32 characters");

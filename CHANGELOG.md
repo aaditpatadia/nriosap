@@ -1,10 +1,20 @@
 # Changelog
 
+## Security and motion pass
+- Session cookies are now HttpOnly, Secure and SameSite=Lax.
+- Sign-in limits per mailbox and per account, as well as per address. Google and link sign-in are limited too.
+- Failed sign-ins go to the audit log and logs without the email address. Repeats raise an admin alert (migration 009).
+- HTTP redirects to HTTPS, cross-site API calls are refused centrally, more security headers, job endpoint shut without its key.
+- Closed a redirect trick using tabs and newlines. Tightened form limits. Demo features need the local emulator.
+- Packages: 0 known holes. Removed two unused packages.
+- New look, logo and motion across the site. Pause motion button. Live India clock on the family page.
+
 ## Going live
 - Every page now runs the full width of the screen, with colour bands and wider grids.
 - Added `/demo`: a public, no-account walk-through with a fictional family. It runs in the browser only.
 - Added Google sign-in behind `GOOGLE_SIGNIN`. New Google accounts start as owners.
 - With no database settings, sign-in and the waitlist now say they are not open yet instead of failing.
+- Added `/privacy`: a public draft privacy policy, linked from the footer and the trust page. It still needs a lawyer's review, a legal name and a contact address.
 
 ## Quality pass
 - Migration 008 removes insert rights user sessions did not need, and tightens alert updates.

@@ -1,6 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { demoLoginEnabled } from "./demo-login";
 import { currentContext, one, setDefaultContextResolver, withContext, type DbContext } from "./db";
 import { supabaseServer } from "./supabase";
 
@@ -56,10 +57,12 @@ export async function actionViewer(): Promise<Viewer | null> {
   return getViewer();
 }
 
-export const isDemoMode = () => process.env.DEMO_MODE === "1";
+/** Needs the demo flag and the local Auth emulator together, so it cannot switch on against a real project. */
+export const isDemoMode = () => demoLoginEnabled();
 
 /** Only same-site relative paths are allowed as a post-sign-in target. */
 export function safeNext(next: unknown, fallback = "/home"): string {
-  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return fallback;
+  // Browsers drop tabs and newlines, which would turn "/<tab>/evil.example" into "//evil.example".
+  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(next)) return fallback;
   return next;
 }

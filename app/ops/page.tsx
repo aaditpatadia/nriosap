@@ -55,7 +55,7 @@ export default async function Queue({ searchParams }: { searchParams: Promise<Fi
       {alerts.length > 0 && (
         <div className="card grid gap-2" style={{ borderColor: "var(--warn)" }}>
           <h2 className="text-[length:var(--text-h3)] font-semibold">Alerts</h2>
-          <ul className="grid gap-1">{alerts.map((a) => <li key={a.id} className="flex flex-wrap items-center justify-between gap-2"><span><span className="chip mr-2" data-tone="warn">{a.kind === "sla" ? "SLA" : a.kind === "hours" ? "Hours" : a.kind === "no_reply" ? "No reply" : a.kind === "renewal" ? "Renewal" : "Bill"}</span>{a.body}</span><ClearAlert id={a.id} /></li>)}</ul>
+          <ul className="grid gap-1">{alerts.map((a) => <li key={a.id} className="flex flex-wrap items-center justify-between gap-2"><span><span className="chip mr-2" data-tone="warn">{a.kind === "sla" ? "SLA" : a.kind === "hours" ? "Hours" : a.kind === "no_reply" ? "No reply" : a.kind === "renewal" ? "Renewal" : a.kind === "security" ? "Security" : "Bill"}</span>{a.body}</span><ClearAlert id={a.id} /></li>)}</ul>
         </div>
       )}
       <form className="card grid gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end" aria-label="Filter tasks">

@@ -5,6 +5,7 @@ import { AnimatePresence, m } from "motion/react";
 import { decideAction, undoAction } from "@/app/actions";
 import { spring } from "@/lib/motion";
 import { inr } from "@/lib/format";
+import { Burst } from "./Burst";
 import type { Approval } from "@/lib/types";
 
 type View = Pick<Approval, "id" | "summary" | "amountInr" | "payee" | "feesInr" | "when" | "status"> & {
@@ -74,7 +75,8 @@ export function ApprovalCard({ approval, canDecide = true }: { approval: View; c
               </button>
             </m.div>
           ) : (
-            <m.div key="done" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={spring.gentle} className="flex flex-wrap items-center gap-3">
+            <m.div key="done" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={spring.gentle} className="relative flex flex-wrap items-center gap-3">
+              {status === "approved" && <Burst />}
               <span className="chip" data-tone={status === "approved" ? "ok" : "warn"}>
                 {status === "approved" ? "Approved" : "Declined"}
               </span>

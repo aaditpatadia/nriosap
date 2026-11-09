@@ -2,7 +2,7 @@ import "server-only";
 import { cron, Inngest } from "inngest";
 import { runApprovedActions, runBillReminders, runHousekeeping, runNoReplyCheck, runRenewalReminders, runSlaAlerts } from "./jobs";
 
-export const inngest = new Inngest({ id: "gharsaath" });
+export const inngest = new Inngest({ id: "ally" });
 
 const job = (id: string, schedule: string, fn: () => Promise<unknown>) =>
   inngest.createFunction({ id, triggers: [cron(schedule)] }, async ({ step }) => step.run(id, fn));

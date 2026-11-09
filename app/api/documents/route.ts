@@ -14,6 +14,8 @@ export async function POST(req: Request) {
   const viewer = await getViewer();
   if (!viewer) return NextResponse.json({ ok: false, reason: "Please sign in." }, { status: 401 });
   if (!(await rateLimit(`upload:${viewer.id}`, 60, 600))) return NextResponse.json({ ok: false, reason: "Too many uploads. Please wait a few minutes." }, { status: 429 });
+  // Refused before the body is read. The extra 64 KB allows for the form fields around the file.
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_WEB_UPLOAD_BYTES + 65536) return NextResponse.json({ ok: false, reason: "Please send a file under 4 MB, or send it on WhatsApp." }, { status: 413 });
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   const fid = z.string().uuid().safeParse(form?.get("familyId"));

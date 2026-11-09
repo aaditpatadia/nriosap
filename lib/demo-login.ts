@@ -18,4 +18,4 @@ export const DEMO_PEOPLE = [
 ] as const;
 
 export type DemoPerson = (typeof DEMO_PEOPLE)[number]["id"];
-export const DEMO_DOMAIN = "demo.gharsaath.test";
+export const DEMO_DOMAIN = "demo.ally.test";

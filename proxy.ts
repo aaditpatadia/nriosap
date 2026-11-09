@@ -1,10 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { hardenCookie } from "@/lib/cookies";
+import { httpsTarget, sameOrigin } from "@/lib/http";
 
 const PROTECTED = /^\/(family|ops|chat|onboarding|home)(\/|$)/;
 const SIGNED_IN_PAGES = /^\/(family|ops|chat|onboarding|home|signin)(\/|$)/;
 
-function csp(nonce: string | null): string {
+function csp(nonce: string | null, https: boolean): string {
   const dev = process.env.NODE_ENV !== "production";
   // Pages that show family data get a strict nonce policy. Static marketing pages have no user data
   // and cannot carry a nonce without giving up static rendering.
@@ -20,13 +22,24 @@ function csp(nonce: string | null): string {
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
+    ...(https ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }
 
-/** Sets the content security policy, refreshes the Supabase session and redirects signed-out visitors. */
+/** Forces HTTPS, refuses cross-site API calls, sets the content security policy, refreshes the session and redirects signed-out visitors. */
 export async function proxy(req: NextRequest) {
+  const proto = req.headers.get("x-forwarded-proto");
+  const toHttps = httpsTarget(req.nextUrl.pathname + req.nextUrl.search, proto, req.headers.get("host"));
+  if (toHttps) return NextResponse.redirect(toHttps, 308);
+
+  // No other site may call these. Webhooks are outside this matcher and check their own signatures.
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    if (req.method === "OPTIONS") return new NextResponse(null, { status: 403 });
+    if (req.method !== "GET" && req.method !== "HEAD" && !sameOrigin(req)) return NextResponse.json({ ok: false, reason: "Bad origin." }, { status: 403 });
+  }
+
   const nonce = SIGNED_IN_PAGES.test(req.nextUrl.pathname) ? Buffer.from(crypto.randomUUID()).toString("base64") : null;
-  const policy = csp(nonce);
+  const policy = csp(nonce, proto === "https");
   req.headers.set("content-security-policy", policy);
   if (nonce) req.headers.set("x-nonce", nonce);
   const seal = (r: NextResponse) => {
@@ -45,7 +58,7 @@ export async function proxy(req: NextRequest) {
       setAll: (list) => {
         list.forEach(({ name, value }) => req.cookies.set(name, value));
         res = NextResponse.next({ request: req });
-        list.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+        list.forEach(({ name, value, options }) => res.cookies.set(name, value, hardenCookie(options)));
       },
     },
   });

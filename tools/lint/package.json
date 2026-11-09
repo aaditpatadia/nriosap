@@ -1,5 +1,5 @@
 {
-  "name": "gharsaath-lint",
+  "name": "ally-lint",
   "private": true,
   "description": "Separate install: typescript-eslint does not support TypeScript 7 yet, and the app uses 7.",
   "devDependencies": {

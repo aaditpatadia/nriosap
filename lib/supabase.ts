@@ -2,6 +2,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { hardenCookie } from "./cookies";
 
 function env(name: string): string {
   const v = process.env[name];
@@ -17,7 +18,7 @@ export async function supabaseServer(): Promise<SupabaseClient> {
       getAll: () => store.getAll(),
       setAll: (list) => {
         try {
-          list.forEach(({ name, value, options }) => store.set(name, value, options));
+          list.forEach(({ name, value, options }) => store.set(name, value, hardenCookie(options)));
         } catch {
           // Server Components cannot set cookies. proxy.ts refreshes the session instead.
         }

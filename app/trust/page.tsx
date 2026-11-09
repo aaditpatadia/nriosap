@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { PageHero } from "@/components/PageHero";
+import { VaultGraphic } from "@/components/VaultGraphic";
 
-export const metadata = { title: "Trust", description: "How Gharsaath looks after your family's documents, what we do and what we will not do." };
+export const metadata = { title: "Trust", description: "How Ally looks after your family's documents, what we do and what we will not do." };
 
 const ITEMS: [string, string][] = [
   ["Who can see your documents", "You and the coordinator assigned to your family. The founder can see them when checking the work. Nobody else."],
@@ -16,16 +19,20 @@ export default function Trust() {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="wrap grid gap-6 pb-24 pt-6">
-        <h1 className="text-[length:var(--text-h1)] font-bold">How we look after your family</h1>
-        <p className="text-muted">Short and plain. If something here is not good enough for your family, please tell us.</p>
+      <main id="main">
+        <PageHero title="How we look after your family" lead={<p>Short and plain. If something here is not good enough for your family, please tell us. The full detail is in our <Link className="underline" href="/privacy">privacy policy</Link>.</p>} />
+        <div className="wrap grid gap-6 pb-24 pt-8">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {ITEMS.map(([t, d]) => (
-            <section key={t} className="card">
+          {ITEMS.map(([t, d], i) => (
+            <section key={t} className="card rise" style={{ animationDelay: `${i * 40}ms` }}>
               <h2 className="text-[length:var(--text-h3)] font-semibold">{t}</h2>
               <p className="mt-1 text-muted">{d}</p>
             </section>
           ))}
+        </div>
+        <div className="band wrap grid items-center gap-6 rounded-[var(--radius-card)] py-10 md:grid-cols-[320px_1fr]">
+          <VaultGraphic />
+          <p className="text-[length:var(--text-h2)] font-bold">Every sensitive field is locked with its own family key. Nobody opens a document without it being written down.</p>
         </div>
         <section className="card grid gap-2">
           <h2 className="text-[length:var(--text-h3)] font-semibold">What is not finished yet</h2>
@@ -36,6 +43,7 @@ export default function Trust() {
             <li>Payments to third parties are completed by a person. We have no licensed payment partner yet.</li>
           </ul>
         </section>
+        </div>
       </main>
       <SiteFooter />
     </>

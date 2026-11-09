@@ -43,7 +43,7 @@ export async function seedDemo() {
     await c.query("update profiles set role=$2, name=$3, city=$4, country=$5, email=$6, phone=$7 where id=$1", [id, role, name, city, country, email, null]);
     return id;
   };
-  const D = "demo.gharsaath.test";
+  const D = "demo.ally.test";
   const meera = await person(`meera@${D}`, "Meera Joshi", "coordinator", "Rajkot", "India", pw);
   const rohan = await person(`rohan@${D}`, "Rohan Desai", "coordinator", "Pune", "India", pw);
   const kavita = await person(`kavita@${D}`, "Kavita Rao", "coordinator", "Mumbai", "India", pw);
@@ -132,7 +132,7 @@ export async function seedDemo() {
   await ev(FAM.mehta, 1, "human", "Kavita Rao", "claim", "Reimbursement claim is waiting on a cancelled cheque and a prescription copy from Harish-ji.");
 
   await c.query(`insert into messages(family_id,direction,created_at,language,body) values ($1,'out',${at(-3)},'Gujarati',$2),($1,'in',${at(-3)} + interval '1 hour','Gujarati',$3)`, [FAM.shah, "નમસ્તે કુસુમબેન, હું મીરા. હોસ્પિટલમાંથી સહી કરેલું ડિસ્ચાર્જ સમરી મળી જાય એટલે હું તમને જણાવીશ.", "સારું બેટા, આભાર."]);
-  await c.query("insert into partner_contacts(kind,name,phone,email,city) values ('ca','Demo CA Patel',null,'ca@demo.gharsaath.test','Mumbai'),('advocate','Demo Advocate Iyer',null,'adv@demo.gharsaath.test','Pune'),('hospital_desk','Demo City Hospital desk',null,null,'Rajkot')"); // No phone numbers: a made-up number could reach a real person.
+  await c.query("insert into partner_contacts(kind,name,phone,email,city) values ('ca','Demo CA Patel',null,'ca@demo.ally.test','Mumbai'),('advocate','Demo Advocate Iyer',null,'adv@demo.ally.test','Pune'),('hospital_desk','Demo City Hospital desk',null,null,'Rajkot')"); // No phone numbers: a made-up number could reach a real person.
   await c.end();
   console.log("demo data seeded");
 }

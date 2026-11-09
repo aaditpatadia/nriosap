@@ -4,7 +4,7 @@ import { sans } from "./fonts";
 import { MotionProvider } from "@/components/MotionProvider";
 
 export const metadata: Metadata = {
-  title: { default: "Gharsaath: your family's India desk", template: "%s | Gharsaath" },
+  title: { default: "Ally: your family's India desk", template: "%s | Ally" },
   description:
     "A named person and a careful assistant look after your parents' paperwork, health insurance claims, bills and errands in India. You see everything. You approve everything.",
 };

@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { localEnv } from "../scripts/local/env.mjs";
 
-export const DEMO = "demo.gharsaath.test";
+export const DEMO = "demo.ally.test";
 export const PASSWORD = localEnv().SEED_STAFF_PASSWORD;
 export const FAM = {
   shah: "f0000000-0000-4000-8000-000000000001",

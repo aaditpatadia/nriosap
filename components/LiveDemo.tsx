@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "motion/react";
 import { DEMO_REPLY, DEMO_TRY, routeParentMessage } from "@/lib/demo-script";
 import { spring } from "@/lib/motion";
+import { Burst } from "./Burst";
 
 type Pane = "parent" | "desk" | "owner";
 type Stage = "idle" | "received" | "reading" | "check" | "drafting" | "approve" | "undo" | "doing" | "done" | "declined" | "stopped";
@@ -49,6 +50,9 @@ const FIELDS = [
   { label: "Due date", value: "In 6 days", sure: 96 },
   { label: "Consumer number", value: "1042 7789 01", sure: 83 },
 ];
+
+const PROGRESS: Record<Stage, number> = { idle: 0.06, received: 0.18, reading: 0.32, check: 0.42, drafting: 0.56, approve: 0.68, undo: 0.78, doing: 0.9, done: 1, declined: 0.68, stopped: 0.18 };
+const MILESTONES: [string, number][] = [["Photo", 0.18], ["Read", 0.32], ["Checked", 0.56], ["Approved", 0.78], ["Done", 1]];
 
 const clock = () => new Intl.DateTimeFormat("en-IN", { timeStyle: "short", timeZone: "Asia/Kolkata" }).format(new Date());
 const hm = (mins: number) => `${Math.floor(mins / 60)}h ${mins % 60}m`;
@@ -159,6 +163,15 @@ export function LiveDemo() {
         <button type="button" className="btn btn-secondary" onClick={restart}>Start again</button>
       </div>
 
+      <div className="grid gap-2" aria-hidden>
+        <div className="h-2 overflow-hidden rounded-full bg-line">
+          <m.div className="h-full origin-left rounded-full bg-accent" initial={false} animate={{ scaleX: PROGRESS[stage] }} transition={spring.calm} />
+        </div>
+        <div className="flex justify-between text-[length:var(--text-micro)]">
+          {MILESTONES.map(([label, at]) => <span key={label} className={PROGRESS[stage] >= at ? "font-semibold text-ink" : "text-muted"}>{label}</span>)}
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-2 lg:hidden">
         {TABS.map(([p, label]) => (
           <button key={p} type="button" aria-pressed={tab === p} className={`btn ${tab === p ? "btn-tone" : "btn-secondary"}`} onClick={() => setTab(p)}>
@@ -200,10 +213,11 @@ export function LiveDemo() {
             </m.dl>
           )}
           {stage === "check" && <button type="button" className="btn btn-primary your-turn" onClick={() => go("drafting", [desk("Meera compared the number with the photo. It is right.")])}>Check and confirm as Meera</button>}
-          <Feed label="Desk activity" entries={entries("desk")} />
+          <Feed label="Desk activity" entries={entries("desk")}>{["reading", "drafting", "doing"].includes(stage) && <li aria-hidden className="typing"><span /><span /><span /></li>}</Feed>
         </section>
 
-        <section aria-labelledby="pane-owner" className={paneClass("owner")}>
+        <section aria-labelledby="pane-owner" className={`relative ${paneClass("owner")}`}>
+          {stage === "done" && <Burst />}
           <div>
             <h2 id="pane-owner" className="text-[length:var(--text-h3)] font-semibold">You, as Priya in Toronto</h2>
             <p className="text-muted">See everything. Approve everything.</p>
