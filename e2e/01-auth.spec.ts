@@ -61,6 +61,14 @@ test("the email form hands over the link when no email can be sent", async ({ pa
   await expect(page).toHaveURL(/\/onboarding/);
 });
 
+test("a new person can continue with Google and is treated as an owner", async ({ page }) => {
+  await page.goto("/signin");
+  await page.getByRole("link", { name: "Continue with Google" }).click();
+  await expect(page).toHaveURL(/\/onboarding/);
+  await page.goto("/ops");
+  await expect(page).not.toHaveURL(/\/ops/);
+});
+
 test("sign-in works from 127.0.0.1 as well as localhost", async ({ page }) => {
   await page.goto("http://127.0.0.1:3100/signin");
   await page.getByRole("button", { name: "Open as Priya, family owner" }).click();

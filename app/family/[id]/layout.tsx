@@ -18,7 +18,7 @@ export default async function FamilyLayout({ children, params }: { children: Rea
   return (
     <>
       <SiteHeader />
-      <div className="mx-auto w-full max-w-[1120px] px-4">
+      <div className="wrap">
         <AccountBar name={viewer.name} families={families} currentId={id} />
         <FamilyNav base={`/family/${id}`} pendingCount={pending} />
         <main id="main" className="py-6 pb-24">

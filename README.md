@@ -9,7 +9,8 @@ Assumptions and decisions are in `NOTES.md`. History is in `CHANGELOG.md`.
 | Route | Who | What |
 |---|---|---|
 | `/`, `/trust` | Public | Marketing, plan comparison, FAQ, what we will not do, founder note, waitlist |
-| `/signin` | Everyone | Magic link for owners, email and password for the desk |
+| `/demo` | Public, no account | Live walk-through with a fictional family. Runs only in the browser |
+| `/signin` | Everyone | Google or magic link for owners, email and password for the desk |
 | `/onboarding` | Owner | Add a parent, choose a plan, consent per purpose |
 | `/family/[id]` | Owner, assigned coordinator, admin | Overview, claims, documents, calendar, approvals, report, billing, privacy |
 | `/ops` | Coordinator, admin | Queue with filters, alerts, running timer |
@@ -67,6 +68,17 @@ npm run user:create -- you@example.com "Your Name" admin Mumbai
 10. Stripe: in test mode, create three monthly prices ($40, $79, $119) and set `STRIPE_PRICE_40`, `_79`, `_119`. Add a webhook to `https://YOUR-DOMAIN/api/stripe` for `checkout.session.completed` and `customer.subscription.*`.
 11. Inngest: connect the app at `https://YOUR-DOMAIN/api/inngest` and set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY`.
 
+Vercel deploys every push to `main`. Until the database variables are set, `/signin` and the waitlist say they are not open yet, and `/demo` works without them. Environment changes need a redeploy, because some pages are built ahead of time.
+
+### Turn on Google sign-in
+
+1. In Google Cloud, create an OAuth client (Web application). Add `https://YOUR-PROJECT.supabase.co/auth/v1/callback` as an authorised redirect URI.
+2. In Supabase, go to Auth, then Providers, then Google. Paste the client ID and secret, and enable it.
+3. In Supabase Auth URL settings, set the Site URL to your domain and add `https://YOUR-DOMAIN/**` to the redirect URLs.
+4. In Vercel, set `GOOGLE_SIGNIN=1`, then redeploy.
+
+New Google accounts always start as family owners. Desk roles are only given with `npm run user:create`.
+
 ## Environment variables
 
 See `.env.example`, which documents each one. The app runs with only the Supabase, database, `APP_URL` and `APP_ENCRYPTION_KEY` values. Everything else switches a feature on.
@@ -77,6 +89,8 @@ See `.env.example`, which documents each one. The app runs with only the Supabas
 |---|---|
 | Postgres, RLS, audit log, consent records, approvals with undo | Real. Tested on real Postgres 17 |
 | Supabase Auth and Storage | Real client code. Tested against a local emulator, not a real project |
+| Google sign-in | Real client code. Tested with the emulator standing in for Google, not real Google |
+| `/demo` | A scripted simulation on purpose. Uses the real message rules. Nothing leaves the browser |
 | Field encryption, signed links, upload checks | Real |
 | Document extraction | Real Claude API code. Tested against a fake API, so real accuracy is unknown |
 | Virus scan | Hook is real. Without `VIRUS_SCAN_URL` it only catches the EICAR test file and marks files `basic_only` |

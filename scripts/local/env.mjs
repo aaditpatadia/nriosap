@@ -17,6 +17,7 @@ export function localEnv() {
     APP_ENCRYPTION_KEY: "local-only-encryption-key-at-least-32-bytes",
     APP_URL: `http://localhost:${APP_PORT}`,
     DEMO_MODE: "1",
+    GOOGLE_SIGNIN: "1",
     SEED_STAFF_PASSWORD: "local-staff-password-1",
     WHATSAPP_VERIFY_TOKEN: "local-verify-token",
     WHATSAPP_APP_SECRET: "local-app-secret",

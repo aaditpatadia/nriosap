@@ -17,7 +17,7 @@ export default async function Billing({ params, searchParams }: { params: Promis
   const owner = viewer?.id === fam.owner.id;
   const status = sub?.status ?? "none";
   return (
-    <section className="grid max-w-xl gap-4">
+    <section className="grid gap-4 lg:grid-cols-2 lg:items-start [&>h1]:lg:col-span-2 [&>p]:lg:col-span-2">
       <h1 className="text-[length:var(--text-h1)] font-bold">Billing</h1>
       {sp.done && <p role="status" className="card text-ok">Thank you. Your subscription will show here in a moment.</p>}
       <div className="card grid gap-1">

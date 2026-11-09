@@ -1,5 +1,11 @@
 # Changelog
 
+## Going live
+- Every page now runs the full width of the screen, with colour bands and wider grids.
+- Added `/demo`: a public, no-account walk-through with a fictional family. It runs in the browser only.
+- Added Google sign-in behind `GOOGLE_SIGNIN`. New Google accounts start as owners.
+- With no database settings, sign-in and the waitlist now say they are not open yet instead of failing.
+
 ## Quality pass
 - Migration 008 removes insert rights user sessions did not need, and tightens alert updates.
 - Staff views of tasks, messages and consent records now write to the audit log.

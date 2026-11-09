@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WaitlistForm } from "@/components/WaitlistForm";
 import { Reveal } from "@/components/Reveal";
+import { backendReady } from "@/lib/backend";
 
 const PLANS = [
   { name: "Lite", price: 40, blurb: "Records vault, renewals, monthly report, up to 3 tasks a month.", note: "For parents who are independent." },
@@ -55,14 +56,15 @@ export default function Home() {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="mx-auto grid w-full max-w-[1120px] gap-20 px-4 pb-24">
-        <section className="grid gap-6 pt-8 md:grid-cols-[1.2fr_1fr] md:items-center md:gap-12">
+      <main id="main">
+        <section className="wrap grid gap-8 py-10 md:grid-cols-[1.2fr_1fr] md:items-center md:gap-16 lg:min-h-[72vh]">
           <div>
             <p className="chip" data-tone="accent">For families spread across countries</p>
             <h1 className="mt-4 text-[length:var(--text-display)] font-bold">Mum and Dad are in India. You do not have to be.</h1>
-            <p className="mt-4 max-w-xl text-muted">A named person and a careful assistant look after your parents&apos; paperwork, health insurance claims, bills and errands. You see everything. You approve everything.</p>
+            <p className="mt-4 max-w-2xl text-muted">A named person and a careful assistant look after your parents&apos; paperwork, health insurance claims, bills and errands. You see everything. You approve everything.</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="#waitlist" className="btn btn-primary">Join the waitlist</a>
+              <Link href="/demo" className="btn btn-primary">Try the live demo</Link>
+              <a href="#waitlist" className="btn btn-secondary">Join the waitlist</a>
               <Link href="/signin" className="btn btn-secondary">Sign in</Link>
             </div>
           </div>
@@ -77,7 +79,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section aria-labelledby="how" className="grid gap-6">
+        <section aria-labelledby="how" className="wrap grid gap-8 bg-tint py-16 lg:py-24">
           <h2 id="how" className="text-[length:var(--text-h1)] font-bold">How it works</h2>
           <ol className="grid gap-4 md:grid-cols-3">
             {STEPS.map(([t, d], i) => (
@@ -90,7 +92,7 @@ export default function Home() {
           </ol>
         </section>
 
-        <section aria-labelledby="pricing" className="grid gap-6">
+        <section aria-labelledby="pricing" className="wrap grid gap-6 py-16 lg:py-24">
           <h2 id="pricing" className="text-[length:var(--text-h1)] font-bold">Simple monthly plans</h2>
           <p className="max-w-2xl text-muted">Cancel any time. No visit caps, no lock-in. Prices in US dollars; pilot pricing may change after the first families.</p>
           <div className="grid gap-4 md:grid-cols-3">
@@ -121,15 +123,24 @@ export default function Home() {
           </div>
         </section>
 
-        <section aria-labelledby="wont" className="card grid gap-3">
-          <h2 id="wont" className="text-[length:var(--text-h2)] font-bold">What we will not do</h2>
-          <ul className="grid list-disc gap-2 pl-6 text-muted">{WONT.map((w) => <li key={w}>{w}</li>)}</ul>
-          <Link className="btn btn-ghost w-fit" href="/trust">How we look after your data</Link>
-        </section>
+        <div className="wrap grid gap-4 bg-tint py-16 lg:grid-cols-2 lg:py-24">
+          <section aria-labelledby="wont" className="card grid content-start gap-3">
+            <h2 id="wont" className="text-[length:var(--text-h2)] font-bold">What we will not do</h2>
+            <ul className="grid list-disc gap-2 pl-6 text-muted">{WONT.map((w) => <li key={w}>{w}</li>)}</ul>
+            <Link className="btn btn-ghost w-fit" href="/trust">How we look after your data</Link>
+          </section>
 
-        <section aria-labelledby="faq" className="grid gap-4">
+          <section aria-labelledby="founder" className="card grid content-start gap-3">
+            <h2 id="founder" className="text-[length:var(--text-h2)] font-bold">A note from the founder</h2>
+            <p>I am Aadit, and I live in Mumbai. Gharsaath is a working name for something I am testing with a small number of families.</p>
+            <p>Here is what I am testing: can a named person and a careful assistant take the paperwork off a family&apos;s shoulders, and how many hours does that really take? I am doing the first families myself and logging every minute.</p>
+            <p className="text-muted">Some things are not finished. Legal review of claims help and payments is still to be done, and prices may change. I will tell you plainly when something changes.</p>
+          </section>
+        </div>
+
+        <section aria-labelledby="faq" className="wrap grid gap-6 py-16 lg:py-24">
           <h2 id="faq" className="text-[length:var(--text-h1)] font-bold">Questions</h2>
-          <div className="grid gap-3">
+          <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
             {FAQ.map(([q, a]) => (
               <details key={q} className="card">
                 <summary className="flex min-h-12 cursor-pointer items-center font-semibold">{q}</summary>
@@ -139,17 +150,18 @@ export default function Home() {
           </div>
         </section>
 
-        <section aria-labelledby="founder" className="card grid max-w-3xl gap-3">
-          <h2 id="founder" className="text-[length:var(--text-h2)] font-bold">A note from the founder</h2>
-          <p>I am Aadit, and I live in Mumbai. Gharsaath is a working name for something I am testing with a small number of families.</p>
-          <p>Here is what I am testing: can a named person and a careful assistant take the paperwork off a family&apos;s shoulders, and how many hours does that really take? I am doing the first families myself and logging every minute.</p>
-          <p className="text-muted">Some things are not finished. Legal review of claims help and payments is still to be done, and prices may change. I will tell you plainly when something changes.</p>
-        </section>
-
-        <section id="waitlist" aria-labelledby="join" className="mx-auto grid w-full max-w-xl gap-4">
-          <h2 id="join" className="text-[length:var(--text-h1)] font-bold">Join the waitlist</h2>
-          <p className="text-muted">We are starting with a small number of families. Tell us about yours.</p>
-          <WaitlistForm />
+        <section id="waitlist" aria-labelledby="join" className="wrap grid gap-6 bg-tint py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
+          <div>
+            <h2 id="join" className="text-[length:var(--text-h1)] font-bold">Join the waitlist</h2>
+            <p className="mt-3 text-muted">We are starting with a small number of families. Tell us about yours.</p>
+          </div>
+          {backendReady() ? <WaitlistForm /> : (
+            <div className="card grid content-start gap-3">
+              <p className="font-semibold">The waitlist opens soon.</p>
+              <p className="text-muted">Until then, see how it works for a family.</p>
+              <Link href="/demo" className="btn btn-primary w-fit">Try the live demo</Link>
+            </div>
+          )}
         </section>
       </main>
       <SiteFooter />

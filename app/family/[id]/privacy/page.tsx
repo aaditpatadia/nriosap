@@ -17,7 +17,7 @@ export default async function Privacy({ params }: { params: Promise<{ id: string
   const [viewer, consents, audit] = await Promise.all([getViewer(), consentsFor(id), auditLog(id)]);
   const owner = viewer?.id === fam.owner.id;
   return (
-    <section className="grid max-w-2xl gap-4">
+    <section className="grid gap-4 lg:grid-cols-2 lg:items-start [&>h1]:lg:col-span-2">
       <h1 className="text-[length:var(--text-h1)] font-bold">Privacy and your data</h1>
 
       <div className="card grid gap-2">

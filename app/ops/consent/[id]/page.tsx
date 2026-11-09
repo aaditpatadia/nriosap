@@ -18,7 +18,7 @@ export default async function ConsentCall({ params }: { params: Promise<{ id: st
   const [records] = await Promise.all([consentsFor(id), logAudit(viewer.id, "view_consent", "family", id, id)]);
   const parentRecords = records.filter((r) => r.subject === "parent");
   return (
-    <section className="grid max-w-2xl gap-4">
+    <section className="grid gap-4">
       <Link href="/ops" className="btn btn-ghost w-fit">Back to queue</Link>
       <h1 className="text-[length:var(--text-h1)] font-bold">Consent call: {fam.parent.name}</h1>
       <p className="text-muted">Call {fam.parent.phone} in {fam.parent.language}. Read each line aloud. Tick only what they agree to in their own words. If they cannot decide for themselves, stop and pause.</p>

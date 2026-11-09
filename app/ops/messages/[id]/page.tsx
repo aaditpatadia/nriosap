@@ -27,7 +27,7 @@ export default async function Messages({ params }: { params: Promise<{ id: strin
   const [msgs, last] = await Promise.all([thread(id), lastInboundAt(id), logAudit(viewer.id, "view_messages", "family", id, id)]);
   const open = insideServiceWindow(last, new Date());
   return (
-    <section className="grid max-w-2xl gap-4">
+    <section className="grid gap-4">
       <Link href="/ops" className="btn btn-ghost w-fit">Back to queue</Link>
       <h1 className="text-[length:var(--text-h1)] font-bold">Messages with {fam.parent.name}</h1>
       <p className="text-muted">{fam.parent.language} · {open ? "Inside the 24 hour window. You can reply freely." : "Outside the 24 hour window. Only template messages can go out."}</p>

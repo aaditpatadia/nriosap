@@ -30,6 +30,8 @@
 ## Known limits
 - With WhatsApp sending off, an emergency appears at the top of the queue and on the timeline only. Nobody is pushed a notification, so a person has to be watching. The PRD's "NRI notified in minutes" needs sending turned on and an owner phone number.
 - Web uploads stop at 4 MB.
+- `/demo` is a scripted simulation in the browser. "Real time" there means it plays out as you watch. Signed-in pages still update on navigation or refresh, not by push.
+- Full width is deliberate at the owner's request. On very wide screens single-column forms get long.
 - Bill due dates reach the calendar only when printed as a clear date the extractor can return as YYYY-MM-DD.
 
 ## PRD versus verdict

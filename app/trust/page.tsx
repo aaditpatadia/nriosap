@@ -16,10 +16,10 @@ export default function Trust() {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="mx-auto grid w-full max-w-3xl gap-6 px-4 pb-24 pt-6">
+      <main id="main" className="wrap grid gap-6 pb-24 pt-6">
         <h1 className="text-[length:var(--text-h1)] font-bold">How we look after your family</h1>
         <p className="text-muted">Short and plain. If something here is not good enough for your family, please tell us.</p>
-        <div className="grid gap-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {ITEMS.map(([t, d]) => (
             <section key={t} className="card">
               <h2 className="text-[length:var(--text-h3)] font-semibold">{t}</h2>

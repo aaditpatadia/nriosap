@@ -16,7 +16,9 @@
 
   --font-sans: var(--font-loaded), system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Noto Sans Gujarati", sans-serif;
 
-  --text-display: clamp(2.25rem, 1.6rem + 3vw, 3.75rem);
+  --gutter: clamp(16px, 4vw, 80px);
+
+  --text-display: clamp(2.25rem, 1.4rem + 3.4vw, 5.5rem);
   --text-h1: clamp(1.75rem, 1.4rem + 1.6vw, 2.5rem);
   --text-h2: clamp(1.375rem, 1.2rem + 0.8vw, 1.75rem);
   --text-h3: 1.125rem;
@@ -105,6 +107,17 @@ p { text-wrap: pretty; }
 }
 
 /* ---------- Components ---------- */
+/* Every page runs edge to edge. Only the side gutter changes with the screen. */
+.wrap { width: 100%; padding-inline: var(--gutter); }
+
+/* The ring pulses and the button stays still, so it is easy to press. */
+.your-turn { position: relative; }
+.your-turn::after {
+  content: ""; position: absolute; inset: -5px; border: 2px solid var(--accent); border-radius: inherit;
+  pointer-events: none; animation: your-turn 1.4s var(--ease-in-out) infinite;
+}
+@keyframes your-turn { 50% { opacity: 0.15; } }
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
   min-height: var(--tap); padding: 0 1.25rem; border-radius: 999px;

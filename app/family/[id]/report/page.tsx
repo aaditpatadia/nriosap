@@ -20,7 +20,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
   const newDocs = docs.filter((d) => new Date(d.uploadedAt) >= start);
   const month = now.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
   return (
-    <section className="report grid max-w-2xl gap-4">
+    <section className="report grid gap-4 lg:grid-cols-3 lg:items-start [&>div:first-child]:lg:col-span-3 [&>p]:lg:col-span-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-[length:var(--text-h1)] font-bold">{month} report for {fam.parent.name}</h1>
         <PrintButton />

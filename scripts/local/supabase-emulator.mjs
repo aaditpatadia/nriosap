@@ -126,6 +126,18 @@ export async function startEmulator({ port, dbUrl, jwtSecret, storageDir }) {
         res.writeHead(303, { location: target.toString() });
         return res.end();
       }
+      // Stands in for the trip to Google: signs in one fixed test person and returns a PKCE code.
+      if (p === "/auth/v1/authorize" && req.method === "GET") {
+        if (url.searchParams.get("provider") !== "google") return json(400, { msg: "unsupported provider" });
+        const email = "google.user@example.com";
+        const u = (await userRow("email", email)) ?? (await pool.query("insert into auth.users(email, raw_user_meta_data, email_confirmed_at) values ($1,$2,now()) returning *", [email, { name: "Google User", full_name: "Google User" }])).rows[0];
+        const code = randomUUID();
+        codes.set(code, { userId: u.id, challenge: url.searchParams.get("code_challenge") });
+        const target = new URL(url.searchParams.get("redirect_to"));
+        target.searchParams.set("code", code);
+        res.writeHead(303, { location: target.toString() });
+        return res.end();
+      }
       if (p === "/auth/v1/user" && req.method === "GET") {
         if (!claims?.sub) return json(401, { code: 401, error_code: "bad_jwt", msg: "invalid JWT" });
         const u = await userRow("id", claims.sub);
