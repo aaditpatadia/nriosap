@@ -11,3 +11,5 @@ qa/out/
 .env
 
 tools/lint/node_modules/
+qa/screenshots/
+qa/lighthouse.json
