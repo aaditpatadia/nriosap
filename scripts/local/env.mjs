@@ -24,5 +24,9 @@ export function localEnv() {
     ANTHROPIC_API_KEY: "fake-local-key",
     ANTHROPIC_BASE_URL: `http://127.0.0.1:${FAKES_PORT}`,
     EXTRACTOR: "claude",
+    WHATSAPP_GRAPH_URL: `http://127.0.0.1:${FAKES_PORT}/v21.0`,
+    WHATSAPP_MEDIA_TEST_HOST: `127.0.0.1:${FAKES_PORT}`,
+    WHATSAPP_ACCESS_TOKEN: "fake-local-token",
+    WHATSAPP_PHONE_NUMBER_ID: "000000",
   };
 }

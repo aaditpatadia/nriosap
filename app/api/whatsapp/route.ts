@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { parseInbound, verifySignature } from "@/lib/whatsapp";
-import { receiveParentMessage } from "@/lib/store";
+import { after, NextResponse } from "next/server";
+import { parseInboundAll, verifySignature, type InboundMessage } from "@/lib/whatsapp";
+import { processMedia, storeInbound, type StoredInbound } from "@/lib/wa-inbound";
 
 /** Meta webhook verification handshake. */
 export async function GET(req: Request) {
@@ -12,7 +12,10 @@ export async function GET(req: Request) {
   return new Response("Forbidden", { status: 403 });
 }
 
-/** Inbound messages. The signature is checked on the raw body before anything is parsed. */
+/**
+ * Inbound messages. The signature is checked on the raw body before anything is parsed.
+ * Messages and emergency tasks are stored before answering. Media is fetched after answering.
+ */
 export async function POST(req: Request) {
   const secret = process.env.WHATSAPP_APP_SECRET;
   const raw = await req.text();
@@ -25,6 +28,17 @@ export async function POST(req: Request) {
   } catch {
     return new Response("Bad request", { status: 400 });
   }
-  for (const m of parseInbound(payload)) await receiveParentMessage(m.from, m.text);
+  const messages = parseInboundAll(payload);
+  const stored: { m: InboundMessage; s: StoredInbound }[] = [];
+  for (const m of messages) stored.push({ m, s: await storeInbound(m) });
+  after(async () => {
+    for (const { m, s } of stored) {
+      try {
+        await processMedia(m, s);
+      } catch (e) {
+        console.error(JSON.stringify({ level: "error", event: "whatsapp_media_failed", type: m.type, error: (e as Error).constructor.name }));
+      }
+    }
+  });
   return NextResponse.json({ ok: true });
 }

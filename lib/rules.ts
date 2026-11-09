@@ -50,6 +50,19 @@ const ADVICE_PATTERNS: RegExp[] = [
   /\b(diagnos(is|ed)|prescri(be|ption)|dosage|dose of)\b/i,
   /\b(i|we) (recommend|advise) (you )?(to )?(take|stop|sue|file|sell|buy)\b/i,
   /\bstop (taking|your) (medicine|medication|tablets)\b/i,
+  /\byou (need to|must|have to) (take|stop) .*(medicine|medication|tablet|dose|injection)/i,
+  /\b(increase|reduce|skip|double) (the|your) (dose|medicine|medication|tablets?)\b/i,
+  /\b(you can|you may|you should) (safely )?(ignore|skip) (the|this|your) (tax|notice|summons|symptom)/i,
+  /\byou (will|would) (win|lose) (the|this|your) case\b/i,
+  /\b(no|not) (need to|required to) (pay|file) (any )?tax\b/i,
+  /\byou should\b.*\b(sue|surgery|operation|treatment|medicine|tax return|court|lawyer's|deduct)/i,
+  // Hindi and Hinglish
+  /दवा (ले|लेनी|बंद|मत)|इलाज (करवा|कराना)|केस (जीत|हार)|टैक्स (नहीं|मत) (देना|भरना)/,
+  /\b(dawa|dawai|goli) (le lo|lena|band|mat)\b/i,
+  // Gujarati
+  /દવા (લો|લેવી|બંધ|ન લેશો)|સારવાર કરાવો|ટેક્સ (ન|નહીં) ભરવો/,
+  // Marathi
+  /औषध (घ्या|घ्यावे|बंद)|उपचार (करा|घ्या)|कर (भरू नका|भरायचा नाही)/,
 ];
 
 export function looksLikeAdvice(text: string): boolean {
@@ -62,6 +75,10 @@ const EMERGENCY = [
   /\bchest pain\b/i,
   /\bfell down\b|\bfall\b|\bfallen\b/i,
   /\bcan'?t breathe\b/i,
+  /\b(admitted|rushed|taken) (to|in)( the)? hospital\b/i,
+  /\bunconscious\b|\bheart attack\b|\bstroke\b/i,
+  /\bhospital (le ja|jana pad)|\bgir (gaye|gayi|gai)\b|\bchhati me dard\b/i,
+  /अस्पताल ले|बेहोश|દવાખાને લઈ|હોસ્પિટલ લઈ|બેભાન|रुग्णालयात ने|बेशुद्ध/,
   /इमरजेंसी|एम्बुलेंस|छाती में दर्द|गिर गए|गिर गई/,
   /ઇમરજન્સી|એમ્બ્યુલન્સ|છાતીમાં દુખાવો|પડી ગયા|પડી ગઈ/,
   /आणीबाणी|रुग्णवाहिका|छातीत दुखत|पडले|पडल्या/,
