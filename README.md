@@ -41,7 +41,7 @@ npm run local:stack
 npm run local:dev
 ```
 
-Sign in as `meera@demo.gharsaath.test` with password `local-staff-password-1`. For an owner, enter `priya@demo.gharsaath.test` and open the link from `http://127.0.0.1:54321/__inbox?email=priya%40demo.gharsaath.test`. These are local throwaway values.
+On `/signin`, use the **Try the demo** buttons to open as an owner, a coordinator or an admin. They appear only when `DEMO_MODE=1` and Supabase points at the local emulator, so they can never show on a real project. Any other email in the family form creates a new owner, and the page gives you the link because nothing is emailed locally.
 
 ## Deploy to Vercel and Supabase
 

@@ -16,6 +16,7 @@ export function SignInForms({ next }: { next: string }) {
           <label className="field">Your email<input className="input" type="email" name="email" autoComplete="email" required /></label>
           <button className="btn btn-primary" disabled={linkPending}>{linkPending ? "Sending..." : "Email me a link"}</button>
           <p role="status" aria-live="polite" className={link?.ok ? "text-ok" : "text-danger"}>{link?.message}</p>
+          {link?.devLink && <a className="btn btn-primary" href={link.devLink}>Open my sign-in link</a>}
         </form>
       </section>
       <section aria-labelledby="desk-in" className="card grid gap-4">

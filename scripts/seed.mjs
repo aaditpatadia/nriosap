@@ -63,7 +63,10 @@ export async function seedDemo() {
   const pKul = await parent(FAM.kulkarni, "Sulabha Kulkarni", "+919800000002", "Marathi", "Pune");
   const pMeh = await parent(FAM.mehta, "Harish Mehta", "+919800000003", "Hindi", "Mumbai");
   for (const p of [pShah, pKul, pMeh]) {
-    for (const purpose of ["read_records", "store", "act_on_named_task"]) await c.query("insert into consents(parent_id,purpose,evidence_ref) values ($1,$2,'demo seed')", [p, purpose]);
+    for (const purpose of ["read_records", "store", "act_on_named_task"]) {
+      await c.query("insert into consents(parent_id,purpose,evidence_ref) values ($1,$2,'demo seed')", [p, purpose]);
+      await c.query("insert into consents(parent_id,subject,purpose,evidence_ref,confirm_method,confirmed_at) values ($1,'owner',$2,'demo seed','owner_web',now())", [p, purpose]);
+    }
   }
 
   const doc = async (fid, kind, title, days, confidence, fields, checkedBy, purposes) => {

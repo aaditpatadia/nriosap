@@ -33,7 +33,42 @@ test("admin signs in and sees every family", async ({ page }) => {
   await expect(page.locator("table").getByText("Assemble reimbursement claim documents")).toBeVisible();
 });
 
-test("wrong password is refused without saying why", async ({ page }) => {
+test("demo buttons sign in as each role through real Auth", async ({ page }) => {
+  await page.goto("/signin");
+  await page.getByRole("button", { name: "Open as Priya, family owner" }).click();
+  await expect(page).toHaveURL(new RegExp(`/family/${FAM.shah}`));
+  await expect(page.getByText("Signed in as")).toContainText("Priya Shah");
+
+  await page.context().clearCookies();
+  await page.goto("/signin");
+  await page.getByRole("button", { name: "Open as Meera, coordinator" }).click();
+  await expect(page).toHaveURL(/\/ops/);
+  await expect(page.getByText("Signed in as")).toContainText("Meera Joshi");
+  await expect(page.getByText("Assemble reimbursement claim documents")).toHaveCount(0);
+
+  await page.context().clearCookies();
+  await page.goto("/signin");
+  await page.getByRole("button", { name: "Open as Aadit, admin" }).click();
+  await expect(page).toHaveURL(/\/ops/);
+  await expect(page.locator("table").getByText("Assemble reimbursement claim documents")).toBeVisible();
+});
+
+test("the email form hands over the link when no email can be sent", async ({ page }) => {
+  await page.goto("/signin");
+  await page.getByLabel("Your email").fill(`any-email-${Date.now()}@example.com`);
+  await page.getByRole("button", { name: "Email me a link" }).click();
+  await page.getByRole("link", { name: "Open my sign-in link" }).click();
+  await expect(page).toHaveURL(/\/onboarding/);
+});
+
+test("sign-in works from 127.0.0.1 as well as localhost", async ({ page }) => {
+  await page.goto("http://127.0.0.1:3100/signin");
+  await page.getByRole("button", { name: "Open as Priya, family owner" }).click();
+  await expect(page).toHaveURL(new RegExp(`127\\.0\\.0\\.1:3100/family/${FAM.shah}`));
+  await expect(page.getByText("Signed in as")).toContainText("Priya Shah");
+});
+
+test("wrong password is refused without saying why",async ({ page }) => {
   await page.goto("/signin");
   await page.getByLabel("Work email").fill("meera@demo.gharsaath.test");
   await page.getByLabel("Password").fill("not-the-password");
