@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getViewer } from "@/lib/auth";
 import { getFamily } from "@/lib/store";
+import { isDocumentCategory, type DocumentCategory } from "@/lib/request-engine";
+import { familyAccess } from "@/lib/service-requests";
 import { sameOrigin } from "@/lib/http";
 import { rateLimit } from "@/lib/ratelimit";
 import { MAX_WEB_UPLOAD_BYTES, PURPOSES, type Purpose } from "@/lib/upload-rules";
@@ -23,9 +25,10 @@ export async function POST(req: Request) {
   // RLS decides here: a family the viewer cannot see does not exist for them.
   const fam = await getFamily(fid.data);
   if (!fam) return NextResponse.json({ ok: false, reason: "Family not found." }, { status: 404 });
+  if (!(await familyAccess(fam.id)).canUpload) return NextResponse.json({ ok: false, reason: "You do not have permission to add documents here." }, { status: 403 });
   if (file.size > MAX_WEB_UPLOAD_BYTES) return NextResponse.json({ ok: false, reason: "Please send a file under 4 MB, or send it on WhatsApp." }, { status: 413 });
   const purposes = form.getAll("purpose").filter((p): p is Purpose => PURPOSES.includes(p as Purpose));
-  const r = await ingestDocument({ familyId: fam.id, filename: file.name, bytes: new Uint8Array(await file.arrayBuffer()), maxBytes: MAX_WEB_UPLOAD_BYTES, purposes: [...new Set(purposes)], uploaderId: viewer.id, source: "web" });
+  const r = await ingestDocument({ familyId: fam.id, filename: file.name, bytes: new Uint8Array(await file.arrayBuffer()), maxBytes: MAX_WEB_UPLOAD_BYTES, purposes: [...new Set(purposes)], uploaderId: viewer.id, source: "web", category: isDocumentCategory(form.get("category")) ? (form.get("category") as DocumentCategory) : undefined });
   if (!r.ok) return NextResponse.json({ ok: false, reason: r.reason }, { status: r.status });
   return NextResponse.json(r);
 }

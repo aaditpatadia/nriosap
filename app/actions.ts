@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { actionViewer, isDemoMode, isStaff } from "@/lib/auth";
-import { normalisePhone, PLAN_PRICES, REQUIRED_PURPOSES } from "@/lib/consent";
+import { normalisePhone, REQUIRED_PURPOSES } from "@/lib/consent";
+import { savePreferences } from "@/lib/family-members";
 import { confirmOwnerConsent, createFamily } from "@/lib/onboarding";
-import { REQUEST_CATEGORIES } from "@/lib/requests";
 import { PURPOSES, type Purpose } from "@/lib/upload-rules";
 import { actionIp } from "@/lib/action-ip";
 import { rateLimit } from "@/lib/ratelimit";
@@ -79,32 +79,31 @@ export async function parentSays(familyId: string, text: string) {
   return { ok: r.matched, emergency: r.matched ? r.emergency : false };
 }
 
-const onboardingBase = z.object({
-  category: z.enum(REQUEST_CATEGORIES),
-  request: z.string().trim().min(5).max(1000),
-  who: z.enum(["me", "someone"]),
-  parentName: z.string().trim().max(120),
-  phone: z.string().min(8).max(24),
+const onboardingSchema = z.object({
+  country: z.string().trim().max(80),
+  cities: z.string().trim().max(300),
   language: z.enum(["Hindi", "Gujarati", "Marathi", "English"]),
-  city: z.string().trim().min(2).max(80),
-  plan: z.coerce.number().refine((n) => (PLAN_PRICES as readonly number[]).includes(n)),
+  channel: z.enum(["whatsapp", "email", "app"]),
+  timezone: z.string().trim().max(60),
+  phone: z.string().trim().max(24),
 });
+const NEEDS = ["Property", "Family", "Documents", "Bills", "Purchases", "Repairs", "Business", "Something else"];
 
-/** The owner signs up themselves and gives their own consent here. */
+/** After sign-in. Every question but consent can be skipped, and the dashboard starts empty. */
 export async function recordOnboarding(_prev: unknown, form: FormData) {
-  const p = onboardingBase.safeParse(Object.fromEntries(form));
   const v = await actionViewer();
   if (!v) return { ok: false as const, message: "Please sign in first." };
-  if (!p.success) return { ok: false as const, message: "Please fill in every field." };
-  const forSelf = p.data.who === "me";
-  const contactName = forSelf ? (v.name.trim().length >= 2 ? v.name.trim() : "Family owner") : p.data.parentName;
-  if (contactName.length < 2) return { ok: false as const, message: "Please tell us their name." };
-  const phone = normalisePhone(p.data.phone);
-  if (!phone) return { ok: false as const, message: "Please enter the WhatsApp number with its country code, like +91 98000 00000." };
+  const p = onboardingSchema.safeParse({ country: form.get("country") ?? "", cities: form.get("cities") ?? "", language: form.get("language"), channel: form.get("channel"), timezone: form.get("timezone") ?? "", phone: form.get("phone") ?? "" });
+  if (!p.success) return { ok: false as const, message: "Please check your answers." };
+  const phone = p.data.phone ? normalisePhone(p.data.phone) : null;
+  if (p.data.phone && !phone) return { ok: false as const, message: "Please enter the WhatsApp number with its country code, like +91 98000 00000." };
   const purposes = form.getAll("purpose").filter((x): x is Purpose => PURPOSES.includes(x as Purpose));
-  if (!REQUIRED_PURPOSES.every((r) => purposes.includes(r))) return { ok: false as const, message: "We cannot start without consent to read and keep documents." };
-  const r = await createFamily({ ownerId: v.id, parentName: contactName, forSelf, request: { category: p.data.category, text: p.data.request }, phone, language: p.data.language, city: p.data.city, planUsd: p.data.plan, ownerPurposes: [...new Set(purposes)], actorId: v.id });
+  if (!REQUIRED_PURPOSES.every((r) => purposes.includes(r))) return { ok: false as const, message: "We cannot hold your documents without these two consents." };
+  const cities = p.data.cities.split(",").map((c) => c.trim()).filter(Boolean).slice(0, 10);
+  const name = v.name.trim().length >= 2 ? v.name.trim() : "Family owner";
+  const r = await createFamily({ ownerId: v.id, parentName: name, forSelf: true, phone, language: p.data.language, city: cities[0] ?? "", planUsd: 79, ownerPurposes: [...new Set(purposes)], actorId: v.id });
   if (!r.ok) return { ok: false as const, message: r.reason };
+  await savePreferences(v.id, { country: p.data.country || null, indiaCities: cities, needs: form.getAll("need").filter((x): x is string => typeof x === "string" && NEEDS.includes(x)), language: p.data.language, channel: p.data.channel, timezone: p.data.timezone || null, notifyUpdates: form.get("notifyUpdates") === "on" }, true);
   redirect(`/family/${r.familyId}`);
 }
 

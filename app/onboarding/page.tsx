@@ -2,7 +2,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { requireViewer } from "@/lib/auth";
 
-export const metadata = { title: "Get started" };
+export const metadata = { title: "Welcome" };
 export const dynamic = "force-dynamic";
 
 export default async function Onboarding() {
@@ -10,8 +10,7 @@ export default async function Onboarding() {
   return (
     <>
       <SiteHeader />
-      <main id="main" className="wrap grid gap-6 pb-24 pt-4">
-        <h1 className="text-[length:var(--text-h1)] font-bold">What can we get done for you?</h1>
+      <main id="main" className="wrap grid gap-6 pb-24 pt-8">
         <OnboardingForm />
       </main>
     </>

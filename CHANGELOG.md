@@ -1,5 +1,16 @@
 # Changelog
 
+## Ally 2.0, Phase 1
+- New website, map hero, service catalogue, six-stage workflow and a working sample of the dashboard.
+- Six-step onboarding after Google sign-in. Dashboards start empty.
+- Command Centre with a briefing built only from the customer's own records.
+- Requests with references, statuses, a timeline, quotations, approve, reject and request changes, proof and a final report.
+- Requests are refused when unlawful, and flagged when they need a licensed professional.
+- Document Vault with categories, search, drag and drop, camera, progress, expiry dates and per-document sharing.
+- Family members with permissions, one-use invitations and WhatsApp-only contacts.
+- Properties and assets. Coordinator request console.
+- Migration 011. Additive only.
+
 ## Anything done back home
 - The site now speaks to anyone earning abroad who needs something done in India, not only people with parents to look after.
 - Sign-up starts from the request. A customer can ask for their own work, with no parent and no consent call. Migration 010.

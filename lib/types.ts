@@ -1,3 +1,5 @@
+import type { DocumentCategory } from "./request-engine";
+
 export type Language = "Hindi" | "Gujarati" | "Marathi" | "English";
 export type Actor = "ai" | "human" | "system";
 export type TaskStatus = "todo" | "doing" | "waiting_parent" | "waiting_owner" | "done";
@@ -62,6 +64,7 @@ export interface DocumentRecord {
   id: string;
   familyId: string;
   kind: "policy" | "discharge_summary" | "bill" | "id" | "report";
+  category: DocumentCategory;
   title: string;
   uploadedAt: string;
   confidence: number;

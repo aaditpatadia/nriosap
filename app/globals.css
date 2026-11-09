@@ -232,6 +232,8 @@ main { animation: fade-in 240ms var(--ease-out) both; }
 .page-arc { position: absolute; right: var(--gutter); top: 50%; translate: 0 -50%; width: min(30vw, 540px); opacity: 0.75; pointer-events: none; }
 @media (max-width: 1199px) { .page-arc { display: none; } }
 
+.map-land { fill: none; stroke: rgb(198 214 205 / 0.3); stroke-width: 3.4; stroke-linecap: round; }
+.map-label { fill: var(--ink); font-size: 12px; font-weight: 600; }
 .scene-back { position: absolute; inset: 12% -6% -6% 10%; border-radius: 28px; background: linear-gradient(140deg, rgb(242 184 75 / 0.24), rgb(92 195 166 / 0.16)); }
 
 .marquee { overflow: hidden; }
@@ -250,6 +252,30 @@ details > summary::-webkit-details-marker { display: none; }
 details > summary::after { content: "+"; font-size: 1.5rem; line-height: 1; color: var(--accent); transition: transform var(--dur-base) var(--ease-out); }
 details[open] > summary::after { transform: rotate(45deg); }
 details[open] > :not(summary) { animation: rise 280ms var(--ease-out) both; }
+
+/* ---------- The signed-in app ---------- */
+.app-grid { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 32px; align-items: start; }
+.app-grid[data-collapsed="true"] { grid-template-columns: 72px minmax(0, 1fr); }
+.app-side { position: sticky; top: 88px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+.app-nav { display: grid; gap: 2px; }
+.app-link { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px; font-weight: 600; border-radius: 12px; }
+.app-badge { margin-left: auto; }
+.app-cta { width: 100%; padding-inline: 12px; }
+.app-fold { justify-content: flex-start; color: var(--muted); }
+.app-grid[data-collapsed="true"] .app-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.app-grid[data-collapsed="true"] .app-link { justify-content: center; padding: 0; }
+.app-grid[data-collapsed="true"] .app-badge { display: none; }
+.app-grid[data-collapsed="true"] .app-fold { justify-content: center; }
+@media (max-width: 1023px) {
+  .app-grid, .app-grid[data-collapsed="true"] { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .app-side { position: static; }
+  .app-fold { display: none; }
+  .app-nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); }
+  .app-nav > li { flex: none; }
+  .app-grid[data-collapsed="true"] .app-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+  .app-grid[data-collapsed="true"] .app-link { padding: 0 12px; }
+}
+.stage-fill { transition: transform var(--dur-slow) var(--ease-out); }
 
 .lift { transition: transform var(--dur-base) var(--ease-out); }
 @media (hover: hover) { .lift:hover { transform: translateY(-3px); } }

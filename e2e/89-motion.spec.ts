@@ -1,12 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { FAM, signInOwner } from "./helpers";
 
-test("the hero plays by itself and the pause button stops it", async ({ page }) => {
+test("the map animates and the pause button stops it", async ({ page }) => {
   await page.goto("/");
-  const claim = page.getByText("Pay property tax: Rs 18,400?");
-  const opacity = () => claim.evaluate((e) => Number(getComputedStyle(e.closest("li")!).opacity));
-  await expect.poll(opacity, { timeout: 10_000 }).toBeGreaterThan(0.9);
-
+  await expect.poll(() => page.locator(".thread-dot").first().evaluate((e) => getComputedStyle(e).animationPlayState)).toBe("running");
   await page.getByRole("button", { name: "Pause motion" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-motion", "paused");
   const state = await page.locator(".thread-dot").first().evaluate((e) => getComputedStyle(e).animationPlayState);
@@ -24,20 +21,10 @@ test("headline words keep their spaces, and phones get a tidy header", async ({ 
   await expect(page.locator("header").getByRole("link", { name: "Live demo" })).toBeHidden();
 });
 
-test("the examples and the worry picker respond to a choice", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Papers", exact: true }).click();
-  await expect(page.getByText("I need a certified copy of my degree.")).toBeVisible();
-  await page.getByRole("button", { name: "Bills piling up" }).click();
-  await expect(page.getByText("Forwards the bill on WhatsApp.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Bills piling up" })).toHaveAttribute("aria-pressed", "true");
-});
-
-test("reduced motion shows the whole story at once and stops the ticker", async ({ page }) => {
+test("reduced motion stops the map", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.getByText("Pay property tax: Rs 18,400?")).toBeVisible();
-  const name = await page.locator(".marquee-track").evaluate((e) => getComputedStyle(e).animationName);
+  const name = await page.locator(".thread-dot").first().evaluate((e) => getComputedStyle(e).animationName);
   expect(name).toBe("none");
 });
 

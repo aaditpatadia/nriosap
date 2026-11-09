@@ -37,3 +37,12 @@ export async function describeRequest(page: Page) {
   await page.getByLabel("What do you need done in India?").fill("Pay the property tax on our flat.");
   await page.getByRole("button", { name: "Continue" }).click();
 }
+
+/** Walks through sign-up with the skippable questions skipped, giving only the two required consents. */
+export async function finishOnboarding(page: Page) {
+  await page.getByRole("button", { name: "Get started" }).click();
+  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("checkbox").nth(0).check();
+  await page.getByRole("checkbox").nth(1).check();
+  await page.getByRole("button", { name: "Create my dashboard" }).click();
+}

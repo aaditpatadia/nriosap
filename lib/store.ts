@@ -148,6 +148,7 @@ function toDocument(r: Row): DocumentRecord {
     id: r.id,
     familyId: r.family_id,
     kind: r.kind,
+    category: r.category ?? "other",
     title: r.title,
     uploadedAt: r.created_at,
     confidence: Number(r.confidence ?? 0),

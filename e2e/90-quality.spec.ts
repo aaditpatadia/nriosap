@@ -7,13 +7,13 @@ const OUT = ".local/qa";
 mkdirSync(`${OUT}/shots`, { recursive: true });
 
 const PUBLIC = [["home", "/"], ["demo", "/demo"], ["trust", "/trust"], ["privacy", "/privacy"], ["signin", "/signin"], ["goodbye", "/goodbye"]] as const;
-const familyPages = (id: string) => ["", "/claims", "/documents", "/calendar", "/approvals", "/report", "/billing", "/privacy"].map((s) => [`family${s.replace("/", "-")}`, `/family/${id}${s}`] as const);
+const familyPages = (id: string) => ["", "/requests", "/requests/new", "/claims", "/documents", "/properties", "/people", "/ask", "/activity", "/settings", "/calendar", "/approvals", "/report", "/billing", "/privacy"].map((s) => [`family${s.replace("/", "-")}`, `/family/${id}${s}`] as const);
 
 async function staffRoutes(page: Page) {
   await page.goto("/ops");
   const task = await page.locator("table").getByRole("link", { name: "Pay November electricity bill" }).getAttribute("href");
   return [
-    ["ops-queue", "/ops"], ["ops-hours", "/ops/families"], ["ops-new", "/ops/new"], ["ops-onboard", "/ops/onboard"],
+    ["ops-queue", "/ops"], ["ops-requests", "/ops/requests"], ["ops-hours", "/ops/families"], ["ops-new", "/ops/new"], ["ops-onboard", "/ops/onboard"],
     ["ops-task", task!], ["ops-messages", `/ops/messages/${FAM.shah}`], ["ops-consent", `/ops/consent/${FAM.shah}`], ["chat", `/chat/${FAM.shah}`],
     ...familyPages(FAM.shah),
   ] as [string, string][];
@@ -61,7 +61,7 @@ test("axe, overflow, touch targets and screenshots on every route", async ({ pag
   page.on("console", (m) => { if (m.type() === "error") errors.push(`${page.url()} ${m.text().slice(0, 160)}`); });
   await sweep(page, PUBLIC, "public", s);
   await signInOwner(page, "priya");
-  await sweep(page, familyPages(FAM.shah).slice(0, 8), "owner", s);
+  await sweep(page, familyPages(FAM.shah), "owner", s);
   await page.context().clearCookies();
   await signInStaff(page, "meera");
   const routes = await staffRoutes(page);

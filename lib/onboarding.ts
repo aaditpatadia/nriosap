@@ -13,7 +13,7 @@ export interface NewFamily {
   ownerId: string;
   coordinatorId?: string | null;
   parentName: string;
-  phone: string;
+  phone: string | null;
   language: Language;
   city: string;
   planUsd: number;
@@ -63,7 +63,7 @@ export async function createFamily(n: NewFamily): Promise<{ ok: true; familyId: 
           );
           await t.run("insert into task_notes(task_id, family_id, author_id, body) values ($1,$2,$3,$4)", [task!.id, f!.id, n.ownerId, n.request.text]);
         }
-        await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'system','system','Desk',$2)", [f!.id, self ? "Welcome. Your request is with the desk. A coordinator will write to you." : `Welcome. A coordinator will call ${n.parentName.trim()} in ${n.language} to confirm consent before anything starts.`]);
+        await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'system','system','Desk',$2)", [f!.id, self ? (n.request ? "Welcome. Your request is with the desk. A coordinator will write to you." : "Welcome to Ally. Your account is ready.") : `Welcome. A coordinator will call ${n.parentName.trim()} in ${n.language} to confirm consent before anything starts.`]);
         await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'family_onboarded','family',$2,$3)", [n.actorId, f!.id, f!.id]);
         return f!.id as string;
       }),

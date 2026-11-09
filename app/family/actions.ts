@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { actionViewer } from "@/lib/auth";
+import { actionViewer, isStaff } from "@/lib/auth";
 import { createCheckout, createPortal } from "@/lib/billing";
 import { deleteFamily, withdrawParentConsent } from "@/lib/privacy";
 import { getFamily } from "@/lib/store";
@@ -40,7 +40,8 @@ export async function portalAction(familyId: string) {
 export async function withdrawParentAction(familyId: string) {
   const v = await actionViewer();
   const fam = v && z.string().uuid().safeParse(familyId).success ? await getFamily(familyId) : undefined;
-  if (!fam) return { ok: false };
+  // Family members can see this account, but only the owner or the desk can withdraw consent for it.
+  if (!fam || (fam.owner.id !== v!.id && !isStaff(v))) return { ok: false };
   await withdrawParentConsent(fam.parent.id, v!.role === "owner" ? "owner" : "desk");
   revalidatePath(`/family/${familyId}`, "layout");
   return { ok: true };

@@ -8,6 +8,7 @@ import { canAiActAlone } from "./rules";
 import { getScanner } from "./scan";
 import type { StoredField } from "./store";
 import { supabaseAdmin } from "./supabase";
+import { categoriseDocument, type DocumentCategory } from "./request-engine";
 import { cleanTitle, sniffMime, type Purpose } from "./upload-rules";
 
 export const BUCKET = "vault";
@@ -26,6 +27,7 @@ export interface IngestInput {
   purposes: Purpose[];
   uploaderId: string | null;
   source: "web" | "whatsapp";
+  category?: DocumentCategory;
 }
 
 /**
@@ -58,9 +60,11 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
   }
 
   const title = cleanTitle(input.filename);
+  const category = input.category ?? categoriseDocument(undefined, title);
   await asService(() =>
     tx(async (t) => {
       await t.run("insert into documents(id, family_id, kind, storage_path, title, mime, size_bytes, scan_status, uploaded_by, source) values ($1,$2,'report',$3,$4,$5,$6,$7,$8,$9)", [id, input.familyId, path, title, type.mime, input.bytes.byteLength, verdict, input.uploaderId, input.source]);
+      await t.run("update documents set category = $2 where id = $1", [id, category]);
       for (const p of input.purposes) await t.run("insert into document_consents(document_id, family_id, purpose, granted_by) values ($1,$2,$3,$4)", [id, input.familyId, p, input.uploaderId]);
       await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'document_uploaded','document',$2,$3)", [input.uploaderId, id, input.familyId]);
       await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'document','system','Desk',$2)", [input.familyId, `New document received: ${title}.`]);
@@ -107,6 +111,7 @@ async function extractAndStore(id: string, familyId: string, coordinatorId: stri
     tx(async (t) => {
       await t.run("update documents set kind = $2, extracted_enc = $3, confidence = $4, extraction_status = 'done' where id = $1", [id, result.kind, encryptField(familyId, JSON.stringify(toStored(result))), Math.round(result.confidence * 100) / 100]);
       await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'document','ai',$2,$3)", [familyId, needsCheck ? "Prepared by AI, needs a check" : "Prepared by AI", needsCheck ? `${title} read. A coordinator will check it before anyone relies on it.` : `${title} read.`]);
+      await t.run("update documents set category = $2 where id = $1 and category = 'other'", [id, categoriseDocument(result.kind, title)]);
       if (needsCheck) await raiseCheckTask(t, familyId, coordinatorId, id, title);
       else await upsertPolicy(t, familyId, id, result.kind, toStored(result));
     }),

@@ -12,7 +12,7 @@ test("owner signs in with a magic link and lands on their family", async ({ page
   await signInOwner(page, "priya");
   await expect(page).toHaveURL(new RegExp(`/family/${FAM.shah}`));
   await expect(page.getByText("Signed in as")).toContainText("Priya Shah");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("need");
+  await expect(page.getByRole("heading", { level: 2, name: /need/ }).filter({ visible: true })).toBeVisible();
 });
 
 test("owner cannot open ops", async ({ page }) => {

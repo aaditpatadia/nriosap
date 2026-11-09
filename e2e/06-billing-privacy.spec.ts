@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 import { createHmac } from "node:crypto";
 import Stripe from "stripe";
 import { localEnv } from "../scripts/local/env.mjs";
-import { DEMO, FAM, magicLink, signInOwner, signInStaff, describeRequest } from "./helpers";
+import { DEMO, FAM, magicLink, signInOwner, signInStaff, finishOnboarding } from "./helpers";
 
 const env = localEnv();
 
@@ -76,23 +76,16 @@ test("parent sends STOP on WhatsApp: consent ends at once and uploads stop", asy
 test("owner deletes a family: rows, files and account are gone, the audit trail stays", async ({ page }) => {
   const email = `to-delete-${Date.now()}@${DEMO}`;
   await magicLink(page, email);
-  await describeRequest(page);
-  await page.getByRole("radio", { name: "Someone back home" }).check();
-  await page.getByLabel("Their name").fill("Delia Gone");
-  await page.getByLabel("Their WhatsApp number").fill(`+9196${String(Date.now()).slice(-8)}`);
-  await page.getByLabel("City in India").fill("Goa");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("checkbox").nth(0).check();
-  await page.getByRole("checkbox").nth(1).check();
-  await page.getByRole("button", { name: "Finish" }).click();
+  await finishOnboarding(page);
   await expect(page).toHaveURL(/\/family\//);
   const familyId = page.url().split("/").pop()!;
   await page.goto(`/family/${familyId}/privacy`);
-  await page.getByLabel("Type Gone family to confirm").filter({ visible: true }).fill("wrong");
+  const label = (await page.getByText(/^Type .+ to confirm/).filter({ visible: true }).first().textContent())!;
+  const familyName = label.match(/^Type (.+?) to confirm/)![1];
+  await page.getByLabel(/^Type .+ to confirm/).filter({ visible: true }).fill("wrong");
   await page.getByRole("button", { name: "Delete this family's data" }).click();
-  await expect(page.getByText("Please type Gone family exactly")).toBeVisible();
-  await page.getByLabel("Type Gone family to confirm").filter({ visible: true }).fill("Gone family");
+  await expect(page.getByText(`Please type ${familyName} exactly`)).toBeVisible();
+  await page.getByLabel(/^Type .+ to confirm/).filter({ visible: true }).fill(familyName);
   await page.getByRole("button", { name: "Delete this family's data" }).click();
   await expect(page).toHaveURL(/goodbye/);
 
