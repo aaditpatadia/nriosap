@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ClaudeCategoriser, decide, MockCategoriser, OUTPUT_SCHEMA, toReading, type Reading } from "@/lib/wa-categorise";
+import { ClaudeCategoriser, DASHES, decide, MockCategoriser, OUTPUT_SCHEMA, toReading, type Reading } from "@/lib/wa-categorise";
 import { detectEmergency } from "@/lib/wa-emergency";
 import { normaliseCommand, readCommand } from "@/lib/wa-keywords";
 import { mediaAllowed, parseWebhook } from "@/lib/wa-parse";
@@ -13,6 +13,7 @@ import { verifySignature } from "@/lib/whatsapp";
 import { EMERGENCY, NOT_EMERGENCY } from "./fixtures/emergency-messages";
 
 const LANGS = ["English", "Hindi", "Gujarati", "Marathi"] as const;
+const EM = String.fromCharCode(8212);
 
 describe("signature on the raw body", () => {
   const body = JSON.stringify({ entry: [] });
@@ -155,9 +156,9 @@ describe("categoriser", () => {
     await expect(new ClaudeCategoriser(client, "m").categorise("x")).rejects.toThrow("refusal");
   });
   it("drops dates that are not YYYY-MM-DD and strips em dashes from titles", () => {
-    const r = toReading({ ...sample, title: { value: "Bill — due soon", confidence: 0.9 }, dates: { value: ["15 Dec", "2026-12-15"], confidence: 0.9 } }, "m");
+    const r = toReading({ ...sample, title: { value: `Bill ${EM} due soon`, confidence: 0.9 }, dates: { value: ["15 Dec", "2026-12-15"], confidence: 0.9 } }, "m");
     expect(r.facts.dates).toEqual(["2026-12-15"]);
-    expect(r.title).not.toMatch(/—/);
+    expect(r.title).not.toContain(EM);
   });
   it("the mock scores [lowconf] under the line", async () => expect(Math.min(...Object.values((await new MockCategoriser().categorise("[lowconf] pay the bill")).confidence))).toBeLessThan(0.9));
 });
@@ -173,7 +174,7 @@ describe("replies and templates", () => {
   it("every reply exists in all four languages, names the coordinator and has no em dash", () => {
     for (const k of REPLY_KINDS) for (const l of LANGS) {
       const t = replyText(k, l, { name: "Kusum", coordinator: "Meera", ref: "ALY-1001" });
-      expect(t).not.toMatch(/[–—]/);
+      expect(t).not.toMatch(DASHES);
       expect(t.length).toBeLessThan(600);
       if (!["unknown", "emergency_unknown", "consent_prompt", "consent_declined", "stopped", "unsupported_media", "too_big", "linked", "link_failed", "approval_not_owner", "undone", "approval_failed"].includes(k)) expect(t).toContain("Meera");
     }
@@ -217,5 +218,21 @@ describe("no path can pay, sign, file or approve on its own", () => {
   it("sending only happens in the outbox, behind the flag", () => {
     for (const [f, s] of Object.entries(src)) if (f !== "wa-outbox.ts") expect(s, f).not.toMatch(/\bsendText\(|\bsendTemplate\(/);
     expect(src["wa-outbox.ts"]).toMatch(/if \(!sendingEnabled\(\)\)/);
+  });
+});
+
+describe("go-live checks for WhatsApp", async () => {
+  const { problems, vercelEnv, whatsappProblems } = await import("../scripts/go-live-lib.mjs");
+  it("pass when sending is off, whatever is missing", () => expect(whatsappProblems({ WHATSAPP_SENDING: "0" })).toEqual([]));
+  it("fail for each missing setting when sending is on, without printing any value", () => {
+    const out = whatsappProblems({ WHATSAPP_SENDING: "1", WHATSAPP_APP_SECRET: "s3cret-value" });
+    expect(out).toHaveLength(3);
+    expect(out.join(" ")).not.toContain("s3cret-value");
+    expect(problems({ WHATSAPP_SENDING: "1" }).some((p) => p.includes("WHATSAPP_ACCESS_TOKEN"))).toBe(true);
+  });
+  it("never turns sending on in Vercel", () => {
+    const env = vercelEnv({ NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co", WHATSAPP_SENDING: "1" }, "https://a.example");
+    expect(env.WHATSAPP_SENDING).toBe("0");
+    expect(env.WHATSAPP_SEND_ENABLED).toBe("0");
   });
 });

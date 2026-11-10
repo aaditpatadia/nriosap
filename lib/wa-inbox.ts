@@ -28,12 +28,13 @@ export async function conversations(filter: { status?: string } = {}): Promise<C
        select distinct on (w.phone_hash) w.phone_hash, w.family_id, w.sender_kind, w.parent_id, w.profile_id, w.sender_contact_id, w.phone_tail,
               w.received_at, w.text, w.type, w.category, w.confidence, w.status
        from whatsapp_messages w where w.direction = 'in' order by w.phone_hash, w.received_at desc)
-     select l.*, f.name as family_name, coalesce(p.name, pr.name, m.name) as sender_name,
-            (select count(*)::int from whatsapp_messages x where x.phone_hash = l.phone_hash and x.direction = 'in' and x.status in ('needs_human','held_consent','rate_limited','waiting_plan')) as open,
-            exists (select 1 from whatsapp_messages x where x.phone_hash = l.phone_hash and x.category = 'emergency' and x.status = 'needs_human') as emergency
-     from last l left join families f on f.id = l.family_id left join parents p on p.id = l.parent_id
-       left join profiles pr on pr.id = l.profile_id left join family_members m on m.id = l.sender_contact_id
-     order by emergency desc, open > 0 desc, l.received_at desc limit 200`,
+     select * from (
+       select l.*, f.name as family_name, coalesce(p.name, pr.name, m.name) as sender_name,
+              (select count(*)::int from whatsapp_messages x where x.phone_hash = l.phone_hash and x.direction = 'in' and x.status in ('needs_human','held_consent','rate_limited','waiting_plan')) as open,
+              exists (select 1 from whatsapp_messages x where x.phone_hash = l.phone_hash and x.category = 'emergency' and x.status = 'needs_human') as emergency
+       from last l left join families f on f.id = l.family_id left join parents p on p.id = l.parent_id
+         left join profiles pr on pr.id = l.profile_id left join family_members m on m.id = l.sender_contact_id
+     ) q order by q.emergency desc, (q.open > 0) desc, q.received_at desc limit 200`,
   );
   return r
     .map((x) => ({ key: String(x.phone_hash).slice(0, 32), familyId: x.family_id, familyName: x.family_name, senderKind: x.sender_kind, senderName: x.sender_name, tail: x.phone_tail, lastAt: x.received_at, lastText: x.text, lastType: x.type, category: x.category, confidence: x.confidence === null ? null : Number(x.confidence), status: x.status, open: x.open, emergency: x.emergency }))

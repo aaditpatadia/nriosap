@@ -16,6 +16,7 @@ Assumptions and decisions are in `NOTES.md`. History is in `CHANGELOG.md`.
 | `/ops` | Coordinator, admin | Queue with filters, alerts, running timer |
 | `/ops/task/[id]` | Staff | Timer, manual time, notes, checklist, escalation, ask for approval |
 | `/ops/families` | Staff | Hours, margin, budget and SLA flags, weekly trend, CSV |
+| `/ops/whatsapp`, `/ops/whatsapp/[key]`, `/ops/whatsapp/outbox` | Staff | WhatsApp inbox, a conversation with the AI reading beside each message, replies waiting to send |
 | `/ops/new`, `/ops/onboard`, `/ops/consent/[id]`, `/ops/messages/[id]`, `/ops/documents/[id]` | Staff | Templates, onboarding, consent call, WhatsApp thread, field check |
 | `/chat/[id]` | Demo only | Simulated parent chat, only when `DEMO_MODE=1` |
 
@@ -64,7 +65,7 @@ npm run user:create -- you@example.com "Your Name" admin Mumbai
 
 7. Optional demo family: set `DEMO_MODE=1` and `SEED_STAFF_PASSWORD`, then run `npm run db:seed`.
 8. Import the repo in Vercel (this folder is the repo root), add the same env vars, deploy.
-9. WhatsApp: in Meta, set the webhook to `https://YOUR-DOMAIN/api/whatsapp` with your verify token, and subscribe to `messages`. Leave `WHATSAPP_SEND_ENABLED=0` until business verification is done.
+9. WhatsApp: follow "WhatsApp setup" in `NOTES.md`. The webhook is `https://YOUR-DOMAIN/api/whatsapp/webhook`. Leave `WHATSAPP_SENDING=0` until business verification and template approval are done.
 10. Stripe: in test mode, create three monthly prices ($40, $79, $119) and set `STRIPE_PRICE_40`, `_79`, `_119`. Add a webhook to `https://YOUR-DOMAIN/api/stripe` for `checkout.session.completed` and `customer.subscription.*`.
 11. Inngest: connect the app at `https://YOUR-DOMAIN/api/inngest` and set `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY`.
 
@@ -102,8 +103,8 @@ See `.env.example`, which documents each one. The app runs with only the Supabas
 | Field encryption, signed links, upload checks | Real |
 | Document extraction | Real Claude API code. Tested against a fake API, so real accuracy is unknown |
 | Virus scan | Hook is real. Without `VIRUS_SCAN_URL` it only catches the EICAR test file and marks files `basic_only` |
-| WhatsApp inbound | Real code. Tested with signed test payloads, not real Meta traffic |
-| WhatsApp outbound | Real code behind `WHATSAPP_SEND_ENABLED`, which is off |
+| WhatsApp inbound | Real code. Tested with the local emulator, which signs payloads like Meta, not real Meta traffic |
+| WhatsApp outbound | Real code behind `WHATSAPP_SENDING`, which is off. Replies wait in the ops outbox |
 | Voice transcription | Sarvam adapter written from their docs. Mock until `SARVAM_API_KEY` is set |
 | Third-party payments | Stub only. `PaymentPartner` records a step. No money moves |
 | Subscription billing | Stripe test mode only. Live keys are refused |

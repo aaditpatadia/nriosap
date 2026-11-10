@@ -1,5 +1,18 @@
 # Changelog
 
+## WhatsApp inbound pipeline
+- New webhook at `/api/whatsapp/webhook`. Signature checked on the raw body, every message stored once, answered at once, read in the background.
+- Knows who wrote: owner, parent, family member, WhatsApp-only contact, or unknown. Unknown numbers learn nothing about any family and reach a person.
+- Consent first on WhatsApp, per purpose. STOP in English, Hindi, Gujarati and Marathi stops everything and is recorded.
+- Emergency words in four languages go straight to the top of the queue, with "call 112".
+- AI reads texts into one of the eight service areas, with a confidence per field. Under 90% a person checks. If the model is down, a person reads it.
+- Messages join an open request or start a new one. Lite's monthly limit is respected.
+- Photos and PDFs go to the vault. Voice notes are kept for a person and never sent to AI. Other file types are refused politely.
+- WhatsApp sending stays off (`WHATSAPP_SENDING=0`). Replies wait in an ops outbox as "would send", ready to copy.
+- Ops WhatsApp inbox, conversation view, outbox, and WhatsApp numbers on Reports. "via WhatsApp" on the queue and on the owner's request page.
+- Owners can link their WhatsApp number with a code, then approve or undo a quotation by reply.
+- Local WhatsApp emulator and fixtures. Migration 014. Additive only.
+
 ## Ally 2.0, rebuild and speed
 - Speed: the app ran in Washington (iad1) while the database sits in Singapore. Every page made 9 to 23 database trips across the world. The app now runs in Singapore (vercel.json, sin1), repeated reads in one page load are shared, and pages stream in parts.
 - Every page has its own loading shape, appears after a short pause, and offers "Try again" if it takes too long. Errors show a plain message and a retry.

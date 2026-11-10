@@ -372,3 +372,55 @@ describe("RLS on the new tables", () => {
     }
   });
 });
+
+describe("ops inbox actions, as the signed-in desk", () => {
+  const asUser = async <T>(id: string, fn: () => Promise<T>) => (await import("@/lib/db")).withContext({ kind: "user", id }, fn);
+  it("lists conversations under RLS, emergencies first, and opens one with its reading", async () => {
+    const { conversations, conversation } = await import("@/lib/wa-inbox");
+    const list = await asUser(ID.coord, () => conversations({}));
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.some((c) => c.familyId === null)).toBe(true);
+    const fam = list.find((c) => c.familyId === WA.fam)!;
+    const c = await asUser(ID.coord, () => conversation(fam.key));
+    expect(c!.messages.some((m) => m.direction === "in" && m.model === "mock-categoriser")).toBe(true);
+    expect(await n("select count(*)::int n from audit_log where action = 'view_whatsapp_conversation' and actor_id = $1", [ID.coord])).toBeGreaterThan(0);
+    expect(await asUser(ID.coord2, () => conversation(fam.key))).toBeUndefined();
+    expect((await asUser(WA.owner, () => conversations({}))).every((x) => x.familyId === WA.fam)).toBe(true);
+  });
+  it("confirm, change, create, merge and spam are recorded and feed Reports", async () => {
+    const inbox = await import("@/lib/wa-inbox");
+    const m1 = (await send(text(PARENT, "Please renew the passport for Kusum"))).row;
+    const m2 = (await send(text(PARENT, "[lowconf] check the flat roof"))).row;
+    const m3 = (await send(text(PARENT, "random words"))).row;
+    expect(await asUser(ID.coord, () => inbox.confirmCategory(m1.id, ID.coord))).toEqual({ ok: true });
+    expect(await asUser(ID.coord, () => inbox.changeCategory(m2.id, "Repairs and Local Services", ID.coord))).toEqual({ ok: true });
+    expect(await asUser(ID.coord2, () => inbox.confirmCategory(m1.id, ID.coord2))).toMatchObject({ ok: false });
+    await db.query("update whatsapp_messages set request_id = null where id = $1", [m3.id]);
+    const made = await asUser(ID.coord, () => inbox.createRequestFromMessage(m3.id, "Custom Requests", ID.coord, "Meera Test"));
+    expect(made).toMatchObject({ ok: true });
+    const other = (await send(text(PARENT, "and one more thing"))).row;
+    await db.query("update whatsapp_messages set request_id = null where id = $1", [other.id]);
+    expect(await asUser(ID.coord, () => inbox.mergeIntoRequest(other.id, m1.request_id, ID.coord, "Meera Test"))).toEqual({ ok: true });
+    const spam = (await send(text(STRANGER, "win a prize"))).row;
+    expect(await asUser(ID.coord, () => inbox.markSpam(spam.id, ID.coord))).toEqual({ ok: true });
+    const rows = (await db.query("select id, category_corrected, first_human_at, status from whatsapp_messages where id = any($1)", [[m1.id, m2.id, spam.id]])).rows;
+    expect(rows.find((r) => r.id === m1.id)).toMatchObject({ category_corrected: false });
+    expect(rows.find((r) => r.id === m2.id)).toMatchObject({ category_corrected: true });
+    expect(rows.every((r) => r.first_human_at)).toBe(true);
+    const metrics = await asUser(ID.admin, () => inbox.whatsappMetrics(30));
+    expect(metrics.received).toBeGreaterThan(0);
+    expect(metrics.confirmedUnchanged).toBeGreaterThanOrEqual(1);
+    expect(metrics.corrected).toBeGreaterThanOrEqual(1);
+    expect(metrics.medianMinutesToHuman).not.toBeNull();
+  });
+  it("a desk reply is blocked for advice, queued otherwise, and the outbox lists it", async () => {
+    const inbox = await import("@/lib/wa-inbox");
+    const key = (await asUser(ID.coord, () => inbox.conversations({}))).find((c) => c.familyId === WA.fam)!.key;
+    expect(await asUser(ID.coord, () => inbox.replyToConversation(key, "You should stop taking the tablets", ID.coord, "Meera Test"))).toMatchObject({ ok: false });
+    expect(await asUser(ID.coord, () => inbox.replyToConversation(key, "Namaste, Meera here.", ID.coord, "Meera Test"))).toMatchObject({ ok: true });
+    const box = await asUser(ID.coord, () => inbox.outbox());
+    const row = box.find((o) => o.text === "Namaste, Meera here.")!;
+    expect(row.status).toBe("would_send");
+    expect(await asUser(ID.coord, () => inbox.markCopied(row.id, ID.coord))).toEqual({ ok: true });
+  });
+});

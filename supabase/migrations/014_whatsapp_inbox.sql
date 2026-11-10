@@ -60,10 +60,16 @@ create index if not exists whatsapp_messages_status_idx on whatsapp_messages (st
 create index if not exists whatsapp_messages_request_idx on whatsapp_messages (request_id);
 alter table whatsapp_messages enable row level security;
 
--- Same pattern as the family tables. Messages from unknown numbers have no family, so only the desk can see them.
+-- Same pattern as the family tables. A message has no family until the sender is identified. Until then, or if it is
+-- held back for rate limiting, only admins see it: it may belong to a family another coordinator has no access to.
+-- Once a number is known to be unknown, the whole desk can see it, so anyone on shift can answer.
 -- Rows are written by the server after its own checks, so user sessions get no insert, update or delete rights.
 create policy whatsapp_messages_visible on whatsapp_messages for select
-  using ((family_id is not null and public.can_see_family(family_id)) or (family_id is null and public.is_staff()));
+  using (
+    (family_id is not null and public.can_see_family(family_id))
+    or (family_id is null and public.is_admin())
+    or (family_id is null and public.is_staff() and sender_kind in ('unknown','desk') and status not in ('received','processing','rate_limited'))
+  );
 
 -- ---------- Delivery receipts from Meta. Stored once per message and status ----------
 create table if not exists whatsapp_status_events (

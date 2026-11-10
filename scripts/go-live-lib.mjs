@@ -5,7 +5,18 @@ import path from "node:path";
 export const REQUIRED = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "DATABASE_URL", "ADMIN_EMAIL"];
 
 // Sent to Vercel when they are filled in. Anything not listed here, such as ADMIN_EMAIL, stays on this computer.
-const OPTIONAL = ["DATABASE_CA_CERT", "ANTHROPIC_API_KEY", "VIRUS_SCAN_URL", "SARVAM_API_KEY", "INNGEST_SIGNING_KEY", "INNGEST_EVENT_KEY", "SENTRY_DSN", "NEXT_PUBLIC_DESK_WHATSAPP"];
+const OPTIONAL = ["DATABASE_CA_CERT", "ANTHROPIC_API_KEY", "VIRUS_SCAN_URL", "SARVAM_API_KEY", "INNGEST_SIGNING_KEY", "INNGEST_EVENT_KEY", "SENTRY_DSN", "NEXT_PUBLIC_DESK_WHATSAPP", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_CATEGORISER_MODEL"];
+
+/** With WhatsApp sending switched on, every one of these must be set. Values are never printed. */
+export const WHATSAPP_REQUIRED = ["WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"];
+
+export function whatsappProblems(env) {
+  const on = env.WHATSAPP_SENDING === "1" || env.WHATSAPP_SEND_ENABLED === "1";
+  if (!on) return [];
+  const out = WHATSAPP_REQUIRED.filter((k) => !env[k]?.trim()).map((k) => `WHATSAPP_SENDING is 1 but ${k} is empty.`);
+  if (env.WHATSAPP_APP_SECRET && env.WHATSAPP_APP_SECRET === env.WHATSAPP_VERIFY_TOKEN) out.push("WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN are the same. The app secret comes from the Meta app settings; the verify token is one you make up.");
+  return out;
+}
 
 /** Returns a plain-words problem for each setting that is missing or still a placeholder. Never includes a value. */
 export function problems(env) {
@@ -28,6 +39,7 @@ export function problems(env) {
   if (env.SUPABASE_SERVICE_ROLE_KEY && env.SUPABASE_SERVICE_ROLE_KEY === env.NEXT_PUBLIC_SUPABASE_ANON_KEY) out.push("The two Supabase keys are the same. SUPABASE_SERVICE_ROLE_KEY must be the secret one.");
   if (env.SUPABASE_SERVICE_ROLE_KEY?.startsWith("sb_publishable_")) out.push("SUPABASE_SERVICE_ROLE_KEY is the publishable key. Use the secret one.");
   if (env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.startsWith("sb_secret_")) out.push("NEXT_PUBLIC_SUPABASE_ANON_KEY is a secret key and would be exposed in the browser. Use the publishable one.");
+  out.push(...whatsappProblems(env));
   return out;
 }
 
@@ -44,12 +56,14 @@ export function vercelEnv(env, appUrl) {
     GOOGLE_SIGNIN: "1",
     EMAIL_SIGNIN: env.EMAIL_SIGNIN ?? "0",
     WHATSAPP_SEND_ENABLED: "0",
+    // Sending stays off on go-live. Turn it on by hand in Vercel after Meta verification and template approval.
+    WHATSAPP_SENDING: "0",
   };
   for (const k of OPTIONAL) if (env[k]?.trim()) out[k] = env[k].trim();
   return out;
 }
 
-export const isPublicSetting = (name) => name.startsWith("NEXT_PUBLIC_") || ["APP_URL", "PG_POOL_MAX", "GOOGLE_SIGNIN", "EMAIL_SIGNIN", "WHATSAPP_SEND_ENABLED"].includes(name);
+export const isPublicSetting = (name) => name.startsWith("NEXT_PUBLIC_") || ["APP_URL", "PG_POOL_MAX", "GOOGLE_SIGNIN", "EMAIL_SIGNIN", "WHATSAPP_SEND_ENABLED", "WHATSAPP_SENDING"].includes(name);
 
 /** Applies each migration once, in order, each in its own transaction. Safe to run again after a failure. */
 export async function applyMigrations(client, dir = path.join(import.meta.dirname, "..", "supabase", "migrations")) {

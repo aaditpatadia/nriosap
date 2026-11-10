@@ -15,6 +15,8 @@ export const PROMPT_VERSION = "wa-cat-2026-11-10";
 export const CATEGORIES = [...SERVICE_CATEGORIES, "unclear", "emergency", "refused"] as const;
 export type WaCategory = (typeof CATEGORIES)[number];
 export const CHECK_THRESHOLD = 0.9;
+/** En and em dashes, written by code point so no dash appears in the source. Titles never contain them. */
+export const DASHES = new RegExp(`[${String.fromCharCode(8211)}${String.fromCharCode(8212)}]`, "g");
 
 export interface Facts {
   amounts: string[];
@@ -93,7 +95,7 @@ export function toReading(raw: unknown, model: string): Reading {
   const dates = r.dates.value.map((d) => d.trim()).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 5);
   return {
     category: r.category.value,
-    title: r.title.value.replace(/[–—]/g, ",").trim().slice(0, 80) || "WhatsApp message",
+    title: r.title.value.replace(DASHES, ",").trim().slice(0, 80) || "WhatsApp message",
     facts: { amounts: r.amounts.value.map((a) => a.trim().slice(0, 40)).filter(Boolean).slice(0, 5), dates, biller: clean(r.biller.value), consumerNumber: clean(r.consumer_number.value), policyNumber: clean(r.policy_number.value), property: clean(r.property.value), person: clean(r.person.value) },
     language: r.language.value,
     urgency: r.urgency.value,

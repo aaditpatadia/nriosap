@@ -8,3 +8,5 @@ export function vercelEnv(env: Env, appUrl: string): Record<string, string>;
 export function isPublicSetting(name: string): boolean;
 export function applyMigrations(client: Client, dir?: string): Promise<string[]>;
 export function makeAdmin(client: Client, userId: string, email: string): Promise<boolean>;
+export const WHATSAPP_REQUIRED: string[];
+export function whatsappProblems(env: Env): string[];
