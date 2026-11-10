@@ -25,6 +25,7 @@ const GLYPHS = {
   tool: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 18v3h3l6.4-6.3a4 4 0 0 0 5.3-5.4l-2.6 2.6-2.8-.7-.7-2.8z" />,
   doc: <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4M9 13h6M9 17h6" /></>,
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  chat: <path d="M4 5h16v11H9l-5 4z" />,
 } as const;
 
 export function Glyph({ name }: { name: NavIcon }) {

@@ -99,6 +99,8 @@ export interface Task {
   needsApproval: boolean;
   checklist?: string[];
   documentId?: string;
+  /** "whatsapp" when the task came from a WhatsApp message. */
+  source?: string;
 }
 
 export interface TimeEntry {

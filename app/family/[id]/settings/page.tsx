@@ -5,6 +5,8 @@ import { PageHeader, Panel } from "@/components/ui";
 import { signOut } from "@/app/signin/actions";
 import { getViewer } from "@/lib/auth";
 import { familyAccess } from "@/lib/service-requests";
+import { WhatsAppLink } from "@/components/WhatsAppLink";
+import { whatsappLinkedAt } from "@/lib/wa-inbox";
 
 export const metadata = { title: "Settings" };
 
@@ -27,6 +29,11 @@ export default async function Settings({ params }: { params: Promise<{ id: strin
             {row(`${base}/claims`, "Insurance claims", "Claims paperwork the desk is following.")}
             {row(`${base}/ask`, "Ally Assistant", "Ask about your own records. Choose whether an AI service may help.")}
           </ul>
+        </Panel>
+      )}
+      {access.owner && viewer.role === "owner" && (
+        <Panel title="WhatsApp">
+          <WhatsAppLink linkedAt={await whatsappLinkedAt(viewer.id)} deskNumber={process.env.NEXT_PUBLIC_DESK_WHATSAPP?.replace(/\D/g, "") || null} />
         </Panel>
       )}
       <Panel title="Display">
