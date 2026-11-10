@@ -13,6 +13,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
     { href: "/ops/requests", label: "Requests", icon: "list", primary: true, also: ["/ops/approvals", "/ops/visits"] },
     { href: "/ops/families", label: "Families", icon: "people", primary: true, also: ["/ops/properties", "/ops/documents"] },
     { href: "/ops/queue", label: "Task Queue", icon: "queue", primary: true, short: "Queue", also: ["/ops/task", "/ops/new"] },
+    { href: "/ops/whatsapp", label: "WhatsApp", icon: "chat" },
     { href: "/ops/settings", label: "Settings", icon: "settings", also: ["/ops/partners", "/ops/coordinators", "/ops/reports"] },
   ];
   return (

@@ -78,6 +78,7 @@ export default async function Queue({ searchParams }: { searchParams: Promise<Fi
         {tasks.map((t) => (
           <li key={t.id} className="card grid gap-2">
             <Link className="font-semibold" href={`/ops/task/${t.id}`}>{t.title}</Link>
+            {t.source === "whatsapp" && <span className="chip w-fit">via WhatsApp</span>}
             <p className="text-[length:var(--text-small)] text-muted">{famName.get(t.familyId)} · {owners.get(t.ownerId)} · due {fromNow(t.dueAt)}</p>
             <div className="flex flex-wrap gap-2"><span className="chip">{LABEL[t.status]}</span>{isUrgent(t) && <span className="chip" data-tone="danger">Urgent</span>}<SlaChip t={t} now={now} /></div>
           </li>
@@ -91,7 +92,7 @@ export default async function Queue({ searchParams }: { searchParams: Promise<Fi
             <tbody>
               {tasks.map((t) => (
                 <tr key={t.id}>
-                  <td><Link className="font-semibold" href={`/ops/task/${t.id}`}>{t.title}</Link></td>
+                  <td><Link className="font-semibold" href={`/ops/task/${t.id}`}>{t.title}</Link>{t.source === "whatsapp" && <span className="chip ml-2">via WhatsApp</span>}</td>
                   <td>{famName.get(t.familyId)}</td><td>{KIND[t.kind] ?? t.kind}</td><td>{owners.get(t.ownerId)}</td>
                   <td><span className="chip">{LABEL[t.status]}</span></td>
                   <td>{fromNow(t.dueAt)}</td>

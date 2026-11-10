@@ -63,10 +63,10 @@ test("api routes refuse anonymous callers", async ({ request }) => {
   expect((await request.post("/api/documents", { headers: { origin: "http://localhost:3100" }, multipart: { familyId: FAM.shah } })).status()).toBe(401);
 });
 
-test("the job endpoint serves all six scheduled functions", async ({ request }) => {
+test("the job endpoint serves the six scheduled jobs plus the two WhatsApp functions", async ({ request }) => {
   const r = await request.get("/api/inngest");
   expect(r.status()).toBe(200);
-  expect((await r.json()).function_count).toBe(6);
+  expect((await r.json()).function_count).toBe(8);
 });
 
 test("the emulated storage refuses anyone without the service key", async ({ request }) => {

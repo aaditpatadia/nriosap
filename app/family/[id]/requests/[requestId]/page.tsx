@@ -11,6 +11,7 @@ import { fmtDate, fmtTime } from "@/lib/format";
 import { isOpenStatus, STATUS_META } from "@/lib/request-engine";
 import { familyAccess, getRequest, propertiesFor, quotesForRequest, requestAttachments, requestEvents, type RequestAttachment } from "@/lib/service-requests";
 import { approvalsFor, getFamily } from "@/lib/store";
+import { whatsappForRequest } from "@/lib/wa-inbox";
 
 export const metadata = { title: "Request" };
 
@@ -32,6 +33,8 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
   const r = await getRequest(requestId);
   if (!r || r.familyId !== id) notFound();
   const [events, files, quotes, access, approvals, properties, fam, payments] = await Promise.all([requestEvents(requestId), requestAttachments(requestId), quotesForRequest(requestId), familyAccess(id), approvalsFor(id), propertiesFor(id), getFamily(id), paymentsForRequest(requestId)]);
+  const viaWhatsApp = r.understanding && (r.understanding as { via?: string }).via === "whatsapp";
+  const waMessages = await whatsappForRequest(requestId);
   const s = STATUS_META[r.status];
   const quote = quotes[0];
   const approval = quote?.approvalId ? approvals.find((a) => a.id === quote.approvalId) : undefined;
@@ -49,6 +52,7 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
           <span className="text-[length:var(--text-small)] font-semibold text-muted">{r.ref} · {r.category}</span>
           <span className="chip" data-tone={s.tone}>{s.label}</span>
           {r.priority === "urgent" && <span className="chip" data-tone="danger">Urgent</span>}
+          {(viaWhatsApp || waMessages.length > 0) && <span className="chip">via WhatsApp</span>}
         </div>
         <h1 className="text-[length:var(--text-h1)] font-bold [overflow-wrap:anywhere]">{r.title}</h1>
       </header>
@@ -61,6 +65,11 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
             <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{r.description}</p>
             {given.length > 0 && <FileList items={given} />}
           </Panel>
+          {waMessages.length > 0 && (
+            <Panel title="Sent on WhatsApp">
+              <ol className="timeline grid gap-4">{waMessages.map((m) => <li key={m.id}><p className="whitespace-pre-wrap text-[length:var(--text-small)] [overflow-wrap:anywhere]">{m.text ?? (m.hasVoice ? "Voice note. Your coordinator listens to it." : m.type === "image" ? "Photo" : "Document")}</p>{m.documentId && <a className="btn btn-secondary mt-1" href={`/api/documents/${m.documentId}/file`} target="_blank" rel="noreferrer">Open the file</a>}<p className="text-[length:var(--text-micro)] text-muted">{fmtDate(m.at)}, {fmtTime(m.at)} India time</p></li>)}</ol>
+            </Panel>
+          )}
           {(messages.length > 0 || (open && access.canCreate)) && (
             <Panel title="Work updates and messages">
               {messages.length > 0 && <ol className="timeline grid gap-4">{messages.map((e) => <li key={e.id}><p className="text-[length:var(--text-small)] [overflow-wrap:anywhere]">{e.body}</p><p className="text-[length:var(--text-micro)] text-muted">{e.actorName} · {fmtDate(e.at)}, {fmtTime(e.at)} India time</p></li>)}</ol>}

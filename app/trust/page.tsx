@@ -11,7 +11,7 @@ const ITEMS: [string, string][] = [
   ["Every look is written down", "Each time someone opens a document or a policy, it goes in an access log you can read on your Privacy page."],
   ["Policy numbers are locked", "Policy numbers and details read from documents are encrypted before they are stored, with a separate key for each family. Files sit in private storage and open through links that expire in 60 seconds."],
   ["Consent comes first, and piece by piece", "We ask for each purpose separately, and for each document. If someone else is involved, a coordinator calls them in their own language before anything starts."],
-  ["An AI service reads the documents", "We send files to an AI provider to pull out key facts such as dates and amounts. It gives a confidence score for each one. Anything under 90% is checked by a person. AI never pays, files or sends anything by itself."],
+  ["An AI service reads the documents", "We send files, and WhatsApp texts when you agree, to an AI provider outside India to pull out key facts such as dates and amounts. Voice notes are never sent to it. It gives a confidence score for each one. Anything under 90% is checked by a person. AI never pays, files or sends anything by itself."],
   ["You can leave with everything", "Download your family's data yourself, as a file or a ZIP. Delete it yourself. Anyone involved can stop by sending STOP on WhatsApp, and we stop at once."],
 ];
 
@@ -38,7 +38,7 @@ export default function Trust() {
           <h2 className="text-[length:var(--text-h3)] font-semibold">What is not finished yet</h2>
           <ul className="grid list-disc gap-1 pl-6 text-muted">
             <li>A lawyer is still to review our claims help, our payment steps and our consent wording.</li>
-            <li>WhatsApp business verification is not done, so automatic sending is off.</li>
+            <li>WhatsApp is not connected to Ally yet. When it is, a person checks every message, and Ally sends no WhatsApp replies on its own until Meta business verification and message approval are done. Until then a coordinator sends each reply by hand.</li>
             <li>We are confirming where data is stored and will say so here.</li>
             <li>Payments to third parties are completed by a person. We have no licensed payment partner yet.</li>
           </ul>

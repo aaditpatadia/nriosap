@@ -216,6 +216,7 @@ function toTask(r: Row): Task {
     needsApproval: r.needs_approval,
     checklist: r.checklist ?? [],
     documentId: r.document_id ?? undefined,
+    source: r.source ?? undefined,
   };
 }
 

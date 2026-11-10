@@ -3,10 +3,11 @@ export const dynamic = "force-dynamic";
 import { requireStaff } from "@/lib/auth";
 import { hoursReport } from "@/lib/ops";
 import { fmtShort, usd } from "@/lib/format";
+import { whatsappMetrics } from "@/lib/wa-inbox";
 
 export default async function Reports() {
   await requireStaff();
-  const rows = await hoursReport();
+  const [rows, wa] = await Promise.all([hoursReport(), whatsappMetrics(30)]);
   const totalRev = rows.reduce((s, r) => s + r.planUsd, 0);
   const totalHours = rows.reduce((s, r) => s + r.hours, 0);
   const weeks = rows[0]?.weeks ?? [];
@@ -58,6 +59,14 @@ export default async function Reports() {
             ))}
           </tbody>
         </table>
+      </div>
+      <h2 className="text-[length:var(--text-h2)] font-bold">WhatsApp, last 30 days</h2>
+      <p className="max-w-3xl text-muted">Correct means a person confirmed the AI category without changing it. Only messages the AI read are counted there. Time to first human touch runs from arrival to the first desk action on the message.</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="wa-metrics">
+        <div className="card"><p className="text-muted">Messages received</p><p className="text-3xl font-bold">{wa.received}</p></div>
+        <div className="card"><p className="text-muted">Auto-categorised correctly</p><p className="text-3xl font-bold">{wa.confirmedUnchanged}</p><p className="text-[length:var(--text-small)] text-muted">of {wa.aiRead} read by AI</p></div>
+        <div className="card"><p className="text-muted">Corrected by a person</p><p className="text-3xl font-bold">{wa.corrected}</p></div>
+        <div className="card"><p className="text-muted">Median time to first human touch</p><p className="text-3xl font-bold">{wa.medianMinutesToHuman === null ? "None yet" : `${wa.medianMinutesToHuman} min`}</p></div>
       </div>
     </section>
   );

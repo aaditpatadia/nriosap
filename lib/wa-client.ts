@@ -4,7 +4,9 @@ import { allowedMediaHost } from "./whatsapp";
 const graphBase = () => (process.env.WHATSAPP_GRAPH_URL ?? "https://graph.facebook.com/v21.0").replace(/\/$/, "");
 const token = () => process.env.WHATSAPP_ACCESS_TOKEN ?? "";
 
-export const sendingEnabled = () => process.env.WHATSAPP_SEND_ENABLED === "1" && !!process.env.WHATSAPP_PHONE_NUMBER_ID && !!token();
+/** WHATSAPP_SENDING is the switch. WHATSAPP_SEND_ENABLED is its older name and still works. Both default to off. */
+export const sendingFlag = () => process.env.WHATSAPP_SENDING === "1" || process.env.WHATSAPP_SEND_ENABLED === "1";
+export const sendingEnabled = () => sendingFlag() && !!process.env.WHATSAPP_PHONE_NUMBER_ID && !!token();
 
 export type SendResult = { status: "sent"; waId: string } | { status: "disabled" } | { status: "failed"; code: number };
 
@@ -48,5 +50,28 @@ export async function downloadMedia(mediaId: string, maxBytes: number): Promise<
     return bytes.byteLength > maxBytes ? null : { bytes, mime: m.mime_type ?? "application/octet-stream" };
   } catch {
     return null;
+  }
+}
+
+export type MediaFetch = { ok: true; bytes: Uint8Array; mime: string } | { ok: false; reason: "too_big" | "failed" | "not_configured" };
+
+/** Like downloadMedia, but says why it failed, and checks Meta's stated size before downloading anything. */
+export async function fetchMedia(mediaId: string, maxBytes: number): Promise<MediaFetch> {
+  if (!token()) return { ok: false, reason: "not_configured" };
+  if (!/^[\w-]+$/.test(mediaId)) return { ok: false, reason: "failed" };
+  const headers = { authorization: `Bearer ${token()}` };
+  try {
+    const meta = await fetch(`${graphBase()}/${mediaId}`, { headers, signal: AbortSignal.timeout(15_000) });
+    if (!meta.ok) return { ok: false, reason: "failed" };
+    const m = (await meta.json()) as { url?: string; mime_type?: string; file_size?: number };
+    if (typeof m.file_size === "number" && m.file_size > maxBytes) return { ok: false, reason: "too_big" };
+    if (!m.url || !allowedMediaHost(m.url, process.env.WHATSAPP_MEDIA_TEST_HOST)) return { ok: false, reason: "failed" };
+    const file = await fetch(m.url, { headers, signal: AbortSignal.timeout(30_000) });
+    if (!file.ok) return { ok: false, reason: "failed" };
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (bytes.byteLength > maxBytes) return { ok: false, reason: "too_big" };
+    return { ok: true, bytes, mime: m.mime_type ?? "application/octet-stream" };
+  } catch {
+    return { ok: false, reason: "failed" };
   }
 }
