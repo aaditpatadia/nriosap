@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { addDeadlineAction, deadlineStatusAction } from "@/app/family/workspace-actions";
+import { toast } from "./Toaster";
 import { DEADLINE_KINDS, RECURRENCES, REMINDER_CHOICES } from "@/lib/workspace-rules";
 
 const reminderWord = (d: number) => (d === 0 ? "On the due date" : `${d} days before`);
@@ -37,7 +38,7 @@ export function AddBillForm({ familyId, properties, documents }: { familyId: str
 export function BillActions({ id, title, status }: { id: string; title: string; status: string }) {
   const [pending, start] = useTransition();
   const [sure, setSure] = useState(false);
-  const act = (s: "handled" | "cancelled" | "upcoming") => start(async () => { await deadlineStatusAction(id, s); setSure(false); });
+  const act = (s: "handled" | "cancelled" | "upcoming") => start(async () => { const r = await deadlineStatusAction(id, s); setSure(false); toast(r.ok ? (s === "handled" ? "Marked as handled." : s === "cancelled" ? "Removed." : "Moved back to upcoming.") : "That did not save.", r.ok ? "ok" : "danger"); });
   if (status === "handled") return <button type="button" className="btn btn-ghost" disabled={pending} aria-label={`Mark ${title} as not handled`} onClick={() => act("upcoming")}>Undo</button>;
   return (
     <span className="flex flex-wrap items-center gap-1">

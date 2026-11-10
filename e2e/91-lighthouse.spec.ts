@@ -15,7 +15,7 @@ test("lighthouse mobile on key routes", async ({ page }) => {
   const run = async (url: string, cookie?: string) => {
     const r = await lighthouse(`http://localhost:3100${url}`, { port: chrome.port, onlyCategories: ["performance", "accessibility", "best-practices", "seo"], formFactor: "mobile", logLevel: "error", extraHeaders: cookie ? { Cookie: cookie } : undefined });
     const c = r.lhr.categories, a = r.lhr.audits;
-    return { url, perf: Math.round(c.performance.score * 100), a11y: Math.round(c.accessibility.score * 100), bestPractices: Math.round(c["best-practices"].score * 100), seo: Math.round(c.seo.score * 100), lcpMs: Math.round(a["largest-contentful-paint"].numericValue), cls: a["cumulative-layout-shift"].numericValue, tbtMs: Math.round(a["total-blocking-time"].numericValue), kb: Math.round(a["total-byte-weight"].numericValue / 1024) };
+    return { url, perf: Math.round(c.performance.score * 100), a11y: Math.round(c.accessibility.score * 100), bestPractices: Math.round(c["best-practices"].score * 100), seo: Math.round(c.seo.score * 100), lcpMs: Math.round(a["largest-contentful-paint"].numericValue), cls: a["cumulative-layout-shift"].numericValue, tbtMs: Math.round(a["total-blocking-time"].numericValue), kb: Math.round(a["total-byte-weight"].numericValue / 1024), lcpEl: a["largest-contentful-paint-element"]?.details?.items?.[0]?.items?.[0]?.node?.snippet };
   };
 
   const out = [await run("/"), await run("/trust"), await run("/signin")];

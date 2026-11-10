@@ -28,18 +28,19 @@ const newRequest = z.object({
   urgent: z.enum(["on"]).optional(),
   extra: z.string().trim().max(1000).optional(),
   propertyId: z.union([id, z.literal("")]),
+  memberId: z.union([id, z.literal("")]),
   dueOn: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/),
 });
 
 export async function submitRequest(_p: Msg, form: FormData): Promise<Msg> {
   const v = await actionViewer();
   if (!v) return { ok: false, message: "Please sign in again." };
-  const p = newRequest.safeParse({ familyId: form.get("familyId"), description: form.get("description"), category: form.get("category"), location: form.get("location") ?? "", urgent: form.get("urgent") ?? undefined, extra: form.get("extra") ?? "", propertyId: form.get("propertyId") ?? "", dueOn: form.get("dueOn") ?? "" });
+  const p = newRequest.safeParse({ familyId: form.get("familyId"), description: form.get("description"), category: form.get("category"), location: form.get("location") ?? "", urgent: form.get("urgent") ?? undefined, extra: form.get("extra") ?? "", propertyId: form.get("propertyId") ?? "", memberId: form.get("memberId") ?? "", dueOn: form.get("dueOn") ?? "" });
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the form." };
   if (!(await rateLimit(`request:${v.id}`, 30, 3600))) return { ok: false, message: "That is a lot of requests. Please wait a little." };
   const attachmentIds = form.getAll("attachment").filter((x): x is string => typeof x === "string");
   const description = p.data.extra ? `${p.data.description}\n\nMore details: ${p.data.extra}` : p.data.description;
-  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name, propertyId: p.data.propertyId || null, dueOn: p.data.dueOn || null });
+  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name, propertyId: p.data.propertyId || null, memberId: p.data.memberId || null, dueOn: p.data.dueOn || null });
   if (!r.ok) return { ok: false, message: r.reason };
   refresh(p.data.familyId);
   redirect(`/family/${p.data.familyId}/requests/${r.id}`);

@@ -1,5 +1,18 @@
 # Changelog
 
+## Ally 2.0, rebuild and speed
+- Speed: the app ran in Washington (iad1) while the database sits in Singapore. Every page made 9 to 23 database trips across the world. The app now runs in Singapore (vercel.json, sin1), repeated reads in one page load are shared, and pages stream in parts.
+- Every page has its own loading shape, appears after a short pause, and offers "Try again" if it takes too long. Errors show a plain message and a retry.
+- Sign-up no longer sticks on "Setting up". Consents save in one step, a second press returns the same account, real errors show, and answers are kept.
+- Customer menu is five places: Home, Requests, Documents, Family & Details, Settings, plus New request. Ops menu is Overview, Requests, Families, Task Queue, Settings.
+- Home: "Here's what's happening back home.", four counts, needs your attention, activity, upcoming dates, local time, coordinator.
+- Family & Details page: contacts, addresses, bills and dates, preferences, consent.
+- Payments: a record per payment, pending, confirmed or failed. Confirmed needs a reference or a receipt. Links must be https and come from the provider. No wallet, nothing moves money.
+- Documents: download, rename and link to a request.
+- Plus no longer promises visits. Visits are quoted first.
+- Small confirmation messages after saving. Lighter glass header and soft background.
+- Migration 013. Additive only.
+
 ## Ally 2.0, complete overhaul
 - New light design system, shared by the website, the customer app and Ops. New sidebar, phone drawer and bottom bar.
 - Website rebuilt around "Your life is abroad. Your responsibilities don't have to be." Eight service areas, a four-step demonstration and a sample dashboard.

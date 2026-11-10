@@ -15,10 +15,10 @@ export interface Deadline { id: string; familyId: string; title: string; kind: D
 
 const toDeadline = (d: Row): Deadline => ({ id: d.id, familyId: d.family_id, title: d.title, kind: d.kind, amountInr: d.amount_inr == null ? null : Number(d.amount_inr), dueOn: iso(d.due_on)!, propertyId: d.property_id, propertyName: d.property_name ?? null, person: d.person, recurrence: d.recurrence, documentId: d.document_id, status: d.status, handledAt: d.handled_at, reminderDays: d.reminder_days ?? [], reminderOn: iso(d.reminder_on), notes: d.notes });
 
-export async function deadlinesFor(familyId: string): Promise<Deadline[]> {
+export const deadlinesFor = cache(async function deadlinesFor(familyId: string): Promise<Deadline[]> {
   if (!isUuid(familyId)) return [];
   return (await rows<Row>("select d.*, p.name as property_name from deadlines d left join properties p on p.id = d.property_id where d.family_id = $1 and d.status <> 'cancelled' order by d.due_on", [familyId])).map(toDeadline);
-}
+});
 
 export interface NewDeadline { title: string; kind: DeadlineKind; amountInr: number | null; dueOn: string; propertyId: string | null; person: string | null; recurrence: Recurrence; documentId: string | null; reminderDays: number[]; reminderOn: string | null; notes: string | null }
 
@@ -84,10 +84,10 @@ const toVisit = (v: Row): Visit => ({ id: v.id, familyId: v.family_id, propertyI
 export const VISIT_SELECT = `select v.*, p.name as property_name, c.name as coordinator_name, f.name as family_name from visits v left join properties p on p.id = v.property_id left join profiles c on c.id = v.coordinator_id left join families f on f.id = v.family_id`;
 export const rowToVisit = toVisit;
 
-export async function visitsFor(familyId: string): Promise<Visit[]> {
+export const visitsFor = cache(async function visitsFor(familyId: string): Promise<Visit[]> {
   if (!isUuid(familyId)) return [];
   return (await rows<Row>(`${VISIT_SELECT} where v.family_id = $1 order by v.scheduled_at desc`, [familyId])).map(toVisit);
-}
+});
 
 /** Which requests each document is attached to. */
 export async function relatedRequests(familyId: string): Promise<Record<string, { id: string; ref: string }[]>> {
@@ -138,6 +138,33 @@ export async function accessLogFor(familyId: string): Promise<Record<string, Acc
   const out: Record<string, AccessEntry[]> = {};
   for (const x of r) (out[x.entity_id] ??= []).push({ at: x.at, action: ACTION_WORDS[x.action] ?? x.action, actor: x.name ?? "Ally" });
   return out;
+}
+
+export async function renameDocument(documentId: string, title: string, userId: string): Promise<string | null> {
+  if (!isUuid(documentId)) return null;
+  const d = await one<Row>("select family_id from documents where id = $1 and deleted_at is null", [documentId]);
+  if (!d) return null;
+  const a = await familyAccess(d.family_id);
+  if (!a.owner && !a.staff) return null;
+  await asService(() => tx(async (t) => {
+    await t.run("update documents set title = $2 where id = $1", [documentId, title]);
+    await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'document_renamed','document',$2,$3)", [userId, documentId, d.family_id]);
+  }));
+  return d.family_id;
+}
+
+/** Attaches a vault document to one of the same account's open requests. */
+export async function linkDocumentToRequest(documentId: string, requestId: string, userId: string): Promise<string | null> {
+  if (!isUuid(documentId) || !isUuid(requestId)) return null;
+  const d = await one<Row>("select family_id from documents where id = $1 and deleted_at is null", [documentId]);
+  if (!d || !(await familyAccess(d.family_id)).canCreate) return null;
+  return asService(() => tx(async (t) => {
+    const r = await t.one<Row>("select id from service_requests where id = $1 and family_id = $2 and status not in ('completed','cancelled')", [requestId, d.family_id]);
+    if (!r) return null;
+    await t.run("insert into request_attachments(request_id, family_id, document_id, kind) values ($1,$2,$3,'customer') on conflict (request_id, document_id) do nothing", [requestId, d.family_id, documentId]);
+    await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'document_linked','document',$2,$3)", [userId, documentId, d.family_id]);
+    return d.family_id as string;
+  }));
 }
 
 // ---------- Properties ----------

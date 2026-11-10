@@ -29,7 +29,7 @@ describe("plans", () => {
   it("visits need the plan or an approved quotation", () => {
     expect(visitBlockedReason(family, false)).toMatch(/approved quotation/);
     expect(visitBlockedReason(family, true)).toBeNull();
-    expect(visitBlockedReason(plus, false)).toBeNull();
+    expect(visitBlockedReason(plus, false)).toMatch(/approved quotation/);
   });
 });
 

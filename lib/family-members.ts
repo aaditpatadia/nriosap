@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createHash, randomBytes } from "node:crypto";
 import { asService, isUuid, one, rows, tx } from "./db";
 import { familyAccess } from "./service-requests";
@@ -14,10 +15,10 @@ export interface FamilyMember { id: string; name: string; relation: Relation; pe
 
 const toMember = (m: Row): FamilyMember => ({ id: m.id, name: m.name, relation: m.relation, permissions: m.permissions ?? [], status: m.status, phone: m.phone, language: m.language, whatsappOk: m.whatsapp_ok, isEmergency: m.is_emergency, inviteEmail: m.invite_email, inviteExpiresAt: m.invite_expires_at, userId: m.user_id, role: m.role ?? "member", location: m.location ?? null, accessExpiresAt: m.access_expires_at ?? null });
 
-export async function membersFor(familyId: string): Promise<FamilyMember[]> {
+export const membersFor = cache(async function membersFor(familyId: string): Promise<FamilyMember[]> {
   if (!isUuid(familyId)) return [];
   return (await rows<Row>("select * from family_members where family_id = $1 and status <> 'revoked' order by created_at", [familyId])).map(toMember);
-}
+});
 
 export interface NewMember { familyId: string; name: string; relation: Relation; permissions: Permission[]; email: string; phone: string | null; language: string; whatsappOk: boolean; isEmergency: boolean; invite: boolean; userId: string; base: string; role?: MemberRole; location?: string | null; accessExpiresAt?: string | null }
 
@@ -141,10 +142,10 @@ export async function acceptInvite(token: string, user: { id: string; email: str
 // ---------- Profile preferences ----------
 export interface Preferences { country: string | null; indiaCities: string[]; needs: string[]; language: string | null; channel: string | null; timezone: string | null; notifyUpdates: boolean }
 
-export async function preferencesFor(userId: string): Promise<Preferences> {
+export const preferencesFor = cache(async function preferencesFor(userId: string): Promise<Preferences> {
   const p = await one<Row>("select country, india_cities, needs, preferred_language, preferred_channel, timezone, notify_updates from profiles where id = $1", [userId]);
   return { country: p?.country ?? null, indiaCities: p?.india_cities ?? [], needs: p?.needs ?? [], language: p?.preferred_language ?? null, channel: p?.preferred_channel ?? null, timezone: p?.timezone ?? null, notifyUpdates: p?.notify_updates ?? true };
-}
+});
 
 /** Roles live on this table, so this writes only the named preference columns, for the signed-in person's own row. */
 export async function savePreferences(userId: string, p: Preferences, markOnboarded = false): Promise<void> {

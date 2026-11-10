@@ -146,12 +146,12 @@ async function upsertPolicy(t: Tx, familyId: string, documentId: string, kind: s
 }
 
 /** Short-lived link to the file. Row visibility comes from RLS; every link issued is audited. */
-export async function signedDocumentUrl(id: string): Promise<string | undefined> {
+export async function signedDocumentUrl(id: string, download = false): Promise<string | undefined> {
   if (!isUuid(id)) return undefined;
   return tx(async (t) => {
-    const d = await t.one<Row>("select d.family_id, d.storage_path from documents d where d.id = $1 and d.deleted_at is null and exists (select 1 from document_consents c where c.document_id = d.id and c.purpose = 'store' and c.withdrawn_at is null)", [id]);
+    const d = await t.one<Row>("select d.family_id, d.storage_path, d.title from documents d where d.id = $1 and d.deleted_at is null and exists (select 1 from document_consents c where c.document_id = d.id and c.purpose = 'store' and c.withdrawn_at is null)", [id]);
     if (!d) return undefined;
-    const s = await supabaseAdmin().storage.from(BUCKET).createSignedUrl(d.storage_path, 60);
+    const s = await supabaseAdmin().storage.from(BUCKET).createSignedUrl(d.storage_path, 60, download ? { download: String(d.title || "document") } : undefined);
     if (s.error || !s.data) return undefined;
     await t.run("select audit_event('view_document','document',$1,$2)", [id, d.family_id]);
     return s.data.signedUrl;

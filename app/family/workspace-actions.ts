@@ -8,6 +8,7 @@ import { actionViewer } from "@/lib/auth";
 import { asService, tx } from "@/lib/db";
 import { rateLimit } from "@/lib/ratelimit";
 import { familyAccess } from "@/lib/service-requests";
+import { linkDocumentToRequest, renameDocument } from "@/lib/workspace";
 import { addDeadline, assistantConsent, assistantFacts, setAssistantConsent, setDeadlineStatus, setDocumentDetails, setPropertyContact, updateProperty } from "@/lib/workspace";
 import { DEADLINE_KINDS, isIsoDate, RECURRENCES, REMINDER_CHOICES, type DeadlineKind, type Recurrence } from "@/lib/workspace-rules";
 
@@ -55,6 +56,25 @@ export async function documentDetailsAction(_p: Msg, form: FormData): Promise<Ms
   const fam = await setDocumentDetails(p.data.documentId, { expiresOn: p.data.expiresOn || null, issuedOn: p.data.issuedOn || null, tags: p.data.tags.split(",").map((t) => t.trim().slice(0, 40)).filter(Boolean).slice(0, 10), propertyId: p.data.propertyId || null }, v.id);
   if (fam) refresh(fam);
   return { ok: !!fam, message: fam ? "Saved." : "You do not have permission to change this." };
+}
+
+export async function renameDocumentAction(_p: Msg, form: FormData): Promise<Msg> {
+  const v = await actionViewer();
+  const p = z.object({ documentId: id, title: z.string().trim().min(1, "Please give it a name.").max(120) }).safeParse(Object.fromEntries(form));
+  if (!v) return { ok: false, message: "Please sign in again." };
+  if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the name." };
+  const fam = await renameDocument(p.data.documentId, p.data.title.replace(/[\u0000-\u001f<>]/g, ""), v.id);
+  if (fam) refresh(fam);
+  return { ok: !!fam, message: fam ? "Renamed." : "You do not have permission to change this." };
+}
+
+export async function linkDocumentAction(_p: Msg, form: FormData): Promise<Msg> {
+  const v = await actionViewer();
+  const p = z.object({ documentId: id, requestId: id }).safeParse(Object.fromEntries(form));
+  if (!v || !p.success) return { ok: false, message: "Please choose a request." };
+  const fam = await linkDocumentToRequest(p.data.documentId, p.data.requestId, v.id);
+  if (fam) refresh(fam);
+  return { ok: !!fam, message: fam ? "Linked." : "That did not save." };
 }
 
 export async function updatePropertyAction(_p: Msg, form: FormData): Promise<Msg> {

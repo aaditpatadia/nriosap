@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PreferencesForm } from "@/components/PreferencesForm";
+import { MotionToggle } from "@/components/MotionToggle";
+import { TextSizeToggle } from "@/components/TextSizeToggle";
+import { PageHeader, Panel } from "@/components/ui";
+import { signOut } from "@/app/signin/actions";
 import { getViewer } from "@/lib/auth";
-import { preferencesFor } from "@/lib/family-members";
 import { familyAccess } from "@/lib/service-requests";
 
 export const metadata = { title: "Settings" };
@@ -11,19 +13,31 @@ export default async function Settings({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const [viewer, access] = await Promise.all([getViewer(), familyAccess(id)]);
   if (!viewer) notFound();
-  const prefs = await preferencesFor(viewer.id);
+  const base = `/family/${id}`;
+  const full = access.owner || access.staff;
+  const row = (href: string, label: string, help: string) => <li key={href}><Link className="row-link" href={href}><span><span className="block font-medium">{label}</span><span className="block text-[length:var(--text-small)] text-muted">{help}</span></span><span aria-hidden className="text-muted">›</span></Link></li>;
   return (
     <section className="grid max-w-3xl gap-5">
-      <h1 className="text-[length:var(--text-h1)] font-bold">Settings</h1>
-      <PreferencesForm prefs={prefs} />
-      {(access.owner || access.staff) && (
-        <div className="card grid gap-2">
-          <h2 className="text-[length:var(--text-h3)] font-semibold">Your account</h2>
-          <Link className="flex min-h-12 items-center font-medium text-accent" href={`/family/${id}/billing`}>Plan and billing</Link>
-          <Link className="flex min-h-12 items-center font-medium text-accent" href={`/family/${id}/privacy`}>Privacy, consent, data export and deletion</Link>
-          <Link className="flex min-h-12 items-center font-medium text-accent" href={`/family/${id}/claims`}>Insurance claims</Link>
-        </div>
+      <PageHeader title="Settings" sub="Your country, cities and how we reach you are under Family & Details." />
+      {full && (
+        <Panel title="Your account">
+          <ul className="rows">
+            {row(`${base}/billing`, "Plan and billing", "What your plan includes, and your subscription.")}
+            {row(`${base}/privacy`, "Privacy and your data", "Consent, who opened what, export everything, or delete your account.")}
+            {row(`${base}/activity`, "Reports and activity", "Every update on your account, and monthly reports to download.")}
+            {row(`${base}/claims`, "Insurance claims", "Claims paperwork the desk is following.")}
+            {row(`${base}/ask`, "Ally Assistant", "Ask about your own records. Choose whether an AI service may help.")}
+          </ul>
+        </Panel>
       )}
+      <Panel title="Display">
+        <p className="text-[length:var(--text-small)] text-muted">Make the text larger, or pause moving parts of the page.</p>
+        <div className="flex flex-wrap gap-2"><TextSizeToggle /><MotionToggle /></div>
+      </Panel>
+      <Panel title="Signed in as">
+        <p className="font-medium">{viewer.name}{viewer.email ? <span className="block text-[length:var(--text-small)] font-normal text-muted">{viewer.email}</span> : null}</p>
+        <form action={signOut}><button className="btn btn-secondary">Sign out</button></form>
+      </Panel>
     </section>
   );
 }

@@ -11,7 +11,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (!p) return new NextResponse("Not found", { status: 404 });
     return new NextResponse(p.bytes, { headers: { "content-type": p.mime, "cache-control": "private, no-store", "x-content-type-options": "nosniff" } });
   }
-  const url = await signedDocumentUrl(id);
+  const url = await signedDocumentUrl(id, new URL(req.url).searchParams.get("download") === "1");
   if (!url) return new NextResponse("Not found", { status: 404 });
   return NextResponse.redirect(url, { status: 303, headers: { "cache-control": "no-store" } });
 }

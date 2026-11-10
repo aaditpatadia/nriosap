@@ -46,7 +46,7 @@ export default async function Home() {
       <ScrollProgress />
       <SiteHeader />
       <main id="main">
-        <section className="wrap grid gap-10 py-12 lg:min-h-[calc(100vh-74px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center lg:gap-14">
+        <section className="atmos wrap grid gap-10 py-12 lg:min-h-[calc(100vh-74px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center lg:gap-14">
           <div>
             <h1 className="text-[length:var(--text-display)] font-bold leading-[1.05]"><Kinetic text="Your life is abroad. Your responsibilities don't have to be." start={60} /></h1>
             <p className="rise mt-6 max-w-xl text-[1.125rem] text-muted">From property and paperwork to family responsibilities and everyday tasks, Ally helps you organise and get things done back home in India.</p>

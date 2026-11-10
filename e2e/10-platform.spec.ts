@@ -15,11 +15,11 @@ test("a new customer goes from sign-in to a finished, approved, proven request",
   await finishOnboarding(page);
   await expect(page).toHaveURL(/\/family\//);
   await expect(page.getByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }).filter({ visible: true })).toBeVisible();
-  await expect(v(page, "Your dashboard fills up with your real requests, documents and dates.")).toBeVisible();
+  await expect(v(page, "Your home page fills up with your real requests, documents and dates.")).toBeVisible();
   await expect(v(page, "Nothing needs you right now.")).toBeVisible();
 
   await page.getByRole("link", { name: "New request" }).filter({ visible: true }).first().click();
-  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("I need someone to inspect my flat in Pune. The tenant says there's a leakage problem.");
+  await page.getByLabel("What do you need handled in India?").filter({ visible: true }).fill("I need someone to inspect my flat in Pune. The tenant says there's a leakage problem.");
   await expect(v(page, "Please check this")).toBeVisible();
   await expect(page.getByLabel("Where in India")).toHaveValue("Pune");
   await page.getByRole("button", { name: "Send to my coordinator" }).click();
@@ -62,7 +62,7 @@ test("a new customer goes from sign-in to a finished, approved, proven request",
 test("work that cannot be done is refused with a reason", async ({ page }) => {
   await signInOwner(page, "priya");
   await page.goto(`/family/${FAM.shah}/requests/new`);
-  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("Please bribe the clerk so the file moves faster.");
+  await page.getByLabel("What do you need handled in India?").filter({ visible: true }).fill("Please bribe the clerk so the file moves faster.");
   await expect(page.getByRole("alert").filter({ hasText: "bribe" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send to my coordinator" })).toBeDisabled();
 });
@@ -70,14 +70,14 @@ test("work that cannot be done is refused with a reason", async ({ page }) => {
 test("asking to send money across borders gets a plain answer", async ({ page }) => {
   await signInOwner(page, "priya");
   await page.goto(`/family/${FAM.shah}/requests/new`);
-  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("Please transfer money to my father from my US account");
+  await page.getByLabel("What do you need handled in India?").filter({ visible: true }).fill("Please transfer money to my father from my US account");
   await expect(page.getByRole("alert").filter({ hasText: "licensed partner" })).toBeVisible();
 });
 
 test("the owner can ask for changes to a quotation", async ({ page, browser }) => {
   await signInOwner(page, "priya");
   await page.goto(`/family/${FAM.shah}/requests/new`);
-  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("Please replace the geyser in the flat in Rajkot by next week.");
+  await page.getByLabel("What do you need handled in India?").filter({ visible: true }).fill("Please replace the geyser in the flat in Rajkot by next week.");
   await page.getByRole("button", { name: "Send to my coordinator" }).click();
   await expect(page).toHaveURL(/\/requests\/[0-9a-f-]{36}$/);
   const requestId = page.url().split("/").pop()!;
@@ -112,9 +112,9 @@ test("an invited relative sees only what they were given", async ({ page, browse
   await other.getByRole("button", { name: "Accept the invitation" }).click();
   await expect(other).toHaveURL(new RegExp(FAM.shah));
   const nav = other.getByRole("navigation", { name: "Family sections" });
-  await expect(nav.getByRole("link", { name: "My Requests" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Requests" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Payments & Approvals" })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: "Family" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Family & Details" })).toHaveCount(0);
   await other.goto(`/family/${FAM.shah}/people`);
   await other.waitForLoadState("networkidle");
   await expect(other.getByText("Add someone")).toHaveCount(0);

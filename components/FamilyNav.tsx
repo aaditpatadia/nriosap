@@ -31,7 +31,7 @@ function Glyph({ name }: { name: NavIcon }) {
   return <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="relative shrink-0">{GLYPHS[name]}</svg>;
 }
 
-export interface ShellItem { href: string; label: string; icon: NavIcon; badge?: number; primary?: boolean; short?: string }
+export interface ShellItem { href: string; label: string; icon: NavIcon; badge?: number; primary?: boolean; short?: string; also?: string[] }
 
 /** Sidebar on a computer. On a phone: a drawer, plus a bar of the most used sections at the thumb. */
 export function Shell({ home, navLabel, items, cta, foot, children }: { home: string; navLabel: string; items: ShellItem[]; cta?: { href: string; label: string }; foot: React.ReactNode; children: React.ReactNode }) {
@@ -41,7 +41,7 @@ export function Shell({ home, navLabel, items, cta, foot, children }: { home: st
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === path;
   const setOpen = (v: boolean) => setOpenOn(v ? path : null);
-  const isActive = (href: string) => (href === home ? path === home : path.startsWith(href));
+  const isActive = (href: string, also: string[] = []) => (href === home ? path === home : [href, ...also].some((h) => path.startsWith(h)));
   return (
     <div className="shell" data-collapsed={collapsed} data-open={open}>
       <header className="mobile-top no-print">
@@ -62,7 +62,7 @@ export function Shell({ home, navLabel, items, cta, foot, children }: { home: st
         <nav aria-label={navLabel}>
           <ul className="side-nav">
             {items.map((it) => {
-              const active = isActive(it.href);
+              const active = isActive(it.href, it.also);
               return (
                 <li key={it.href}>
                   <Link href={it.href} aria-current={active ? "page" : undefined} title={collapsed ? it.label : undefined} className="side-link">
@@ -87,7 +87,7 @@ export function Shell({ home, navLabel, items, cta, foot, children }: { home: st
       <div className="content">{children}</div>
       <nav className="bottom-nav no-print" aria-label="Main sections">
         {items.filter((i) => i.primary).map((it) => (
-          <Link key={it.href} href={it.href} aria-current={isActive(it.href) ? "page" : undefined} className="bottom-link"><Glyph name={it.icon} />{it.short ?? it.label}</Link>
+          <Link key={it.href} href={it.href} aria-current={isActive(it.href, it.also) ? "page" : undefined} className="bottom-link"><Glyph name={it.icon} />{it.short ?? it.label}</Link>
         ))}
         <button type="button" className="bottom-link" aria-expanded={open} onClick={() => setOpen(!open)}><Glyph name="menu" />Menu</button>
       </nav>

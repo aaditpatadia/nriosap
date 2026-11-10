@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { asService, isUuid, one, rows, tx } from "./db";
 import { looksLikeAdvice } from "./rules";
 import { loadPlans } from "./plans";
@@ -38,7 +39,7 @@ const toQuote = (q: Row): Quotation => ({
 export interface FamilyAccess { owner: boolean; staff: boolean; canCreate: boolean; canUpload: boolean; canReadRequests: boolean; canSeeVault: boolean; canSeeActivity: boolean; canSeeBills: boolean; canManageBills: boolean; member: boolean }
 const NO_ACCESS: FamilyAccess = { owner: false, staff: false, canCreate: false, canUpload: false, canReadRequests: false, canSeeVault: false, canSeeActivity: false, canSeeBills: false, canManageBills: false, member: false };
 
-export async function familyAccess(familyId: string): Promise<FamilyAccess> {
+export const familyAccess = cache(async function familyAccess(familyId: string): Promise<FamilyAccess> {
   if (!isUuid(familyId)) return NO_ACCESS;
   const r = await one<Row>(
     `select public.is_family_owner($1) as owner, public.can_work_family($1) as staff, public.is_family_member($1) as member,
@@ -49,7 +50,7 @@ export async function familyAccess(familyId: string): Promise<FamilyAccess> {
   if (!r) return NO_ACCESS;
   const full = r.owner || r.staff;
   return { owner: r.owner, staff: r.staff, member: r.member, canCreate: full || r.create_req, canUpload: full || r.upload, canReadRequests: full || r.read_req, canSeeVault: full || r.vault, canSeeActivity: full || r.activity, canSeeBills: full || r.bills || r.manage_bills, canManageBills: full || r.manage_bills };
-}
+});
 
 // ---------- Customer ----------
 export type CreateResult = { ok: true; id: string; ref: string } | { ok: false; reason: string };
@@ -101,10 +102,10 @@ export async function createServiceRequest(input: { familyId: string; descriptio
   return made ? { ok: true, id: made.id, ref: made.ref } : { ok: false, reason: "We could not find that account." };
 }
 
-export async function requestsFor(familyId: string): Promise<ServiceRequest[]> {
+export const requestsFor = cache(async function requestsFor(familyId: string): Promise<ServiceRequest[]> {
   if (!isUuid(familyId)) return [];
   return (await rows<Row>(`${SELECT} where r.family_id = $1 order by r.created_at desc`, [familyId])).map(toRequest);
-}
+});
 
 export async function getRequest(id: string): Promise<ServiceRequest | undefined> {
   if (!isUuid(id)) return undefined;
@@ -127,10 +128,10 @@ export async function quotesForRequest(id: string): Promise<Quotation[]> {
   if (!isUuid(id)) return [];
   return (await rows<Row>(`${QUOTE_SELECT} where q.request_id = $1 order by q.created_at desc`, [id])).map(toQuote);
 }
-export async function quotesForFamily(familyId: string): Promise<Quotation[]> {
+export const quotesForFamily = cache(async function quotesForFamily(familyId: string): Promise<Quotation[]> {
   if (!isUuid(familyId)) return [];
   return (await rows<Row>(`${QUOTE_SELECT} where q.family_id = $1 order by q.created_at desc`, [familyId])).map(toQuote);
-}
+});
 
 async function logEvent(t: { run(s: string, p?: unknown[]): Promise<number> }, r: { id: string; family_id: string }, kind: string, status: string | null, body: string, actorId: string, actorName: string, visible = true) {
   await t.run("insert into request_events(request_id, family_id, kind, status, body, actor_id, actor_name, customer_visible) values ($1,$2,$3,$4,$5,$6,$7,$8)", [r.id, r.family_id, kind, status, body, actorId, actorName, visible]);
@@ -333,10 +334,10 @@ export async function escalateRequest(id: string, reason: string, userId: string
 
 // ---------- Properties ----------
 export interface Property { id: string; name: string; kind: string; address: string | null; city: string | null; tenantName: string | null; notes: string | null; createdAt: string; ownership: string | null; rentInr: number | null; tenantPhone: string | null; leaseEnd: string | null; contactMemberIds: string[] }
-export async function propertiesFor(familyId: string): Promise<Property[]> {
+export const propertiesFor = cache(async function propertiesFor(familyId: string): Promise<Property[]> {
   if (!isUuid(familyId)) return [];
   return (await rows<Row>("select * from properties where family_id = $1 order by created_at", [familyId])).map((p) => ({ id: p.id, name: p.name, kind: p.kind, address: p.address, city: p.city, tenantName: p.tenant_name, notes: p.notes, createdAt: p.created_at, ownership: p.ownership ?? null, rentInr: p.rent_inr == null ? null : Number(p.rent_inr), tenantPhone: p.tenant_phone ?? null, leaseEnd: p.lease_end ?? null, contactMemberIds: p.contact_member_ids ?? [] }));
-}
+});
 export async function addProperty(familyId: string, p: { name: string; kind: string; address: string; city: string; tenantName: string; notes: string; ownership?: string; rentInr?: number | null }, userId: string): Promise<boolean> {
   const a = await familyAccess(familyId);
   if (!a.owner && !a.staff) return false;

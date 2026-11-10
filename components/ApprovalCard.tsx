@@ -6,6 +6,7 @@ import { decideAction, undoAction } from "@/app/actions";
 import { spring } from "@/lib/motion";
 import { inr } from "@/lib/format";
 import { Burst } from "./Burst";
+import { toast } from "./Toaster";
 import type { Approval } from "@/lib/types";
 
 type View = Pick<Approval, "id" | "summary" | "amountInr" | "payee" | "feesInr" | "when" | "status"> & {
@@ -33,7 +34,7 @@ export function ApprovalCard({ approval, canDecide = true }: { approval: View; c
       setStatus(next);
       const r = await decideAction(approval.id, next);
       if (!r.ok) setError("That did not save. Nothing was changed. Please try again.");
-      else setUndoUntil(r.undoUntil);
+      else { setUndoUntil(r.undoUntil); toast(next === "approved" ? "Approved. You have 5 minutes to undo." : "Rejected. Your coordinator will be told."); }
     });
   }
 

@@ -1,12 +1,18 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { OnboardingForm } from "@/components/OnboardingForm";
-import { requireViewer } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { isStaff, requireViewer } from "@/lib/auth";
+import { listFamilies } from "@/lib/store";
 
 export const metadata = { title: "Welcome" };
 export const dynamic = "force-dynamic";
 
 export default async function Onboarding() {
-  await requireViewer("/onboarding");
+  const v = await requireViewer("/onboarding");
+  // Someone already set up, for example after a refresh, goes straight to their account.
+  if (isStaff(v)) redirect("/ops");
+  const mine = (await listFamilies()).find((f) => f.owner.id === v.id);
+  if (mine) redirect(`/family/${mine.id}`);
   return (
     <>
       <SiteHeader />

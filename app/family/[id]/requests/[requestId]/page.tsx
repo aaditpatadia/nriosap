@@ -4,6 +4,8 @@ import { ApprovalCard } from "@/components/ApprovalCard";
 import { QuoteBreakdown } from "@/components/QuoteBreakdown";
 import { CancelRequestButton, DisputeForm, QuoteChangesForm, ReplyForm } from "@/components/RequestActions";
 import { StageBar } from "@/components/StageBar";
+import { PaymentList } from "@/components/PaymentPanel";
+import { paymentsForRequest } from "@/lib/payment-records";
 import { Facts, Panel } from "@/components/ui";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { isOpenStatus, STATUS_META } from "@/lib/request-engine";
@@ -29,7 +31,7 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
   const { id, requestId } = await params;
   const r = await getRequest(requestId);
   if (!r || r.familyId !== id) notFound();
-  const [events, files, quotes, access, approvals, properties, fam] = await Promise.all([requestEvents(requestId), requestAttachments(requestId), quotesForRequest(requestId), familyAccess(id), approvalsFor(id), propertiesFor(id), getFamily(id)]);
+  const [events, files, quotes, access, approvals, properties, fam, payments] = await Promise.all([requestEvents(requestId), requestAttachments(requestId), quotesForRequest(requestId), familyAccess(id), approvalsFor(id), propertiesFor(id), getFamily(id), paymentsForRequest(requestId)]);
   const s = STATUS_META[r.status];
   const quote = quotes[0];
   const approval = quote?.approvalId ? approvals.find((a) => a.id === quote.approvalId) : undefined;
@@ -88,7 +90,9 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
               {quote.status === "changes_requested" && <p className="chip w-fit whitespace-normal" data-tone="warn">You asked for changes: {quote.changeNote}</p>}
               {approval && <ApprovalCard canDecide={access.owner} approval={{ id: approval.id, summary: approval.summary, amountInr: approval.amountInr, payee: approval.payee, feesInr: approval.feesInr, when: approval.when, status: approval.status, undoUntil: approval.undoUntil, evidence: [] }} />}
               {quote.status === "sent" && access.owner && <QuoteChangesForm quoteId={quote.id} familyId={id} />}
-              <p className="text-[length:var(--text-micro)] text-muted">Approving agrees the work and the price. Ally does not hold your money. Online payment is not set up yet, so your coordinator will tell you how this is paid, and nothing is marked paid until it is.</p>
+              {quote.documentId && <a className="btn btn-ghost w-fit px-0" href={`/api/documents/${quote.documentId}/file`} target="_blank" rel="noreferrer">See the supporting quotation</a>}
+              <PaymentList payments={payments} />
+              <p className="text-[length:var(--text-micro)] text-muted">Approving agrees the work and the price. Ally does not hold your money. You pay the provider directly, and nothing is shown as paid until a receipt or payment reference confirms it.</p>
             </Panel>
           )}
           {access.owner && (

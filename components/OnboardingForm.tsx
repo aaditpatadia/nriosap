@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { recordOnboarding } from "@/app/actions";
 import { OWNER_CONSENT_TEXT, REQUIRED_PURPOSES } from "@/lib/consent";
@@ -28,7 +28,21 @@ export function OnboardingForm() {
   const [prefs, setPrefs] = useState({ language: "English", channel: "whatsapp", timezone: "", phone: "" });
   const [notify, setNotify] = useState(true);
   const [purposes, setPurposes] = useState<Purpose[]>([]);
-  const [state, action, pending] = useActionState(recordOnboarding, null);
+  // A lost connection becomes a message on this page. The answers stay in place for another try.
+  const [state, action, pending] = useActionState(async (prev: Awaited<ReturnType<typeof recordOnboarding>> | null, form: FormData) => {
+    try {
+      return await recordOnboarding(prev, form);
+    } catch (e) {
+      if (String((e as { digest?: string })?.digest ?? "").startsWith("NEXT_REDIRECT")) throw e;
+      return { ok: false as const, message: "We could not reach Ally. Please check your connection and press the button again. Your answers are still here." };
+    }
+  }, null);
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!pending) return;
+    const t = setTimeout(() => setSlow(true), 8000);
+    return () => { clearTimeout(t); setSlow(false); };
+  }, [pending]);
   const canFinish = REQUIRED_PURPOSES.every((r) => purposes.includes(r));
   const allCities = [...cities, ...otherCity.split(",").map((c) => c.trim()).filter(Boolean)];
   const last = STEPS.length - 1;
@@ -121,7 +135,7 @@ export function OnboardingForm() {
         {step > 0 && step < last && <button type="button" className="btn btn-primary" onClick={() => setStep(step + 1)}>Continue</button>}
         {step === last && <button className="btn btn-primary" disabled={pending || !canFinish}>{pending ? "Setting up..." : "Create my dashboard"}</button>}
       </div>
-      <p role="status" aria-live="polite" className="text-danger">{state?.ok === false ? state.message : ""}</p>
+      <p role="status" aria-live="polite" className={pending ? "text-muted" : "text-danger"}>{pending ? (slow ? "Still working. This is taking longer than usual. Please keep this page open; pressing again will not create a second account." : "") : state?.ok === false ? state.message : ""}</p>
     </form>
   );
 }

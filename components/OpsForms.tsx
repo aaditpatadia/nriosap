@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useActionState, useRef, useState, useTransition } from "react";
-import { addPartnerAction, completeVisitAction, escalateAction, movePartnerAction, partnerFeedbackAction, priorityAction, savePlanAction, scheduleVisitAction } from "@/app/ops/console-actions";
+import { addPartnerAction, completeVisitAction, escalateAction, movePartnerAction, partnerFeedbackAction, priorityAction, savePlanAction, scheduleVisitAction, workingHoursAction } from "@/app/ops/console-actions";
 import type { Plan } from "@/lib/plan-rules";
 import { uploadFile } from "@/lib/upload-client";
 import type { PartnerStatus } from "@/lib/workspace-rules";
@@ -129,6 +129,17 @@ export function EscalateForm({ requestId }: { requestId: string }) {
       <input type="hidden" name="requestId" value={requestId} />
       <label className="field">Why? (internal)<input className="input" name="reason" maxLength={500} required /></label>
       <button className="btn btn-secondary w-fit" disabled={pending}>Escalate</button>
+      <Status s={state} />
+    </form>
+  );
+}
+
+export function WorkingHoursForm({ current }: { current: string }) {
+  const [state, action, pending] = useActionState(workingHoursAction, null);
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2">
+      <label className="field min-w-0 flex-1 basis-64">Working hours<input className="input" name="hours" maxLength={120} defaultValue={current} /></label>
+      <button className="btn btn-secondary" disabled={pending}>Save</button>
       <Status s={state} />
     </form>
   );

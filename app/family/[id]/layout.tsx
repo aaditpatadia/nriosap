@@ -18,17 +18,13 @@ export default async function FamilyLayout({ children, params }: { children: Rea
   const pending = approvals.filter((a) => a.status === "pending").length;
   const full = access.owner || access.staff;
   const base = `/family/${id}`;
+  // Five places only. Bills, properties, approvals, reports and the assistant open from inside them.
   const items: (ShellItem & { show: boolean })[] = [
-    { href: base, label: "Overview", icon: "home", show: true, primary: true },
-    { href: `${base}/requests`, label: "My Requests", icon: "list", show: access.canReadRequests, primary: true, short: "Requests" },
-    { href: `${base}/documents`, label: "Document Vault", icon: "folder", show: true, primary: true, short: "Vault" },
-    { href: `${base}/properties`, label: "Properties & Assets", icon: "building", show: access.canReadRequests },
-    { href: `${base}/people`, label: "Family", icon: "people", show: access.owner },
-    { href: `${base}/bills`, label: "Bills & Renewals", icon: "calendar", show: access.canSeeBills },
-    { href: `${base}/approvals`, label: "Approvals", icon: "check", show: full, badge: pending, primary: true },
-    { href: `${base}/ask`, label: "Ally Assistant", icon: "spark", show: true },
-    { href: `${base}/activity`, label: "Reports & Activity", icon: "chart", show: access.canSeeActivity },
-    { href: `${base}/settings`, label: "Settings", icon: "settings", show: true },
+    { href: base, label: "Home", icon: "home", show: true, primary: true },
+    { href: `${base}/requests`, label: "Requests", icon: "list", show: access.canReadRequests, primary: true, badge: full ? pending : 0, also: [`${base}/approvals`] },
+    { href: `${base}/documents`, label: "Documents", icon: "folder", show: true, primary: true },
+    { href: `${base}/details`, label: "Family & Details", icon: "people", show: full, primary: true, short: "Family", also: [`${base}/people`, `${base}/properties`, `${base}/bills`] },
+    { href: `${base}/settings`, label: "Settings", icon: "settings", show: true, also: [`${base}/billing`, `${base}/privacy`] },
   ];
   return (
     <Shell

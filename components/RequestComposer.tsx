@@ -8,7 +8,7 @@ import { uploadFile } from "@/lib/upload-client";
 
 interface Attached { id: string; title: string }
 
-export function RequestComposer({ familyId, vault, properties, defaultProperty, canUpload, initial = "" }: { familyId: string; vault: Attached[]; properties: { id: string; name: string }[]; defaultProperty: string; canUpload: boolean; initial?: string }) {
+export function RequestComposer({ familyId, vault, properties, defaultProperty, contacts = [], canUpload, initial = "" }: { familyId: string; vault: Attached[]; properties: { id: string; name: string }[]; defaultProperty: string; contacts?: { id: string; name: string }[]; canUpload: boolean; initial?: string }) {
   const [state, action, pending] = useActionState(submitRequest, null);
   const [text, setText] = useState(initial);
   const [picked, setPicked] = useState<ServiceCategory | "">("");
@@ -46,7 +46,7 @@ export function RequestComposer({ familyId, vault, properties, defaultProperty, 
       <input type="hidden" name="category" value={category} />
       {attached.map((a) => <input key={a.id} type="hidden" name="attachment" value={a.id} />)}
 
-      <label className="field text-[length:var(--text-h3)]">What do you need done in India?
+      <label className="field text-[length:var(--text-h3)]">What do you need handled in India?
         <textarea className="input" name="description" rows={5} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="I need someone to visit my flat in Mumbai because the tenant says there is a water leakage." required />
       </label>
 
@@ -67,6 +67,7 @@ export function RequestComposer({ familyId, vault, properties, defaultProperty, 
                   <input className="input" name="location" maxLength={120} value={place} onChange={(e) => setLocation(e.target.value)} placeholder="City" />
                 </label>
                 {properties.length > 0 && <label className="field">Property (optional)<select className="input" name="propertyId" defaultValue={defaultProperty}><option value="">None</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+                {contacts.length > 0 && <label className="field">Who is involved (optional)<select className="input" name="memberId" defaultValue=""><option value="">Just me</option>{contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
                 <label className="field">Needed by (optional)<input className="input" type="date" name="dueOn" /></label>
               </div>
               {seen.action && <p className="text-muted">Likely next step: <strong className="text-ink">{seen.action}</strong></p>}

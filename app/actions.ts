@@ -1,12 +1,14 @@
 "use server";
 
+import { log } from "@/lib/log";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { actionViewer, isDemoMode, isStaff } from "@/lib/auth";
 import { normalisePhone, REQUIRED_PURPOSES } from "@/lib/consent";
 import { savePreferences } from "@/lib/family-members";
-import { confirmOwnerConsent, createFamily } from "@/lib/onboarding";
+import { confirmOwnerConsent, createFamily, createOwnFamily } from "@/lib/onboarding";
 import { PURPOSES, type Purpose } from "@/lib/upload-rules";
 import { actionIp } from "@/lib/action-ip";
 import { rateLimit } from "@/lib/ratelimit";
@@ -101,10 +103,18 @@ export async function recordOnboarding(_prev: unknown, form: FormData) {
   if (!REQUIRED_PURPOSES.every((r) => purposes.includes(r))) return { ok: false as const, message: "We cannot hold your documents without these two consents." };
   const cities = p.data.cities.split(",").map((c) => c.trim()).filter(Boolean).slice(0, 10);
   const name = v.name.trim().length >= 2 ? v.name.trim() : "Family owner";
-  const r = await createFamily({ ownerId: v.id, parentName: name, forSelf: true, phone, language: p.data.language, city: cities[0] ?? "", planUsd: 79, ownerPurposes: [...new Set(purposes)], actorId: v.id });
-  if (!r.ok) return { ok: false as const, message: r.reason };
-  await savePreferences(v.id, { country: p.data.country || null, indiaCities: cities, needs: form.getAll("need").filter((x): x is string => typeof x === "string" && NEEDS.includes(x)), language: p.data.language, channel: p.data.channel, timezone: p.data.timezone || null, notifyUpdates: form.get("notifyUpdates") === "on" }, true);
-  redirect(`/family/${r.familyId}`);
+  let familyId: string;
+  try {
+    const r = await createOwnFamily({ ownerId: v.id, parentName: name, forSelf: true, phone, language: p.data.language, city: cities[0] ?? "", planUsd: 79, ownerPurposes: [...new Set(purposes)], actorId: v.id });
+    if (!r.ok) return { ok: false as const, message: r.reason };
+    familyId = r.familyId;
+    await savePreferences(v.id, { country: p.data.country || null, indiaCities: cities, needs: form.getAll("need").filter((x): x is string => typeof x === "string" && NEEDS.includes(x)), language: p.data.language, channel: p.data.channel, timezone: p.data.timezone || null, notifyUpdates: form.get("notifyUpdates") === "on" }, true);
+  } catch {
+    // Nothing is half-saved: the account is made in one transaction, and pressing again finds it.
+    log("error", "onboarding_failed", {});
+    return { ok: false as const, message: "We could not finish setting up your account. Your answers are still here. Please press the button again." };
+  }
+  redirect(`/family/${familyId}`);
 }
 
 /** The owner confirms their own consent when the desk started the onboarding for them. */

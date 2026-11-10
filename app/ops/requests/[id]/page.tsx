@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EscalateForm, PriorityToggle } from "@/components/OpsForms";
+import { PaymentList } from "@/components/PaymentPanel";
+import { RecordPaymentForm, SettlePaymentForm } from "@/components/PaymentForms";
+import { paymentsForRequest } from "@/lib/payment-records";
 import { QuoteBreakdown } from "@/components/QuoteBreakdown";
 import { AssignForm, EvidenceForm, FinalReportForm, QuoteForm, StatusForm, UpdateForm } from "@/components/RequestStaffForms";
 import { StageBar } from "@/components/StageBar";
@@ -21,7 +24,7 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
   const viewer = await requireStaff();
   const r = await getRequest(id);
   if (!r) notFound();
-  const [fam, events, files, quotes, coordinators, partners] = await Promise.all([getFamily(r.familyId), requestEvents(id), requestAttachments(id), quotesForRequest(id), viewer.role === "admin" ? listCoordinators() : Promise.resolve([]), allPartners(), logAudit(viewer.id, "view_request", "service_request", id, r.familyId)]);
+  const [fam, events, files, quotes, coordinators, partners, payments] = await Promise.all([getFamily(r.familyId), requestEvents(id), requestAttachments(id), quotesForRequest(id), viewer.role === "admin" ? listCoordinators() : Promise.resolve([]), allPartners(), paymentsForRequest(id), logAudit(viewer.id, "view_request", "service_request", id, r.familyId)]);
   if (!fam) notFound();
   const u = r.understanding;
   const internal = events.filter((e) => !e.customerVisible);
@@ -50,6 +53,8 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
           {quotes.length > 0 && <Panel title="Quotations">{quotes.map((q) => <div key={q.id} className="grid gap-1 border-t border-line pt-2"><QuoteBreakdown quote={q} />{q.changeNote && <p className="text-warn">Customer asked: {q.changeNote}</p>}</div>)}</Panel>}
         </div>
         <div className="grid gap-4">
+          {quotes.some((q) => q.status === "approved") && <RecordPaymentForm requestId={id} />}
+          {payments.length > 0 && <Panel title="Payments"><PaymentList payments={payments} />{payments.filter((p) => p.status === "pending").map((p) => <SettlePaymentForm key={p.id} paymentId={p.id} familyId={r.familyId} />)}</Panel>}
           <UpdateForm requestId={id} />
           {internal.length > 0 && <div className="card grid gap-3" style={{ background: "var(--warn-bg)" }}><h2 className="section-title">Internal notes. The customer cannot see these.</h2><Feed items={internal} /></div>}
           <EvidenceForm requestId={id} familyId={r.familyId} />

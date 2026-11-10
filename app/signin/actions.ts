@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -95,5 +97,7 @@ export async function staffSignIn(_prev: SignInState | null, form: FormData): Pr
 export async function signOut() {
   const sb = await supabaseServer();
   await sb.auth.signOut();
+  // Drops every page this browser kept from the session, so the next person sees nothing of it.
+  revalidatePath("/", "layout");
   redirect("/signin");
 }

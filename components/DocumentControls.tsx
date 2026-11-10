@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useRef, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { setDocumentCategoryAction, shareDocumentAction } from "@/app/family/platform-actions";
-import { documentDetailsAction } from "@/app/family/workspace-actions";
+import { documentDetailsAction, linkDocumentAction, renameDocumentAction } from "@/app/family/workspace-actions";
 import { dur, ease } from "@/lib/motion";
 import { DOCUMENT_CATEGORIES } from "@/lib/request-engine";
 import { uploadFile } from "@/lib/upload-client";
@@ -37,6 +37,32 @@ export function DocumentControls({ documentId, category, members, sharedWith }: 
           );
         })}
         {shareState?.ok === false && <p role="alert" className="text-danger">{shareState.message}</p>}
+      </div>
+    </details>
+  );
+}
+
+export function RenameAndLink({ documentId, title, requests }: { documentId: string; title: string; requests: { id: string; label: string }[] }) {
+  const [renamed, rename, renaming] = useActionState(renameDocumentAction, null);
+  const [linked, link, linking] = useActionState(linkDocumentAction, null);
+  return (
+    <details className="text-[length:var(--text-small)]">
+      <summary className="flex min-h-12 cursor-pointer items-center font-semibold">Rename or link to a request</summary>
+      <div className="grid gap-3">
+        <form action={rename} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="documentId" value={documentId} />
+          <label className="field min-w-0 flex-1 basis-56">Name<input className="input" name="title" maxLength={120} defaultValue={title} required /></label>
+          <button className="btn btn-secondary" disabled={renaming}>Rename</button>
+        </form>
+        {renamed && <p role="status" className={renamed.ok ? "text-ok" : "text-danger"}>{renamed.message}</p>}
+        {requests.length > 0 && (
+          <form action={link} className="flex flex-wrap items-end gap-2">
+            <input type="hidden" name="documentId" value={documentId} />
+            <label className="field min-w-0 flex-1 basis-56">Open request<select className="input" name="requestId" defaultValue="">{[<option key="" value="" disabled>Choose a request</option>, ...requests.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)]}</select></label>
+            <button className="btn btn-secondary" disabled={linking}>Link</button>
+          </form>
+        )}
+        {linked && <p role="status" className={linked.ok ? "text-ok" : "text-danger"}>{linked.message}</p>}
       </div>
     </details>
   );

@@ -156,3 +156,44 @@ describe("visits and reports", () => {
     expect(await as(ID.coord2, () => savedFilters(ID.coord))).toEqual([]);
   });
 });
+
+describe("payment records", () => {
+  it("need an approved quotation, and cannot be confirmed without proof", async () => {
+    const { recordPayment, settlePayment, paymentsForRequest } = await import("@/lib/payment-records");
+    const { createServiceRequest, createQuotation } = await svc();
+    const r = await as(ID.owner, () => createServiceRequest({ familyId: ID.fam, description: "Please fix the tap in the flat in Pune by next week.", attachmentIds: [], userId: ID.owner, userName: "O" }));
+    const requestId = (r as { id: string }).id;
+    expect((await as(ID.coord, () => recordPayment(requestId, { method: "provider_link", linkUrl: "https://pay.example/x", note: "" }, ID.coord))).ok).toBe(false);
+    await as(ID.coord, () => createQuotation(requestId, { providerName: "Plumber", providerFeeInr: 500, coordinationFeeInr: 0, taxesInr: 0, notes: "" }, ID.coord, "C"));
+    await db.query("update quotations set status = 'approved' where request_id = $1", [requestId]);
+    expect((await as(ID.coord, () => recordPayment(requestId, { method: "provider_link", linkUrl: "https://pay.example/x", note: "" }, ID.coord))).ok).toBe(true);
+    const [p] = await as(ID.owner, () => paymentsForRequest(requestId));
+    expect(p.status).toBe("pending");
+    expect((await as(ID.coord, () => settlePayment(p.id, "confirmed", { reference: "", receiptDocumentId: null }, ID.coord))).ok).toBe(false);
+    await expect(db.query("update payments set status = 'confirmed' where id = $1", [p.id])).rejects.toThrow();
+    expect((await as(ID.coord, () => settlePayment(p.id, "confirmed", { reference: "UTR1", receiptDocumentId: null }, ID.coord))).ok).toBe(true);
+    expect(await as(ID.owner2, () => paymentsForRequest(requestId))).toEqual([]);
+    expect((await as(ID.coord2, () => settlePayment(p.id, "failed", { reference: "", receiptDocumentId: null }, ID.coord2))).ok).toBe(false);
+  });
+  it("accept only https links without credentials", async () => {
+    const { safePaymentLink } = await import("@/lib/payment-records");
+    expect(safePaymentLink("https://pay.example/x")).toBe("https://pay.example/x");
+    for (const bad of ["http://pay.example", "javascript:alert(1)", "https://user:pw@pay.example", "not a link"]) expect(safePaymentLink(bad)).toBeNull();
+  });
+});
+
+describe("onboarding", () => {
+  it("a second press returns the same account instead of a duplicate", async () => {
+    const { createOwnFamily: createFamily } = await import("@/lib/onboarding");
+    const USER = "ffffffff-0000-4000-8000-000000000009";
+    await db.query("insert into auth.users(id, email) values ($1,'twice@example.test') on conflict do nothing", [USER]);
+    const make = () => createFamily({ ownerId: USER, parentName: "Twice", forSelf: true, phone: null, language: "English", city: "Pune", planUsd: 79, ownerPurposes: ["read_records", "store"], actorId: USER });
+    const [a, b] = [await make(), await make()];
+    expect(a).toMatchObject({ ok: true });
+    expect(b).toEqual(a);
+    expect((await db.query("select count(*)::int n from families where owner_id = $1", [USER])).rows[0].n).toBe(1);
+    const consents = (await db.query("select subject, purpose, granted_at is not null as given from consents c join parents p on p.id = c.parent_id join families f on f.id = p.family_id where f.owner_id = $1 order by subject, purpose", [USER])).rows;
+    expect(consents).toHaveLength(8);
+    expect(consents.filter((c) => c.given).map((c) => `${c.subject}:${c.purpose}`).sort()).toEqual(["owner:read_records", "owner:store", "parent:read_records", "parent:store"]);
+  });
+});

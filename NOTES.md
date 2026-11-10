@@ -47,3 +47,11 @@
 - `Permissions-Policy` now allows the microphone on our own origin, for voice notes. Voice notes are stored for a person and never sent to AI.
 - Reminders appear in the app only. Email and WhatsApp reminders are not connected.
 - PDF reports use the built-in Helvetica font, so non-Latin text prints as a question mark.
+
+## Rebuild and speed (phase 3)
+- Cause of slow pages, measured not guessed: Vercel ran the app in iad1, the database is in ap-southeast-1. One round trip is about 265 ms, one transaction about 3 round trips, and the pool holds one connection, so trips queue. Home made 23 transactions (71 round trips).
+- Fix: run in sin1, share reads within one request (React cache), stream sections with Suspense, batch the consent insert.
+- Measured locally with 265 ms added per round trip and one connection (DB_SIMULATED_LATENCY_MS, PG_POOL_MAX=1). Before then after: Home 19.8 s to 14.9 s full content (5.9 s first view), 71 to 53 round trips. Documents 13.1 s to 12.5 s. Onboarding 25 s to 19.1 s. At Singapore distance (2 ms) the same pages take 0.4 to 1.2 s. The region move is the main fix and only applies after deploy.
+- Lighthouse mobile, local: every key page 100, LCP under 1 s, CLS 0.
+- Payments: Cashfree first, PayU as the alternative. Neither is applied for or assumed eligible. Today staff paste the provider's own payment link and record proof. A provider integration plugs in behind the PaymentPartner stub later.
+- Not verified: live Google sign-in with real accounts, live speed after the region move, the design reference image (never received).

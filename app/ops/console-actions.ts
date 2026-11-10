@@ -6,6 +6,7 @@ import { z } from "zod";
 import { actionViewer, isStaff } from "@/lib/auth";
 import { addPartner, addPartnerFeedback, completeVisit, deleteFilter, movePartner, saveFilter, scheduleVisit } from "@/lib/ops-console";
 import { savePlan } from "@/lib/plans";
+import { recordPayment, safePaymentLink, settlePayment } from "@/lib/payment-records";
 import { escalateRequest, setRequestPriority } from "@/lib/service-requests";
 import { PARTNER_STATUSES, type PartnerStatus } from "@/lib/workspace-rules";
 
@@ -101,6 +102,36 @@ export async function savePlanAction(_p: Msg, form: FormData): Promise<Msg> {
   revalidatePath("/");
   refresh();
   return { ok, message: ok ? "Saved. The public site updates within 5 minutes." : "That did not save." };
+}
+
+export async function workingHoursAction(_p: Msg, form: FormData): Promise<Msg> {
+  const v = await staff();
+  const p = z.string().trim().max(120).safeParse(form.get("hours") ?? "");
+  if (!v || !p.success) return { ok: false, message: "Please keep it short." };
+  const { asService, tx } = await import("@/lib/db");
+  await asService(() => tx((t) => t.run("update profiles set working_hours = $2 where id = $1", [v.id, p.data || null])));
+  revalidatePath("/family", "layout");
+  return { ok: true, message: "Saved." };
+}
+
+export async function recordPaymentAction(_p: Msg, form: FormData): Promise<Msg> {
+  const v = await staff();
+  const p = z.object({ requestId: id, method: z.enum(["provider_link", "bank_transfer", "other"]), linkUrl: z.string().trim().max(500), note: z.string().trim().max(300) }).safeParse(Object.fromEntries(form));
+  if (!v || !p.success) return { ok: false, message: "Please check the form." };
+  const link = p.data.linkUrl ? safePaymentLink(p.data.linkUrl) : null;
+  if (p.data.linkUrl && !link) return { ok: false, message: "The link must start with https://." };
+  if (p.data.method === "provider_link" && !link) return { ok: false, message: "Please add the provider's payment link." };
+  const r = await recordPayment(p.data.requestId, { method: p.data.method, linkUrl: link, note: p.data.note }, v.id);
+  refresh();
+  return { ok: r.ok, message: r.ok ? "Saved. The customer can see it now." : (r.reason ?? "That did not save.") };
+}
+
+export async function settlePaymentAction(paymentId: string, status: "confirmed" | "failed", reference: string, receiptDocumentId: string | null) {
+  const v = await staff();
+  if (!v || !id.safeParse(paymentId).success || !["confirmed", "failed"].includes(status)) return { ok: false, reason: "Please check the form." };
+  const r = await settlePayment(paymentId, status, { reference: reference.trim().slice(0, 120), receiptDocumentId }, v.id);
+  refresh();
+  return r;
 }
 
 export async function goToQueue(form: FormData) {

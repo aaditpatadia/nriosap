@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { WORDING_VERSION } from "./consent";
 import type { RequestCategory } from "./requests";
 import { asksForAdvice, looksLikeAdvice } from "./rules";
@@ -39,13 +40,21 @@ export async function createFamily(n: NewFamily): Promise<{ ok: true; familyId: 
         const self = !!n.forSelf;
         const f = await t.one<Row>("insert into families(owner_id, coordinator_id, name, plan_usd, status) values ($1,$2,$3,$4,'onboarding') returning id", [n.ownerId, coordinator, `${surname} family`, n.planUsd]);
         const p = await t.one<Row>("insert into parents(family_id, name, phone, language, city, consent_status, is_self) values ($1,$2,$3,$4,$5,$6,$7) returning id", [f!.id, n.parentName.trim(), n.phone, n.language, n.city.trim(), self ? "granted" : "pending", self]);
-        for (const purpose of PURPOSES) {
+        // One statement for every consent row, instead of two round trips per purpose.
+        const now = new Date();
+        const rowsOf = (subject: "parent" | "owner") => PURPOSES.map((purpose) => {
           const given = n.ownerPurposes.includes(purpose);
           // When it is the customer's own work, their consent here is the consent of the person involved.
-          const selfGiven = self && given;
-          await t.run("insert into consents(parent_id, subject, purpose, granted_at, confirmed_by, confirmed_at, confirm_method, wording_version, language) values ($1,'parent',$2,$3,$4,$5,$6,$7,$8)", [p!.id, purpose, selfGiven ? new Date() : null, selfGiven ? n.ownerId : null, selfGiven ? new Date() : null, selfGiven ? "owner_web" : null, WORDING_VERSION, n.language]);
-          await t.run("insert into consents(parent_id, subject, purpose, granted_at, confirmed_by, confirmed_at, confirm_method, wording_version) values ($1,'owner',$2,$3,$4,$5,$6,$7)", [p!.id, purpose, given ? new Date() : null, given ? n.ownerId : null, given ? new Date() : null, given ? "owner_web" : null, WORDING_VERSION]);
-        }
+          const on = subject === "owner" ? given : self && given;
+          return { purpose, subject, on };
+        });
+        const all = [...rowsOf("parent"), ...rowsOf("owner")];
+        await t.run(
+          `insert into consents(parent_id, subject, purpose, granted_at, confirmed_by, confirmed_at, confirm_method, wording_version, language)
+           select $1, x.subject, x.purpose, case when x.on_ then $2::timestamptz end, case when x.on_ then $3::uuid end, case when x.on_ then $2::timestamptz end, case when x.on_ then 'owner_web' end, $4, case when x.subject = 'parent' then $5 end
+           from unnest($6::text[], $7::text[], $8::boolean[]) as x(subject, purpose, on_)`,
+          [p!.id, now, n.ownerId, WORDING_VERSION, n.language, all.map((a) => a.subject), all.map((a) => a.purpose), all.map((a) => a.on)],
+        );
         if (!self) {
           await t.run(
             `insert into tasks(family_id, kind, title, status, owner_id, due_at, sla_at, hour_budget, needs_approval, checklist)
@@ -75,6 +84,13 @@ export async function createFamily(n: NewFamily): Promise<{ ok: true; familyId: 
   }
 }
 
+/** Self-serve sign-up. A second press, or a retry after a slow network, returns the account already made instead of a duplicate. */
+export async function createOwnFamily(n: NewFamily): Promise<{ ok: true; familyId: string } | { ok: false; reason: string }> {
+  const existing = await asService(() => tx((t) => t.one<Row>("select id from families where owner_id = $1 order by started_at limit 1", [n.ownerId])));
+  if (existing) return { ok: true, familyId: existing.id };
+  return createFamily(n);
+}
+
 /** Creates the owner's account if needed. They sign in later with a magic link, so no password is set. */
 export async function ensureOwner(email: string, name: string): Promise<string> {
   const lower = email.toLowerCase();
@@ -91,14 +107,14 @@ export async function ensureOwner(email: string, name: string): Promise<string> 
 
 export interface ConsentRow { id: string; purpose: Purpose; subject: "parent" | "owner"; grantedAt?: string; withdrawnAt?: string; confirmedAt?: string; method?: string; confirmer?: string; notes?: string; wordingVersion?: string }
 
-export async function consentsFor(familyId: string): Promise<ConsentRow[]> {
+export const consentsFor = cache(async function consentsFor(familyId: string): Promise<ConsentRow[]> {
   if (!isUuid(familyId)) return [];
   const r = await rows<Row>(
     `select c.*, u.name as confirmer from consents c join parents p on p.id = c.parent_id left join profiles u on u.id = c.confirmed_by where p.family_id = $1 order by c.subject, c.purpose`,
     [familyId],
   );
   return r.map((x) => ({ id: x.id, purpose: x.purpose, subject: x.subject, grantedAt: x.granted_at ?? undefined, withdrawnAt: x.withdrawn_at ?? undefined, confirmedAt: x.confirmed_at ?? undefined, method: x.confirm_method ?? undefined, confirmer: x.confirmer ?? undefined, notes: x.notes ?? undefined, wordingVersion: x.wording_version ?? undefined }));
-}
+});
 
 export async function confirmParentConsent(parentId: string, purposes: Purpose[], notes: string): Promise<"granted" | "pending" | null> {
   try {

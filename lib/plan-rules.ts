@@ -6,8 +6,8 @@ export interface Plan {
 
 export const DEFAULT_PLANS: Plan[] = [
   { slug: "lite", name: "Lite", priceUsd: 40, blurb: "For a few things a month.", features: ["Document vault", "Bills and renewal tracking", "Monthly report", "Up to 3 new requests a month", "In-person visits are quoted before they happen"], requestsPerMonth: 3, includesVisits: false, priorityResponse: false, featured: false, sort: 1 },
-  { slug: "family", name: "Family", priceUsd: 79, blurb: "A good place to start.", features: ["Everything in Lite", "No monthly limit on new requests", "Errands, property and paper chasing", "Help with claims paperwork", "Weekly updates from your coordinator", "In-person visits are quoted before they happen"], requestsPerMonth: null, includesVisits: false, priorityResponse: false, featured: true, sort: 2 },
-  { slug: "plus", name: "Plus", priceUsd: 119, blurb: "When you need someone on the ground.", features: ["Everything in Family", "Priority in the coordinator queue", "In-person visits arranged within your plan", "Hospital desk support"], requestsPerMonth: null, includesVisits: true, priorityResponse: true, featured: false, sort: 3 },
+  { slug: "family", name: "Family", priceUsd: 79, blurb: "A good place to start.", features: ["Everything in Lite", "No monthly limit on new requests", "Errands, property and paper chasing", "Help with claims paperwork", "Updates from your coordinator as the work moves", "In-person visits are quoted before they happen"], requestsPerMonth: null, includesVisits: false, priorityResponse: false, featured: true, sort: 2 },
+  { slug: "plus", name: "Plus", priceUsd: 119, blurb: "For a lot going on back home.", features: ["Everything in Family", "Priority in the coordinator queue", "Hospital desk support", "In-person visits are quoted before they happen"], requestsPerMonth: null, includesVisits: false, priorityResponse: true, featured: false, sort: 3 },
 ];
 
 /** A family stores what it pays. An older price that no plan matches gets the closest plan at or below it. */

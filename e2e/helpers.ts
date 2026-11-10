@@ -34,7 +34,7 @@ export async function signInOwner(page: Page, who: "priya" | "mihir" | "neha" | 
 /** First step of sign-up: what the person needs done. */
 export async function describeRequest(page: Page) {
   await page.getByRole("button", { name: "Property", exact: true }).click();
-  await page.getByLabel("What do you need done in India?").fill("Pay the property tax on our flat.");
+  await page.getByLabel("What do you need handled in India?").fill("Pay the property tax on our flat.");
   await page.getByRole("button", { name: "Continue" }).click();
 }
 
@@ -46,4 +46,13 @@ export async function finishOnboarding(page: Page) {
   await page.getByRole("checkbox").nth(0).check();
   await page.getByRole("checkbox").nth(1).check();
   await page.getByRole("button", { name: "Create my dashboard" }).click();
+}
+
+/** The sign-up steps up to the final button, with only the two required consents. */
+export async function finishOnboardingSteps(page: Page) {
+  await page.getByRole("button", { name: "Get started" }).click();
+  for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByText("One last thing.").waitFor();
+  await page.getByRole("checkbox").nth(0).check();
+  await page.getByRole("checkbox").nth(1).check();
 }

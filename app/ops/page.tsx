@@ -42,6 +42,10 @@ export default async function OpsOverview({ searchParams }: { searchParams: Prom
             {o.newest.length === 0 ? <Empty title="No open requests." /> : <ul className="rows">{o.newest.map((r) => <li key={r.id}><Link className="row-link" href={`/ops/requests/${r.id}`}><span className="min-w-0 font-medium [overflow-wrap:anywhere]">{r.title}<span className="block text-[length:var(--text-small)] font-normal text-muted">{r.ref} · {r.familyName} · {fmtDate(r.createdAt)}</span></span><span className="chip shrink-0" data-tone={STATUS_META[r.status].tone}>{STATUS_META[r.status].label}</span></Link></li>)}</ul>}
           </Panel>
         </div>
+        <div className="grid content-start gap-5">
+        <Panel title="Desk tools">
+          <ul className="rows">{[["/ops/visits", "Visits and scheduling"], ["/ops/approvals", "Quotations and approvals"], ["/ops/documents", "Document review"], ["/ops/properties", "Properties"], ["/ops/partners", "Service partners"], ["/ops/reports", "Reports"]].map(([href, label]) => <li key={href}><Link className="row-link font-medium" href={href}>{label}<span aria-hidden className="text-muted">›</span></Link></li>)}</ul>
+        </Panel>
         <Panel title="Coordinator workload">
           {o.workload.length === 0 ? <p className="text-[length:var(--text-small)] text-muted">No coordinators yet.</p> : (
             <ul className="grid gap-3">
@@ -54,6 +58,7 @@ export default async function OpsOverview({ searchParams }: { searchParams: Prom
             </ul>
           )}
         </Panel>
+        </div>
       </div>
     </section>
   );

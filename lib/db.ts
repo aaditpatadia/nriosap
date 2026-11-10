@@ -28,6 +28,12 @@ function pool(): Pool {
   return globalForPool.__gsPool;
 }
 
+// Measurement aids. DB_TRACE logs each transaction's duration and round trips, never its SQL or values.
+// DB_SIMULATED_LATENCY_MS adds a delay per round trip, and only against a local database, to reproduce a distant one.
+const TRACE = process.env.DB_TRACE === "1";
+const LAG = /@(127\.0\.0\.1|localhost)[:/]/.test(process.env.DATABASE_URL ?? "") ? Number(process.env.DB_SIMULATED_LATENCY_MS ?? 0) : 0;
+const lag = () => (LAG > 0 ? new Promise((r) => setTimeout(r, LAG)) : Promise.resolve());
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (s: unknown): s is string => typeof s === "string" && UUID_RE.test(s);
 
@@ -51,11 +57,12 @@ export interface Tx {
   run(sql: string, params?: unknown[]): Promise<number>;
 }
 
-function wrap(c: PoolClient): Tx {
+function wrap(c: PoolClient, count: { n: number }): Tx {
+  const q = async <T extends QueryResultRow>(sql: string, params: unknown[]) => { count.n++; await lag(); return c.query<T>(sql, params); };
   return {
-    rows: async <T extends QueryResultRow>(sql: string, params: unknown[] = []) => (await c.query<T>(sql, params)).rows,
-    one: async <T extends QueryResultRow>(sql: string, params: unknown[] = []) => (await c.query<T>(sql, params)).rows[0],
-    run: async (sql, params = []) => (await c.query(sql, params)).rowCount ?? 0,
+    rows: async <T extends QueryResultRow>(sql: string, params: unknown[] = []) => (await q<T>(sql, params)).rows,
+    one: async <T extends QueryResultRow>(sql: string, params: unknown[] = []) => (await q<T>(sql, params)).rows[0],
+    run: async (sql, params = []) => (await q(sql, params)).rowCount ?? 0,
   };
 }
 
@@ -65,8 +72,12 @@ function wrap(c: PoolClient): Tx {
  */
 export async function tx<T>(fn: (t: Tx) => Promise<T>, ctx?: DbContext): Promise<T> {
   const who = ctx ?? (await currentContext());
+  const started = Date.now();
+  const count = { n: 2 };
   const client = await pool().connect();
+  const waited = Date.now() - started;
   try {
+    await lag();
     if (who.kind === "service") {
       await client.query("begin");
     } else {
@@ -74,8 +85,10 @@ export async function tx<T>(fn: (t: Tx) => Promise<T>, ctx?: DbContext): Promise
       const role = who.kind === "user" ? "authenticated" : "anon";
       await client.query(`begin; set local role ${role}; select set_config('request.jwt.claims', ${escapeLiteral(claims)}, true);`);
     }
-    const out = await fn(wrap(client));
+    const out = await fn(wrap(client, count));
+    await lag();
     await client.query("commit");
+    if (TRACE) console.log(JSON.stringify({ level: "info", event: "db_tx", ms: Date.now() - started, waitedMs: waited, roundTrips: count.n, at: new Date().toISOString() }));
     return out;
   } catch (e) {
     await client.query("rollback").catch(() => {});

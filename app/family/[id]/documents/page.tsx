@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DocumentControls, DocumentDetailsForm, DocumentPreview, NewVersionButton } from "@/components/DocumentControls";
+import { DocumentControls, DocumentDetailsForm, DocumentPreview, NewVersionButton, RenameAndLink } from "@/components/DocumentControls";
 import { UploadForm } from "@/components/UploadForm";
 import { Empty, PageHeader, Panel } from "@/components/ui";
 import { WithdrawButton } from "@/components/WithdrawButton";
 import { membersFor, sharesFor } from "@/lib/family-members";
 import { fmtDate, inr } from "@/lib/format";
-import { DOCUMENT_CATEGORIES, isDocumentCategory } from "@/lib/request-engine";
-import { familyAccess, propertiesFor } from "@/lib/service-requests";
+import { DOCUMENT_CATEGORIES, isDocumentCategory, isOpenStatus } from "@/lib/request-engine";
+import { familyAccess, propertiesFor, requestsFor } from "@/lib/service-requests";
 import { documentsFor, getFamily, policyFor } from "@/lib/store";
 import { PURPOSE_LABEL, type Purpose } from "@/lib/upload-rules";
 import { accessLogFor, relatedRequests } from "@/lib/workspace";
@@ -29,6 +29,7 @@ export default async function Documents({ params, searchParams }: { params: Prom
   const access = await familyAccess(id);
   const full = access.owner || access.staff;
   const [all, policy, members, shares, properties, log, related] = await Promise.all([documentsFor(id), full ? policyFor(id) : undefined, access.owner ? membersFor(id) : [], access.owner ? sharesFor(id) : [], access.canReadRequests ? propertiesFor(id) : [], full ? accessLogFor(id) : {}, access.canReadRequests ? relatedRequests(id) : {}]);
+  const openRequests = access.canCreate && access.canReadRequests ? (await requestsFor(id)).filter((r) => isOpenStatus(r.status)).map((r) => ({ id: r.id, label: `${r.ref}: ${r.title}`.slice(0, 80) })) : [];
   // Older versions stay stored and listed under the newest one.
   const replaced = new Set(all.map((d) => d.supersedes).filter(Boolean));
   const docs = all.filter((d) => !replaced.has(d.id));
@@ -92,10 +93,12 @@ export default async function Documents({ params, searchParams }: { params: Prom
                   {links.length > 0 && <p className="text-[length:var(--text-small)]">Related: {links.map((r, i) => <span key={r.id}>{i > 0 ? ", " : ""}<Link className="font-semibold text-accent" href={`/family/${id}/requests/${r.id}`}>{r.ref}</Link></span>)}</p>}
                   <div className="flex flex-wrap items-center gap-1">
                     <a className="btn btn-secondary" href={`/api/documents/${d.id}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${d.title}`}>Open</a>
+                    <a className="btn btn-ghost" href={`/api/documents/${d.id}/file?download=1`} aria-label={`Download ${d.title}`}>Download</a>
                     {d.mime?.startsWith("image/") && <DocumentPreview documentId={d.id} title={d.title} />}
                     {full && <NewVersionButton familyId={id} documentId={d.id} title={d.title} />}
                     {full && <WithdrawButton documentId={d.id} purpose="store" label="Remove from vault" warn="This deletes the file for good." />}
                   </div>
+                  {full && <RenameAndLink documentId={d.id} title={d.title} requests={openRequests} />}
                   {full && <DocumentDetailsForm documentId={d.id} expiresOn={d.expiresOn ?? ""} issuedOn={d.issuedOn ?? ""} tags={d.tags} propertyId={d.propertyId ?? ""} properties={propertyList} suggested={!!d.expiresOn && !d.expiryConfirmed} />}
                   {access.owner && <DocumentControls documentId={d.id} category={d.category} members={active.map((m) => ({ id: m.id, name: m.name }))} sharedWith={shares.filter((s) => s.documentId === d.id).map((s) => s.memberId)} />}
                   {older.length > 0 && <details className="text-[length:var(--text-small)]"><summary className="flex min-h-12 cursor-pointer items-center font-semibold">Earlier versions ({older.length})</summary><ul className="rows">{older.map((o) => <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-2"><span>Version {o.version}, added {fmtDate(o.uploadedAt)}</span><a className="btn btn-ghost" href={`/api/documents/${o.id}/file`} target="_blank" rel="noreferrer" aria-label={`Open version ${o.version} of ${o.title}`}>Open</a></li>)}</ul></details>}

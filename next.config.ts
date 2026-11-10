@@ -17,6 +17,8 @@ const config: NextConfig = {
   // Dev server only. Lets the app load at 127.0.0.1 as well as localhost.
   allowedDevOrigins: ["127.0.0.1"],
   headers: async () => [{ source: "/:path*", headers: security }],
+  // Pages visited in the last 30 seconds come back instantly from this browser's memory. Private to the tab, cleared on sign-out.
+  experimental: { staleTimes: { dynamic: 30 } },
 };
 
 export default config;

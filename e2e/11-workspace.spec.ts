@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FAM, signInOwner, signInStaff } from "./helpers";
+import { DEMO, FAM, finishOnboarding, magicLink, signInOwner, signInStaff } from "./helpers";
 
 const v = (p: Page, text: string | RegExp) => p.getByText(text).filter({ visible: true });
 
@@ -65,7 +65,8 @@ test("a coordinator sees the console but not admin pages", async ({ page }) => {
   const nav = page.getByRole("navigation", { name: "Ops" });
   await expect(nav.getByRole("link", { name: "Coordinators" })).toHaveCount(0);
   await page.goto("/ops/settings");
-  await expect(page).toHaveURL(/\/ops$/);
+  await expect(page.getByText("Your working hours").filter({ visible: true })).toBeVisible();
+  await expect(page.getByText("Plans and entitlements")).toHaveCount(0);
 });
 
 test("an admin adds a partner who starts unreviewed and cannot skip checks", async ({ page }) => {
@@ -88,7 +89,7 @@ test("the phone layout has a bottom bar and a drawer", async ({ page }) => {
   const bar = page.getByRole("navigation", { name: "Main sections" });
   await expect(bar).toBeVisible();
   await bar.getByRole("button", { name: "Menu" }).click();
-  await expect(page.getByRole("navigation", { name: "Family sections" }).getByRole("link", { name: "Bills & Renewals" })).toBeInViewport();
+  await expect(page.getByRole("navigation", { name: "Family sections" }).getByRole("link", { name: "Family & Details" })).toBeInViewport();
 });
 
 test("the website tells the new story and shows the corrected plans", async ({ page }) => {
@@ -97,4 +98,63 @@ test("the website tells the new story and shows the corrected plans", async ({ p
   await expect(v(page, "Up to 3 new requests a month")).toBeVisible();
   await expect(page.getByText(/no visit caps/i)).toHaveCount(0);
   await expect(v(page, "Illustrative routes only.", ).first()).toBeVisible();
+});
+
+test("five places in the customer menu, and the rest is still one click away", async ({ page }) => {
+  await signInOwner(page, "priya");
+  await page.goto(`/family/${FAM.shah}`);
+  const nav = page.getByRole("navigation", { name: "Family sections" });
+  await expect(nav.getByRole("link")).toHaveText(["Home", /Requests/, "Documents", "Family & Details", "Settings"]);
+  await page.goto(`/family/${FAM.shah}/details`);
+  await expect(page.getByRole("heading", { level: 1, name: "Family & Details" })).toBeVisible();
+  for (const path of ["/bills", "/properties", "/approvals", "/ask", "/report", "/calendar"]) {
+    const res = await page.goto(`/family/${FAM.shah}${path}`);
+    expect(res?.status(), path).toBeLessThan(400);
+  }
+});
+
+test("a payment shows as confirmed only with proof", async ({ page, browser }) => {
+  test.setTimeout(120_000);
+  await signInOwner(page, "priya");
+  await page.goto(`/family/${FAM.shah}/requests/new`);
+  await page.getByLabel("What do you need handled in India?").filter({ visible: true }).fill("Please fix the leaking tap in the flat in Rajkot by next week.");
+  await page.getByRole("button", { name: "Send to my coordinator" }).click();
+  await expect(page).toHaveURL(/\/requests\/[0-9a-f-]{36}$/);
+  const requestId = page.url().split("/").pop()!;
+  const desk = await (await browser.newContext()).newPage();
+  await signInStaff(desk, "meera");
+  await desk.goto(`/ops/requests/${requestId}`);
+  await desk.getByLabel("Provider fee (Rs)").filter({ visible: true }).fill("800");
+  await desk.getByRole("button", { name: "Send to the customer" }).click();
+  await expect(v(desk, "Sent to the customer.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Approve payment" }).filter({ visible: true }).click();
+  await expect(v(page, "Approved").first()).toBeVisible();
+  await desk.reload();
+  await desk.getByLabel("Payment link (https only)").filter({ visible: true }).fill("http://not-secure.example/pay");
+  await desk.getByRole("button", { name: "Save", exact: true }).first().click();
+  await expect(v(desk, "The link must start with https://.")).toBeVisible();
+  await desk.getByLabel("Payment link (https only)").filter({ visible: true }).fill("https://pay.example.test/plumber");
+  await desk.getByRole("button", { name: "Save", exact: true }).first().click();
+  await expect(v(desk, "Saved. The customer can see it now.")).toBeVisible();
+  await page.reload();
+  await expect(v(page, "Payment pending")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Pay .* directly/ }).filter({ visible: true })).toHaveAttribute("href", "https://pay.example.test/plumber");
+  await desk.reload();
+  await desk.getByRole("button", { name: "Mark confirmed" }).click();
+  await expect(v(desk, "Add the payment reference or the receipt first.")).toBeVisible();
+  await desk.getByLabel("Payment reference").fill("UTR123456");
+  await desk.getByRole("button", { name: "Mark confirmed" }).click();
+  await page.reload();
+  await expect(v(page, "Payment confirmed")).toBeVisible();
+  await expect(v(page, "reference UTR123456")).toBeVisible();
+});
+
+test("a refresh after sign-up goes back to the account, not to a second sign-up", async ({ page }) => {
+  await magicLink(page, `refresh-${Date.now()}@${DEMO}`);
+  await finishOnboarding(page);
+  await expect(page).toHaveURL(/\/family\//);
+  const home = page.url();
+  await page.goto("/onboarding");
+  await expect(page).toHaveURL(home);
 });

@@ -2,9 +2,9 @@
 
 /* ---------- Tokens. Warm off-white, white cards, navy ink, one teal accent. Colour carries meaning only. ---------- */
 :root {
-  --bg: #f7f6f2;
+  --bg: #f5f6f4;
   --surface: #ffffff;
-  --sunken: #f1efe9;
+  --sunken: #eff1ee;
   --ink: #12202f;
   --muted: #566274;
   --accent: #0a6f5d;
@@ -145,7 +145,14 @@ label.field { display: grid; gap: .3rem; font-size: var(--text-small); font-weig
 }
 
 /* ---------- Public site ---------- */
-.site-header { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--bg) 92%, transparent); border-bottom: 1px solid var(--line); }
+.site-header { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--bg) 78%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line); }
+.atmos { position: relative; isolation: isolate; }
+.atmos::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(60% 70% at 85% 10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%), radial-gradient(50% 60% at 100% 90%, rgb(120 150 190 / 0.10), transparent 70%); }
+.welcome { position: relative; isolation: isolate; padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 9%, var(--surface)), var(--surface) 55%, color-mix(in srgb, rgb(120 150 190) 8%, var(--surface))); box-shadow: var(--shadow-sm); }
+.toaster { position: fixed; z-index: 60; right: 16px; bottom: 16px; display: grid; gap: 8px; max-width: min(380px, calc(100vw - 32px)); }
+.toast { padding: 12px 16px; border-radius: 12px; font-size: var(--text-small); font-weight: 500; color: var(--ink); background: color-mix(in srgb, var(--surface) 88%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid var(--line); box-shadow: var(--shadow-lg); }
+.toast[data-tone="danger"] { color: var(--danger); }
+@media (max-width: 1023px) { .toaster { bottom: 76px; } }
 @media (max-width: 479px) { .site-header { flex-wrap: wrap; } .site-header .btn:not(.btn-icon) { padding-inline: 0.6rem; } }
 
 /* A dark panel re-points the tokens, so every component inside adapts by itself. */
@@ -209,14 +216,14 @@ details[open] > :not(summary) { animation: rise 240ms var(--ease-out) both; }
 
 @media (max-width: 1023px) {
   .shell, .shell[data-collapsed="true"] { display: block; }
-  .mobile-top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .mobile-top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 16px; background: color-mix(in srgb, var(--surface) 82%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line); }
   .side { position: fixed; z-index: 50; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform var(--dur-slow) var(--ease-out); box-shadow: var(--shadow-lg); }
   .shell[data-open="true"] .side { transform: none; }
   .shell[data-open="true"] .side-scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgb(13 20 28 / 0.45); animation: fade-in var(--dur-base) var(--ease-out) both; }
   .shell[data-collapsed="true"] .side-text { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
   .shell[data-collapsed="true"] .side-link { justify-content: flex-start; padding: 0 10px; }
   .side-fold { display: none; }
-  .bottom-nav { position: fixed; z-index: 35; inset: auto 0 0 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  .bottom-nav { position: fixed; z-index: 35; inset: auto 0 0 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: color-mix(in srgb, var(--surface) 86%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
   .bottom-link { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 58px; font-size: 0.75rem; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; }
   .bottom-link[aria-current="page"] { color: var(--accent); }
   .content { padding: 18px 16px 110px; }
@@ -283,7 +290,7 @@ a.metric-cell:hover .metric-label { color: var(--ink); }
 @keyframes typing { 50% { transform: translateY(-4px); } }
 
 html[data-motion="paused"] *, html[data-motion="paused"] *::before, html[data-motion="paused"] *::after { animation-play-state: paused !important; }
-html[data-motion="paused"] .word > span, html[data-motion="paused"] .rise, html[data-motion="paused"] main, html[data-motion="paused"] .page-in { animation: none !important; }
+html[data-motion="paused"] .word > span, html[data-motion="paused"] .rise, html[data-motion="paused"] main, html[data-motion="paused"] .page-in, html[data-motion="paused"] .skel-in { animation: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .thread-dot, .pin-ring, .vault-paper, .vault-shackle, .orb::after, .typing span, .word > span, .rise, main, .page-in { animation: none !important; }
@@ -295,3 +302,8 @@ html[data-motion="paused"] .word > span, html[data-motion="paused"] .rise, html[
   .side { transition: none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* Placeholders fade in after a short pause, so quick pages never flash grey. */
+.skel-in { animation: skel-in 160ms var(--ease-out) 220ms both; }
+@keyframes skel-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .skel-in { animation: none; } }

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { decryptField, maskTail } from "./crypto";
 import { asService, currentContext, isUuid, one, rows, run, tx, type Tx } from "./db";
 import { hoursFor, isEmergency, looksLikeAdvice } from "./rules";
@@ -73,19 +74,19 @@ function toFamily(r: Row): Family {
   };
 }
 
-export const listFamilies = async () => (await rows(`${FAMILY_SELECT} order by f.name`)).map(toFamily);
+export const listFamilies = cache(async () => (await rows(`${FAMILY_SELECT} order by f.name`)).map(toFamily));
 
-export async function getFamily(id: string) {
+export const getFamily = cache(async function getFamily(id: string) {
   if (!isUuid(id)) return undefined;
   const r = await one(`${FAMILY_SELECT} where f.id = $1`, [id]);
   return r ? toFamily(r) : undefined;
-}
+});
 
-export async function getCoordinator(id: string | null | undefined): Promise<Coordinator | undefined> {
+export const getCoordinator = cache(async function getCoordinator(id: string | null | undefined): Promise<Coordinator | undefined> {
   if (!isUuid(id)) return undefined;
   const r = await one<Row>("select id, name, city, role, phone, working_hours from profiles where id = $1", [id]);
   return r ? { id: r.id, name: r.name, city: r.city ?? "", role: r.role, phone: r.phone ?? undefined, workingHours: r.working_hours ?? undefined } : undefined;
-}
+});
 
 export async function listCoordinators(): Promise<Coordinator[]> {
   const r = await rows<Row>("select id, name, city, role from profiles where role = 'coordinator' order by name");
@@ -97,10 +98,10 @@ function toEvent(r: Row): TimelineEvent {
   return { id: r.id, familyId: r.family_id, at: r.created_at, actor: r.actor, actorName: r.actor_name ?? "Desk", kind: r.kind, text: r.text };
 }
 
-export async function timeline(familyId: string) {
+export const timeline = cache(async function timeline(familyId: string) {
   if (!isUuid(familyId)) return [];
   return (await rows("select * from events where family_id = $1 order by created_at desc, id limit 200", [familyId])).map(toEvent);
-}
+});
 
 // ---------- claims ----------
 function toClaim(r: Row): Claim {
@@ -119,7 +120,7 @@ function toClaim(r: Row): Claim {
   };
 }
 
-export async function claimsFor(familyId: string) {
+export const claimsFor = cache(async function claimsFor(familyId: string) {
   if (!isUuid(familyId)) return [];
   const r = await rows(
     `select c.*, coalesce((select json_agg(q order by q.created_at) from claim_requirements q where q.claim_id = c.id), '[]') as requirements
@@ -127,7 +128,7 @@ export async function claimsFor(familyId: string) {
     [familyId],
   );
   return r.map(toClaim);
-}
+});
 
 // ---------- documents and policies ----------
 export interface StoredField {
@@ -175,16 +176,16 @@ const DOC_SELECT = `
     coalesce((select array_agg(x.purpose order by x.purpose) from document_consents x where x.document_id = d.id and x.withdrawn_at is null), '{}') as purposes
   from documents d left join profiles c on c.id = d.checked_by`;
 
-export async function documentsFor(familyId: string, viewerId?: string) {
+export const documentsFor = cache(async function documentsFor(familyId: string, viewerId?: string) {
   if (!isUuid(familyId)) return [];
   return tx(async (t) => {
     const r = await t.rows(`${DOC_SELECT} where d.family_id = $1 and d.deleted_at is null order by d.created_at desc`, [familyId]);
     if (r.length > 0) await auditIn(t, "view_document_list", "family", familyId, familyId, undefined, viewerId);
     return r.map(toDocument);
   });
-}
+});
 
-export async function policyFor(familyId: string, viewerId?: string) {
+export const policyFor = cache(async function policyFor(familyId: string, viewerId?: string) {
   if (!isUuid(familyId)) return undefined;
   return tx(async (t) => {
     const p = await t.one<Row>("select * from policies where family_id = $1 order by renewal_date nulls last limit 1", [familyId]);
@@ -198,7 +199,7 @@ export async function policyFor(familyId: string, viewerId?: string) {
       policyNoMasked: maskTail(decryptField(familyId, p.policy_no_enc)),
     };
   });
-}
+});
 
 // ---------- tasks and time ----------
 function toTask(r: Row): Task {
@@ -218,11 +219,11 @@ function toTask(r: Row): Task {
   };
 }
 
-export async function tasksFor(familyId?: string) {
+export const tasksFor = cache(async function tasksFor(familyId?: string) {
   if (familyId && !isUuid(familyId)) return [];
   const r = familyId ? await rows("select * from tasks where family_id = $1", [familyId]) : await rows("select * from tasks");
   return r.map(toTask);
-}
+});
 
 export const allTasks = () => tasksFor();
 
@@ -269,10 +270,10 @@ function toApproval(r: Row): Approval {
   };
 }
 
-export async function approvalsFor(familyId: string) {
+export const approvalsFor = cache(async function approvalsFor(familyId: string) {
   if (!isUuid(familyId)) return [];
   return (await rows("select * from approvals where family_id = $1 order by created_at", [familyId])).map(toApproval);
-}
+});
 
 /** The database function enforces that only the family owner can decide. */
 export async function decideApproval(id: string, status: "approved" | "declined", _actorId?: string) {
