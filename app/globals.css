@@ -2,6 +2,7 @@
 
 /* ---------- Tokens. Warm off-white, white cards, navy ink, one teal accent. Colour carries meaning only. ---------- */
 :root {
+  color-scheme: light;
   --bg: #f5f6f4;
   --surface: #ffffff;
   --sunken: #eff1ee;
@@ -49,21 +50,7 @@
   color-scheme: light dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d141c; --surface: #151e28; --sunken: #111922; --ink: #edf1f6; --muted: #a6b2c0;
-    --accent: #52d3b7; --on-accent: #06251f; --warn: #f2b65c; --danger: #f7a097; --ok: #62d6a0;
-    --line: #26313d; --line-strong: #364453; --warn-bg: #2b2212; --danger-bg: #2f1b19;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0d141c; --surface: #151e28; --sunken: #111922; --ink: #edf1f6; --muted: #a6b2c0;
-  --accent: #52d3b7; --on-accent: #06251f; --warn: #f2b65c; --danger: #f7a097; --ok: #62d6a0;
-  --line: #26313d; --line-strong: #364453; --warn-bg: #2b2212; --danger-bg: #2f1b19;
-}
 
-/* Large text mode for older readers */
-html[data-text="large"] { font-size: 120%; --tap: 56px; }
 
 @theme inline {
   --color-bg: var(--bg);
@@ -347,8 +334,6 @@ a.band-note:hover { color: var(--b-ink); }
 
 /* Big-number cards. The first one is the highlight. */
 :root { --mint: #d8f4e2; --mint-line: #a6dfbd; --mint-strong: #1f7a4c; }
-:root[data-theme="dark"] { --mint: #17322a; --mint-line: #2d5a48; --mint-strong: #1f7a4c; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --mint: #17322a; --mint-line: #2d5a48; --mint-strong: #1f7a4c; } }
 .stats { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 1100px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .stat { position: relative; display: grid; grid-template-rows: auto auto 1fr; gap: 6px; min-width: 0; min-height: 168px; padding: 16px 16px 16px 18px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); transition: transform var(--dur-fast) var(--ease-out); }
@@ -394,3 +379,36 @@ a.band-note:hover { color: var(--b-ink); }
 
 .card .dtable td { background: var(--bg); }
 @media (max-width: 767px) { .card .dtable tr.dt-row { background: var(--bg); } }
+
+/* Polish: thin numbers, flat white cards, glass in the band, a soft entrance. */
+.band-dark { position: relative; isolation: isolate; overflow: hidden; }
+.band-dark::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(42% 70% at 18% 0%, rgb(111 211 154 / 0.16), transparent 70%), radial-gradient(40% 60% at 100% 100%, rgb(120 170 220 / 0.12), transparent 70%); }
+.band-tile:not([data-plain="true"]) { background: rgb(255 255 255 / 0.045); border-color: rgb(255 255 255 / 0.09); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06); }
+.band-date { font-weight: 300; }
+.band-pill { box-shadow: 0 10px 30px -14px rgb(111 211 154 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.35); }
+
+.stat { border-color: transparent; box-shadow: 0 1px 2px rgb(18 32 47 / 0.04); }
+.stat[data-hl="true"] { box-shadow: 0 12px 30px -20px rgb(31 122 76 / 0.55); }
+.stat-label { font-weight: 600; letter-spacing: -0.01em; }
+.stat-value { font-weight: 400; letter-spacing: -0.045em; }
+.dtable td { border-color: transparent; }
+.dtable td:first-child, .dtable td:last-child { border-color: transparent; }
+@media (hover: hover) { .dt-row:hover td { border-color: var(--line); } }
+.card { box-shadow: none; }
+.page-head h1 { letter-spacing: -0.02em; }
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(12px) scale(0.985); } }
+.band-dark > *, .stats > .stat, .dt-row { animation: rise-in 560ms var(--ease-out) both; }
+.band-dark > :nth-child(2) { animation-delay: 60ms; }
+.band-dark > :nth-child(3) { animation-delay: 120ms; }
+.band-dark > :nth-child(4) { animation-delay: 180ms; }
+.stats > :nth-child(1) { animation-delay: 160ms; }
+.stats > :nth-child(2) { animation-delay: 210ms; }
+.stats > :nth-child(3) { animation-delay: 260ms; }
+.stats > :nth-child(4) { animation-delay: 310ms; }
+.dt-row:nth-child(1) { animation-delay: 300ms; }
+.dt-row:nth-child(2) { animation-delay: 340ms; }
+.dt-row:nth-child(3) { animation-delay: 380ms; }
+.dt-row:nth-child(n + 4) { animation-delay: 420ms; }
+html[data-motion="paused"] .band-dark > *, html[data-motion="paused"] .stats > .stat, html[data-motion="paused"] .dt-row { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .band-dark > *, .stats > .stat, .dt-row { animation: none; } }

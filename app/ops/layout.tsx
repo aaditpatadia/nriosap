@@ -1,7 +1,6 @@
 import { AccountBar } from "@/components/AccountBar";
 import { Shell, type ShellItem } from "@/components/FamilyNav";
 import { MotionToggle } from "@/components/MotionToggle";
-import { TextSizeToggle } from "@/components/TextSizeToggle";
 import { requireStaff } from "@/lib/auth";
 
 export const metadata = { title: "Ops console" };
@@ -21,7 +20,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
       home="/ops"
       navLabel="Ops"
       items={items}
-      foot={<><div className="flex gap-1"><MotionToggle /><TextSizeToggle /></div><AccountBar name={`${viewer.name} (${viewer.role})`} /></>}
+      foot={<><MotionToggle /><AccountBar name={`${viewer.name} (${viewer.role})`} /></>}
     >
       <main id="main">{children}</main>
     </Shell>

@@ -1,16 +1,16 @@
-import localFont from "next/font/local";
+import { Manrope } from "next/font/google";
 
 /**
  * The only place the brand font is chosen.
- * Today: Figtree (SIL OFL), self-hosted. To switch to Avantt after licensing it from
- * Displaay, add the licensed files to app/fonts/ and change `src` and `variable` here.
+ * Today: Manrope (SIL Open Font License). Next.js downloads it at build time and serves it
+ * from our own domain, so visitors never call Google. To change the font, change it here only.
  */
-export const sans = localFont({
-  src: "./fonts/Figtree.woff2",
+export const sans = Manrope({
+  subsets: ["latin", "latin-ext"],
   variable: "--font-loaded",
   display: "swap",
   preload: true,
-  weight: "300 900",
-  adjustFontFallback: "Arial",
+  weight: ["300", "400", "500", "600", "700", "800"],
+  adjustFontFallback: true,
   fallback: ["system-ui", "Segoe UI", "Roboto", "Noto Sans", "sans-serif"],
 });

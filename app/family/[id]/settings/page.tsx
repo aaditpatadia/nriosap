@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MotionToggle } from "@/components/MotionToggle";
-import { TextSizeToggle } from "@/components/TextSizeToggle";
 import { PageHeader, Panel } from "@/components/ui";
 import { signOut } from "@/app/signin/actions";
 import { getViewer } from "@/lib/auth";
@@ -32,7 +31,7 @@ export default async function Settings({ params }: { params: Promise<{ id: strin
       )}
       <Panel title="Display">
         <p className="text-[length:var(--text-small)] text-muted">Make the text larger, or pause moving parts of the page.</p>
-        <div className="flex flex-wrap gap-2"><TextSizeToggle /><MotionToggle /></div>
+        <div className="flex flex-wrap gap-2"><MotionToggle /></div>
       </Panel>
       <Panel title="Signed in as">
         <p className="font-medium">{viewer.name}{viewer.email ? <span className="block text-[length:var(--text-small)] font-normal text-muted">{viewer.email}</span> : null}</p>

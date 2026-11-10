@@ -75,13 +75,11 @@ test("axe, overflow, touch targets and screenshots on every route", async ({ pag
   expect(errors).toEqual([]);
 });
 
-test("large text and reduced motion", async ({ page }) => {
+test("the site stays white even when the computer is in dark mode", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Larger text" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-text", "large");
-  const size = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
-  expect(size).toBeGreaterThan(18);
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-text", "large");
+  const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(bg).not.toBe("rgb(13, 20, 28)");
+  await expect(page.getByRole("button", { name: "Larger text" })).toHaveCount(0);
 });
 

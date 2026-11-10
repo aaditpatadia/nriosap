@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { AccountBar } from "@/components/AccountBar";
 import { Shell, type ShellItem } from "@/components/FamilyNav";
 import { MotionToggle } from "@/components/MotionToggle";
-import { TextSizeToggle } from "@/components/TextSizeToggle";
 import { requireViewer } from "@/lib/auth";
 import { familyAccess } from "@/lib/service-requests";
 import { approvalsFor, getFamily, listFamilies, logAudit } from "@/lib/store";
@@ -32,7 +31,7 @@ export default async function FamilyLayout({ children, params }: { children: Rea
       navLabel="Family sections"
       items={items.filter((i) => i.show).map(({ show: _s, ...i }) => i)}
       cta={access.canCreate ? { href: `${base}/requests/new`, label: "New request" } : undefined}
-      foot={<><div className="flex gap-1"><MotionToggle /><TextSizeToggle /></div><AccountBar name={viewer.name} families={families} currentId={id} /></>}
+      foot={<><MotionToggle /><AccountBar name={viewer.name} families={families} currentId={id} /></>}
     >
       <main id="main">{children}</main>
     </Shell>

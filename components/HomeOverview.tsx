@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Glyph, type NavIcon } from "./FamilyNav";
+import { CountUp } from "./CountUp";
 import { MiniCalendar, type CalItem } from "./MiniCalendar";
 import { fmtDate, inr } from "@/lib/format";
 import { STATUS_META } from "@/lib/request-engine";
@@ -117,7 +118,7 @@ export function StatCards({ cards }: { cards: StatCard[] }) {
         <Link key={c.label} href={c.href} className="stat" data-hl={i === 0}>
           <span className="stat-head"><span aria-hidden className="stat-icon"><Glyph name={c.icon} /></span><span className="stat-label">{c.label}</span></span>
           <span className="stat-sub" data-tone={c.tone}>{c.sub}</span>
-          <span className="stat-foot"><span className="stat-value">{c.value}</span>{c.go && <span className="stat-go">{c.go}</span>}</span>
+          <span className="stat-foot"><CountUp value={c.value} className="stat-value" />{c.go && <span className="stat-go">{c.go}</span>}</span>
         </Link>
       ))}
     </section>
