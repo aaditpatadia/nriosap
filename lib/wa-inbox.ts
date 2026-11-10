@@ -62,6 +62,8 @@ async function hashFor(key: string): Promise<string | null> {
 export async function conversation(key: string): Promise<Conversation | undefined> {
   const hash = await hashFor(key);
   if (!hash) return undefined;
+  // STOP records are admin-only under RLS, so this one fact is read by the server. Read first: never two connections at once.
+  const stopped = await asService(() => tx((s) => isOptedOut(s, hash)));
   return tx(async (t) => {
     const msgs = await t.rows<Row>(
       `select w.*, r.ref as request_ref, u.name as reviewer from whatsapp_messages w left join service_requests r on r.id = w.request_id left join profiles u on u.id = w.category_confirmed_by
@@ -75,7 +77,6 @@ export async function conversation(key: string): Promise<Conversation | undefine
     const open = last.family_id ? await t.rows<Row>("select id, ref, title from service_requests where family_id = $1 and status not in ('completed','cancelled') order by updated_at desc limit 20", [last.family_id]) : [];
     // Reading the decrypted facts is a look at personal data, so it is written down.
     await t.run("select audit_event('view_whatsapp_conversation','whatsapp_message',$1,$2)", [last.id, last.family_id]);
-    const stopped = await isOptedOut(t, hash);
     return {
       key, familyId: last.family_id, familyName: who?.family_name ?? null, senderKind: last.sender_kind, senderName: who?.name ?? null, tail: last.phone_tail, language: last.language,
       inWindow: insideServiceWindow(inbound.length ? inbound[inbound.length - 1].received_at : undefined, new Date()), stopped,
