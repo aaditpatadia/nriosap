@@ -16,7 +16,7 @@ test("timer survives a refresh, then hours and margin update", async ({ page }) 
   await page.reload();
   // Clock kept going from the server's start time rather than resetting.
   await expect(page.getByRole("button", { name: "Stop and log" })).toBeVisible();
-  const clock = await page.getByTestId("timer-clock").innerText();
+  const clock = await page.getByTestId("timer-clock").filter({ visible: true }).innerText();
   expect(clock).not.toBe("00:00");
 
   await page.goto("/ops/queue");

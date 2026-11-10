@@ -11,7 +11,7 @@ const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** A month you can move through. Choosing a day lists what falls on it. */
-export function MiniCalendar({ items, today, listLimit = 5 }: { items: CalItem[]; today: string; listLimit?: number }) {
+export function MiniCalendar({ items, today, listLimit = 5, fill = false }: { items: CalItem[]; today: string; listLimit?: number; fill?: boolean }) {
   const [cursor, setCursor] = useState(() => ({ y: Number(today.slice(0, 4)), m: Number(today.slice(5, 7)) }));
   const [picked, setPicked] = useState<string | null>(null);
   const byDay = useMemo(() => { const map = new Map<string, CalItem[]>(); for (const i of items) map.set(i.date, [...(map.get(i.date) ?? []), i]); return map; }, [items]);
@@ -22,7 +22,7 @@ export function MiniCalendar({ items, today, listLimit = 5 }: { items: CalItem[]
   const go = (d: number) => { const t = new Date(Date.UTC(cursor.y, cursor.m - 1 + d, 1)); setCursor({ y: t.getUTCFullYear(), m: t.getUTCMonth() + 1 }); setPicked(null); };
   const shown = picked ? (byDay.get(picked) ?? []) : items.filter((i) => i.date >= today).slice(0, listLimit);
   return (
-    <div className="grid gap-3">
+    <div className={`grid gap-3 ${fill ? "cal-fill" : ""}`}>
       <div className="flex items-center justify-between gap-2">
         <button type="button" className="btn btn-ghost btn-icon" aria-label="Previous month" onClick={() => go(-1)}>‹</button>
         <p className="font-semibold" aria-live="polite">{label}</p>
@@ -36,20 +36,20 @@ export function MiniCalendar({ items, today, listLimit = 5 }: { items: CalItem[]
           const has = byDay.has(date);
           const on = picked === date;
           return (
-            <button key={date} type="button" className="cal-day" data-today={date === today} aria-pressed={on} aria-label={`${i + 1} ${label}${has ? `, ${byDay.get(date)!.length} item${byDay.get(date)!.length === 1 ? "" : "s"}` : ""}`} onClick={() => setPicked(on ? null : date)}>
+            <button key={date} type="button" className="cal-day" data-today={date === today} data-has={has} aria-pressed={on} aria-label={`${i + 1} ${label}${has ? `, ${byDay.get(date)!.length} item${byDay.get(date)!.length === 1 ? "" : "s"}` : ""}`} onClick={() => setPicked(on ? null : date)}>
               {on && <m.span layoutId="cal-select" transition={spring.snappy} className="cal-select" />}
-              <span className="relative">{i + 1}</span>
+              <span className="cal-num">{i + 1}</span>
               {has && <span aria-hidden className="cal-dot" />}
             </button>
           );
         })}
       </div>
-      <ul className="rows" aria-live="polite">
+      {(listLimit > 0 || picked) && <ul className="rows" aria-live="polite">
         {shown.length === 0 && <li className="py-2 text-[length:var(--text-small)] text-muted">{picked ? "Nothing on this day." : "Nothing coming up."}</li>}
         {shown.map((i, n) => (
           <li key={`${i.date}-${n}`}><Link href={i.href} className="row-link text-[length:var(--text-small)]"><span className="min-w-0 font-medium [overflow-wrap:anywhere]">{i.label}<span className="block text-[length:var(--text-micro)] font-normal text-muted">{i.kind}</span></span><span className="shrink-0 tabular-nums text-muted">{i.date.slice(8)}/{i.date.slice(5, 7)}</span></Link></li>
         ))}
-      </ul>
+      </ul>}
     </div>
   );
 }

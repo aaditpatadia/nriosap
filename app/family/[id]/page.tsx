@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
-import { MiniCalendar } from "@/components/MiniCalendar";
+import { cache, Suspense } from "react";
+import { OverviewBand, RequestTable, StatCards } from "@/components/HomeOverview";
 import { OwnerConsentForm } from "@/components/OwnerConsentForm";
-import { MetricsSkeleton, PanelSkeleton } from "@/components/Skeletons";
+import { BandSkeleton, PanelSkeleton } from "@/components/Skeletons";
 import { Timeline } from "@/components/Timeline";
-import { Empty, Metric, PageHeader, Panel } from "@/components/ui";
+import { Empty, PageHeader, Panel } from "@/components/ui";
 import { getViewer, isDemoMode } from "@/lib/auth";
 import { OWNER_CONSENT_TEXT, REQUIRED_PURPOSES } from "@/lib/consent";
 import { preferencesFor } from "@/lib/family-members";
@@ -22,16 +22,20 @@ import { buildAttention, daysBetween, istDate } from "@/lib/workspace-rules";
 
 type Ctx = { id: string; base: string; access: FamilyAccess; fam: Family; today: string };
 
-/** The four numbers and what needs the customer. The first thing worth reading, so it streams first. */
-async function Summary({ id, base, access, fam, today }: Ctx) {
+/** Everything the top of Home needs, read once per request and shared by the band and the attention list. */
+const summaryFor = cache(async function summaryFor(id: string, today: string) {
+  const [fam, access] = await Promise.all([getFamily(id), familyAccess(id)]);
+  if (!fam) throw new Error("family missing");
   const full = access.owner || access.staff;
-  const [viewer, approvals, consents, requests, quotes, docs, tasks, deadlines, calendar] = await Promise.all([getViewer(), full ? approvalsFor(id) : [], consentsFor(id), access.canReadRequests ? requestsFor(id) : [], full ? quotesForFamily(id) : [], documentsFor(id), full ? tasksFor(id) : [], access.canSeeBills ? deadlinesFor(id) : [], calendarFor(id, access)]);
+  const [viewer, approvals, consents, requests, quotes, docs, tasks, deadlines, calendar, coord] = await Promise.all([getViewer(), full ? approvalsFor(id) : [], consentsFor(id), access.canReadRequests ? requestsFor(id) : [], full ? quotesForFamily(id) : [], documentsFor(id), full ? tasksFor(id) : [], access.canSeeBills ? deadlinesFor(id) : [], calendarFor(id, access), access.canCreate ? null : getCoordinator(fam.coordinatorId)]);
   const ownerPending = viewer?.id === fam.owner.id && REQUIRED_PURPOSES.some((p) => !consents.find((c) => c.subject === "owner" && c.purpose === p)?.grantedAt);
   const pending = approvals.filter((a) => a.status === "pending");
   const quoted = new Set(quotes.map((q) => q.approvalId));
   const active = requests.filter((r) => isOpenStatus(r.status));
   const expiring = docs.filter((d) => d.expiresOn && daysBetween(today, d.expiresOn) <= 60);
   const upcoming = calendar.filter((c) => c.date >= today && daysBetween(today, c.date) <= 30);
+  const overdue = deadlines.filter((d) => d.status === "upcoming" && d.dueOn < today).length;
+  const waitingOnYou = requests.filter((r) => r.status === "awaiting_information" || r.status === "awaiting_customer" || r.status === "awaiting_approval").length;
   const attention = buildAttention({
     today, consentPending: ownerPending,
     quotes: quotes.filter((q) => q.status === "sent").map((q) => ({ id: q.id, requestId: q.requestId, title: q.requestTitle ?? q.requestRef ?? "Quotation", totalWords: inr(q.totalInr), deadline: q.approvalDeadline })),
@@ -41,16 +45,31 @@ async function Summary({ id, base, access, fam, today }: Ctx) {
     documents: expiring.map((d) => ({ id: d.id, title: d.title, expiresOn: d.expiresOn! })),
     waitingTasks: tasks.filter((t) => t.status === "waiting_owner" && !requests.some((r) => r.taskId === t.id)).map((t) => ({ id: t.id, title: t.title })),
   });
+  return { access, fam, attention, active, pending, upcoming, overdue, waitingOnYou, expiring, calendar, coord, ownerPending };
+});
+
+/** The band and the four numbers. The first thing worth reading, so it streams first. */
+async function Summary({ id, base, today }: Ctx) {
+  const { access, attention, active, pending, upcoming, overdue, waitingOnYou, expiring, calendar, coord, ownerPending } = await summaryFor(id, today);
   return (
     <>
-      <section aria-label="Your summary" className="metric-strip" data-cols="4">
-        <Metric href={`${base}/requests`} label="Active requests" value={active.length} />
-        <Metric href={`${base}/requests?show=waiting`} label="Needs your approval" value={pending.length} alert />
-        <Metric href={`${base}/bills`} label="Upcoming deadlines" value={upcoming.length} alert />
-        <Metric href={`${base}/documents`} label="Documents needing attention" value={expiring.length} alert />
-      </section>
+      <OverviewBand base={base} today={today} attention={attention.length} calendar={calendar} canCreate={access.canCreate} coordinator={coord ? { name: coord.name, city: coord.city ?? null } : null} />
+      <StatCards cards={[
+        { label: "Active requests", value: active.length, href: `${base}/requests`, icon: "list", sub: waitingOnYou ? `${waitingOnYou} waiting on you` : "All moving", tone: waitingOnYou ? undefined : "ok", go: "See all" },
+        { label: "Needs your approval", value: pending.length, href: `${base}/requests?show=waiting`, icon: "check", sub: pending.length ? "Nothing starts until you decide" : "Nothing to decide", tone: pending.length ? "danger" : undefined },
+        { label: "Upcoming deadlines", value: upcoming.length, href: `${base}/bills`, icon: "calendar", sub: overdue ? `${overdue} overdue` : "In the next 30 days", tone: overdue ? "danger" : undefined },
+        { label: "Documents needing attention", value: expiring.length, href: `${base}/documents`, icon: "doc", sub: expiring.length ? "Expire within 60 days" : "All in date", tone: expiring.length ? "danger" : undefined },
+      ]} />
       {ownerPending && <OwnerConsentForm familyId={id} items={PURPOSES.map((p) => ({ purpose: p, text: OWNER_CONSENT_TEXT[p] }))} />}
-      <Panel title="Needs your attention" action={<span className="flex items-center gap-2 text-[length:var(--text-small)] text-muted"><span aria-hidden className="orb" data-tone={attention.length ? "warn" : "ok"} />{attention.length ? `${attention.length} item${attention.length === 1 ? "" : "s"}` : "All on track"}</span>}>
+    </>
+  );
+}
+
+async function Attention({ id, base, today }: Ctx) {
+  const { attention } = await summaryFor(id, today);
+  return (
+    <>
+      <Panel className="scroll-mt-24" id="attention" title="Needs your attention" action={<span className="flex items-center gap-2 text-[length:var(--text-small)] text-muted"><span aria-hidden className="orb" data-tone={attention.length ? "warn" : "ok"} />{attention.length ? `${attention.length} item${attention.length === 1 ? "" : "s"}` : "All on track"}</span>}>
         {attention.length === 0 ? (
           <p className="text-[length:var(--text-small)] text-muted">Nothing needs you right now. Quotations, deadlines and questions from your coordinator appear here.</p>
         ) : (
@@ -70,10 +89,25 @@ async function Summary({ id, base, access, fam, today }: Ctx) {
   );
 }
 
+async function Requests({ id, base, access }: Ctx) {
+  const full = access.owner || access.staff;
+  const [requests, quotes] = await Promise.all([access.canReadRequests ? requestsFor(id) : [], full ? quotesForFamily(id) : []]);
+  const shown = [...requests.filter((r) => isOpenStatus(r.status)), ...requests.filter((r) => !isOpenStatus(r.status))].slice(0, 6);
+  if (!access.canReadRequests || shown.length === 0) return null;
+  return (
+    <section aria-labelledby="your-requests" className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="your-requests" className="text-[length:var(--text-h2)] font-semibold">Your requests</h2>
+        <Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`${base}/requests`}>See all {requests.length}</Link>
+      </div>
+      <RequestTable base={base} requests={shown} quotes={quotes} />
+    </section>
+  );
+}
+
 async function Work({ id, base, access }: Ctx) {
   const full = access.owner || access.staff;
   const [requests, events, claims, docs, properties] = await Promise.all([access.canReadRequests ? requestsFor(id) : [], access.canSeeActivity ? timeline(id) : [], full ? claimsFor(id) : [], documentsFor(id), access.canReadRequests ? propertiesFor(id) : []]);
-  const active = requests.filter((r) => isOpenStatus(r.status)).slice(0, 5);
   const openClaims = claims.filter((c) => c.status === "query" || c.missing.length > 0);
   const isEmpty = requests.length === 0 && docs.length === 0 && properties.length === 0;
   return (
@@ -82,11 +116,6 @@ async function Work({ id, base, access }: Ctx) {
         <Empty title="Your home page fills up with your real requests, documents and dates." action={<div className="flex flex-wrap gap-2"><Link className="btn btn-secondary" href={`${base}/requests/new`}>Make your first request</Link><Link className="btn btn-secondary" href={`${base}/documents`}>Upload a document</Link><Link className="btn btn-secondary" href={`${base}/details`}>Add family and addresses</Link></div>}>
           Nothing here is made up. Start with whatever needs handling first.
         </Empty>
-      )}
-      {access.canReadRequests && active.length > 0 && (
-        <Panel title="Active requests" action={<Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`${base}/requests`}>See all</Link>}>
-          <ul className="rows">{active.map((r) => <li key={r.id}><Link className="row-link" href={`${base}/requests/${r.id}`}><span className="min-w-0"><span className="block font-medium [overflow-wrap:anywhere]">{r.title}</span><span className="block text-[length:var(--text-small)] text-muted">{r.ref} · {r.coordinatorName ?? "Being assigned"} · updated {fmtDate(r.updatedAt)}</span></span><span className="chip shrink-0" data-tone={STATUS_META[r.status].tone}>{STATUS_META[r.status].label}</span></Link></li>)}</ul>
-        </Panel>
       )}
       {openClaims.map((c) => <Panel key={c.id} title={`Open claim: ${c.hospital}`} action={<Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`${base}/claims`}>See claim</Link>}><p className="text-[length:var(--text-small)] text-muted">Still missing: {c.missing.join(", ") || "nothing"}.</p></Panel>)}
       {access.canSeeActivity && <Panel title="Recent activity" action={<Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`${base}/activity`}>See all</Link>}><Timeline events={events.slice(0, 8)} /></Panel>}
@@ -117,7 +146,12 @@ async function Side({ id, base, access, fam, today }: Ctx) {
           {isDemoMode() && <Link className="btn btn-secondary w-fit" href={`/chat/${id}`}>See their WhatsApp view</Link>}
         </Panel>
       )}
-      <Panel title="Upcoming" action={access.canSeeBills ? <Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`${base}/bills`}>Bills and dates</Link> : undefined}><MiniCalendar items={calendar} today={today} /></Panel>
+      <Panel title="Upcoming" action={access.canSeeBills ? <Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`${base}/bills`}>Bills and dates</Link> : undefined}>
+        <ul className="rows">
+          {calendar.filter((c) => c.date >= today).slice(0, 5).map((c, n) => <li key={`${c.date}-${n}`}><Link href={c.href} className="row-link text-[length:var(--text-small)]"><span className="min-w-0 font-medium [overflow-wrap:anywhere]">{c.label}<span className="block text-[length:var(--text-micro)] font-normal text-muted">{c.kind}</span></span><span className="shrink-0 tabular-nums text-muted">{fmtDate(c.date)}</span></Link></li>)}
+          {calendar.every((c) => c.date < today) && <li className="py-2 text-[length:var(--text-small)] text-muted">Nothing coming up.</li>}
+        </ul>
+      </Panel>
       <Panel title="More for you">
         <ul className="rows">
           {[[`${base}/ask`, "Ask Ally about your records"], ...(access.owner || access.staff ? [[`${base}/report`, "This month's report"], [`${base}/approvals`, "Approvals and costs"]] : []), ...(access.canReadRequests ? [[`${base}/properties`, "Properties and addresses"]] : [])].map(([href, label]) => <li key={href}><Link href={href} className="row-link font-medium">{label}<span aria-hidden className="text-muted">›</span></Link></li>)}
@@ -137,14 +171,14 @@ export default async function Home({ params }: { params: Promise<{ id: string }>
   const firstName = (viewer?.name ?? "").split(/\s+/)[0];
   return (
     <div className="grid gap-6">
-      <div className="welcome">
-        <PageHeader title={`Good ${greetingFor(new Date(), prefs?.timezone)}${firstName ? `, ${firstName}` : ""}.`} sub="Here's what's happening back home.">
-          {access.canCreate && <Link className="btn btn-primary" href={`${base}/requests/new`}>Tell Ally what you need</Link>}
-        </PageHeader>
-      </div>
+      <PageHeader title={`Good ${greetingFor(new Date(), prefs?.timezone)}${firstName ? `, ${firstName}` : ""}.`} sub="Here's what's happening back home.">
+        {access.canCreate && <Link className="btn btn-primary max-sm:hidden" href={`${base}/requests/new`}>Tell Ally what you need</Link>}
+      </PageHeader>
+      <Suspense fallback={<BandSkeleton />}><Summary {...ctx} /></Suspense>
+      <Suspense fallback={<PanelSkeleton rows={4} />}><Requests {...ctx} /></Suspense>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid content-start gap-5">
-          <Suspense fallback={<><MetricsSkeleton /><PanelSkeleton rows={3} /></>}><Summary {...ctx} /></Suspense>
+          <Suspense fallback={<PanelSkeleton rows={3} />}><Attention {...ctx} /></Suspense>
           <Suspense fallback={<PanelSkeleton rows={4} />}><Work {...ctx} /></Suspense>
         </div>
         <aside className="grid content-start gap-5" aria-label="Your coordinator and calendar">

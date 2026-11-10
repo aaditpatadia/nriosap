@@ -27,7 +27,7 @@ const GLYPHS = {
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
 } as const;
 
-function Glyph({ name }: { name: NavIcon }) {
+export function Glyph({ name }: { name: NavIcon }) {
   return <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="relative shrink-0">{GLYPHS[name]}</svg>;
 }
 

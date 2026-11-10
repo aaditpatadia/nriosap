@@ -44,11 +44,21 @@ const Header = ({ action = true }: { action?: boolean }) => (
   <div className="flex flex-wrap items-start justify-between gap-3" aria-hidden><span className="grid gap-2"><Bar w="260px" h={26} /><Bar w="200px" h={12} /></span>{action && <Bar w="132px" h={44} />}</div>
 );
 
+/** The dark band and four cards at the top of Home. */
+export function BandSkeleton() {
+  return (
+    <div className="grid gap-5" aria-hidden>
+      <div className="band-wrap"><div className="band-dark" style={{ minHeight: 300 }}>{Array.from({ length: 4 }, (_, i) => <div key={i} className="band-tile" style={{ minHeight: 140, opacity: 0.6 }} />)}</div></div>
+      <div className="stats">{Array.from({ length: 4 }, (_, i) => <div key={i} className="stat"><Bar w="60%" h={16} /><Bar w="40%" h={10} /><Bar w="56px" h={44} className="self-end" /></div>)}</div>
+    </div>
+  );
+}
+
 export function HomeSkeleton() {
   return (
     <Frame label="Loading your home page">
       <Header />
-      <MetricsSkeleton />
+      <BandSkeleton />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid content-start gap-5"><PanelSkeleton rows={3} /><PanelSkeleton rows={3} /><PanelSkeleton rows={4} /></div>
         <div className="grid content-start gap-5"><PanelSkeleton rows={3} title="60%" /><PanelSkeleton rows={5} title="30%" /></div>

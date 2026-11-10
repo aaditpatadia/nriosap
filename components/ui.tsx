@@ -24,9 +24,9 @@ export function Metric({ label, value, href, alert }: { label: string; value: nu
   return href ? <Link href={href} className="metric-cell">{body}</Link> : <div className="metric-cell">{body}</div>;
 }
 
-export function Panel({ title, action, children, className = "" }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
+export function Panel({ title, action, children, className = "", id }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string; id?: string }) {
   return (
-    <section className={`card grid content-start gap-3 ${className}`}>
+    <section id={id} className={`card grid content-start gap-3 ${className}`}>
       {(title || action) && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           {title && <h2 className="section-title">{title}</h2>}
