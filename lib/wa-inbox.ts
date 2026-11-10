@@ -1,6 +1,6 @@
 import "server-only";
 import { decryptField } from "./crypto";
-import { asService, isUuid, one, rows, tx } from "./db";
+import { asService, isUuid, one, rows, tx, type Tx } from "./db";
 import { looksLikeAdvice } from "./rules";
 import type { ServiceCategory } from "./request-engine";
 import { CATEGORIES, isServiceCategory, type WaCategory } from "./wa-categorise";
@@ -98,10 +98,12 @@ async function workable(messageId: string): Promise<Row | undefined> {
   return one<Row>("select w.* from whatsapp_messages w where w.id = $1 and ((w.family_id is not null and public.can_work_family(w.family_id)) or (w.family_id is null and public.is_staff()))", [messageId]);
 }
 
-async function touch(messageId: string, userId: string, action: string, sets: string, params: unknown[]) {
+/** Records the first human touch and the action. `change` holds any fixed-text update for the action itself. */
+async function touch(messageId: string, userId: string, action: string, change?: (t: Tx) => Promise<unknown>) {
   await asService(() =>
     tx(async (t) => {
-      const r = await t.one<Row>(`update whatsapp_messages set first_human_at = coalesce(first_human_at, now())${sets ? `, ${sets}` : ""} where id = $1 returning family_id`, [messageId, ...params]);
+      if (change) await change(t);
+      const r = await t.one<Row>("update whatsapp_messages set first_human_at = coalesce(first_human_at, now()) where id = $1 returning family_id", [messageId]);
       await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,$2,'whatsapp_message',$3,$4)", [userId, action, messageId, r?.family_id ?? null]);
     }),
   );
@@ -111,7 +113,7 @@ async function touch(messageId: string, userId: string, action: string, sets: st
 export async function confirmCategory(messageId: string, userId: string): Promise<Result> {
   const m = await workable(messageId);
   if (!m || m.direction !== "in" || !m.category) return { ok: false, reason: "That message is not on your list." };
-  await touch(messageId, userId, "whatsapp_category_confirmed", "category_confirmed_by = $2, category_corrected = false, status = case when status in ('needs_human','routed') then 'confirmed' else status end", [userId]);
+  await touch(messageId, userId, "whatsapp_category_confirmed", (t) => t.run("update whatsapp_messages set category_confirmed_by = $2, category_corrected = false, status = case when status in ('needs_human','routed') then 'confirmed' else status end where id = $1", [messageId, userId]));
   return { ok: true };
 }
 
@@ -119,7 +121,7 @@ export async function changeCategory(messageId: string, category: string, userId
   const m = await workable(messageId);
   if (!m || m.direction !== "in") return { ok: false, reason: "That message is not on your list." };
   if (!(CATEGORIES as readonly string[]).includes(category)) return { ok: false, reason: "Choose one of the categories." };
-  await touch(messageId, userId, `whatsapp_category_changed:${category}`, "category_corrected = (category is distinct from $3), category = $3, category_confirmed_by = $2, status = case when status in ('needs_human','routed') then 'confirmed' else status end", [userId, category]);
+  await touch(messageId, userId, `whatsapp_category_changed:${category}`, (t) => t.run("update whatsapp_messages set category_corrected = (category is distinct from $3), category = $3, category_confirmed_by = $2, status = case when status in ('needs_human','routed') then 'confirmed' else status end where id = $1", [messageId, userId, category]));
   if (m.request_id && isServiceCategory(category)) await asService(() => tx((t) => t.run("update service_requests set category = $2, updated_at = now() where id = $1", [m.request_id, category])));
   return { ok: true };
 }
@@ -140,7 +142,7 @@ export async function createRequestFromMessage(messageId: string, category: stri
       return r;
     }),
   );
-  await touch(messageId, userId, "whatsapp_request_created", "", []);
+  await touch(messageId, userId, "whatsapp_request_created");
   return { ok: true, ref: made.ref };
 }
 
@@ -158,14 +160,14 @@ export async function mergeIntoRequest(messageId: string, requestId: string, use
     }),
   );
   if (!ok) return { ok: false, reason: "That request is not in this family." };
-  await touch(messageId, userId, "whatsapp_merged", "", []);
+  await touch(messageId, userId, "whatsapp_merged");
   return { ok: true };
 }
 
 export async function markSpam(messageId: string, userId: string): Promise<Result> {
   const m = await workable(messageId);
   if (!m || m.direction !== "in") return { ok: false, reason: "That message is not on your list." };
-  await touch(messageId, userId, "whatsapp_spam", "status = 'spam'", []);
+  await touch(messageId, userId, "whatsapp_spam", (t) => t.run("update whatsapp_messages set status = 'spam' where id = $1", [messageId]));
   return { ok: true };
 }
 
@@ -198,7 +200,7 @@ export async function replyToConversation(key: string, body: string, userId: str
     }),
   );
   if (!ids) return { ok: false, reason: "This number sent STOP. Nothing can be sent until they agree again." };
-  await touch(last.id, userId, "whatsapp_replied", "", []);
+  await touch(last.id, userId, "whatsapp_replied");
   for (const id of ids) await deliver(id);
   return { ok: true, note: inWindow ? undefined : "Outside 24 hours: the approved template goes first, and your text waits until they reply." };
 }

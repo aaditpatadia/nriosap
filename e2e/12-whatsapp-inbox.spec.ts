@@ -95,6 +95,7 @@ test("a repeated delivery is stored once", async ({ page }) => {
   await expect.poll(async () => {
     await page.goto("/ops/whatsapp?status=all");
     await vis(page.getByTestId("wa-conversation")).filter({ hasText: "Kusum Shah" }).first().getByRole("link").click();
+    await vis(page.getByRole("list", { name: "Conversation" })).first().waitFor();
     return vis(page.getByTestId("wa-in")).filter({ hasText: "This one arrives twice" }).count();
   }, { timeout: 30_000 }).toBe(1);
 });
@@ -122,6 +123,7 @@ test("a voice note is kept for a person to hear and never sent to AI", async ({ 
   await expect.poll(async () => {
     await page.goto("/ops/whatsapp?status=all");
     await vis(page.getByTestId("wa-conversation")).filter({ hasText: "Kusum Shah" }).first().getByRole("link").click();
+    await vis(page.getByRole("list", { name: "Conversation" })).first().waitFor();
     return vis(page.getByRole("link", { name: "Listen to voice note" })).count();
   }, { timeout: 30_000 }).toBeGreaterThan(0);
   await expect(vis(page.getByText("Voice note. Never sent to AI")).first()).toBeVisible();
@@ -129,13 +131,14 @@ test("a voice note is kept for a person to hear and never sent to AI", async ({ 
   expect((await page.request.get(href!, { maxRedirects: 0 })).status()).toBe(303);
 });
 
+// Kusum's profile language is Gujarati, so the refusal is in Gujarati.
 test("a video is refused politely and STOP blocks any reply", async ({ page }) => {
   await sendAll(FIXTURES.unsupported_video());
   await sendAll(FIXTURES.stop());
   await signInStaff(page, "meera");
   await expect.poll(async () => {
     await page.goto("/ops/whatsapp/outbox");
-    return vis(page.getByTestId("wa-outbox")).filter({ hasText: "we can only open photos" }).count();
+    return vis(page.getByTestId("wa-outbox")).filter({ hasText: "PDF ફાઇલ" }).count();
   }, { timeout: 30_000 }).toBeGreaterThan(0);
   await openConversation(page, "Number ending 1234");
   await expect.poll(async () => {

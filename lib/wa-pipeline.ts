@@ -114,7 +114,7 @@ type Vars = { name?: string; coordinator?: string; ref?: string };
 
 interface Ctx { t: Tx; m: Row; s: Sender; to: Recipient; vars: Vars; replies: string[]; after: After[] }
 
-const setStatus = (c: Ctx, status: string, extra = "") => c.t.run(`update whatsapp_messages set status = $2${extra} where id = $1`, [c.m.id, status]);
+const setStatus = (c: Ctx, status: string) => c.t.run("update whatsapp_messages set status = $2 where id = $1", [c.m.id, status]);
 const reply = async (c: Ctx, kind: ReplyKind, extra: Vars = {}, requestId: string | null = null) => void c.replies.push(await queueReply(c.t, c.to, kind, { ...c.vars, ...extra }, { requestId }));
 
 async function recentlySent(t: Tx, hash: string, kind: ReplyKind) {
