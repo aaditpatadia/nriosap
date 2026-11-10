@@ -5,6 +5,8 @@ import { escapeLiteral, Pool, types, type PoolClient, type QueryResultRow } from
 // bigint and numeric come back as numbers; these columns hold rupees, minutes and small decimals.
 types.setTypeParser(20, Number);
 types.setTypeParser(1700, Number);
+// Plain dates stay as YYYY-MM-DD. Turning them into a Date would shift them by the server's time zone.
+types.setTypeParser(1082, (v) => v);
 types.setTypeParser(1184, (v) => new Date(v).toISOString());
 
 export type DbContext = { kind: "user"; id: string } | { kind: "anon" } | { kind: "service" };

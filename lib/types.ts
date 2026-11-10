@@ -35,6 +35,7 @@ export interface Family {
 export interface Coordinator extends Person {
   role: "coordinator" | "admin";
   phone?: string;
+  workingHours?: string;
 }
 
 export interface Policy {
@@ -75,6 +76,14 @@ export interface DocumentRecord {
   fieldConfidence?: Record<string, number>;
   scanStatus?: string;
   extractionStatus?: string;
+  tags: string[];
+  mime?: string;
+  expiresOn?: string;
+  issuedOn?: string;
+  expiryConfirmed?: boolean;
+  propertyId?: string;
+  version: number;
+  supersedes?: string;
 }
 
 export interface Task {

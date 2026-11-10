@@ -44,11 +44,11 @@ export function UploadForm({ familyId, blocked, purposeFixed, onDone }: { family
       onDragOver={(e) => { e.preventDefault(); setOver(true); }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); void send(e.dataTransfer.files[0]); }}
-      className="card grid gap-4"
-      style={over ? { borderColor: "var(--accent)" } : undefined}
+      className="card drop grid gap-4"
+      data-over={over}
     >
-      <h2 className="text-[length:var(--text-h3)] font-semibold">Add a document</h2>
-      <p className="text-muted">Drag a file here, choose one, or take a photo.</p>
+      <h2 className="section-title">Add a document</h2>
+      <p className="text-[length:var(--text-small)] text-muted">{over ? "Drop it here." : "Drag a file here, choose one, or take a photo."}</p>
       <div className="grid gap-4 md:grid-cols-2">
         <label className="field">File (PDF or photo, up to 4 MB)<input ref={input} className="input" type="file" name="file" accept="application/pdf,image/jpeg,image/png,image/webp" /></label>
         <label className="field">Category

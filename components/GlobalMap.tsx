@@ -42,14 +42,21 @@ const LAND_PATH = (() => {
 })();
 
 const ROUTES: { from: [string, P]; to: [string, P]; toSide: "start" | "end" }[] = [
-  { from: ["New York", [-74, 40.7]], to: ["Mumbai", [72.9, 19]], toSide: "end" },
-  { from: ["London", [-0.1, 51.5]], to: ["Delhi", [77.2, 28.6]], toSide: "start" },
+  { from: ["London", [-0.1, 51.5]], to: ["Mumbai", [72.9, 19]], toSide: "end" },
+  { from: ["New York", [-74, 40.7]], to: ["Delhi", [77.2, 28.6]], toSide: "start" },
   { from: ["Dubai", [55.3, 25.2]], to: ["Bengaluru", [77.6, 13]], toSide: "start" },
   { from: ["Toronto", [-79.4, 43.7]], to: ["Ahmedabad", [72.6, 23]], toSide: "end" },
   { from: ["Singapore", [103.8, 1.3]], to: ["Hyderabad", [78.5, 17.4]], toSide: "start" },
 ];
 
 const STEPS = 16;
+function arcPath(a: P, b: P) {
+  const [ax, ay] = project(a);
+  const [bx, by] = project(b);
+  const lift = Math.min(90, Math.hypot(bx - ax, by - ay) * 0.26);
+  return `M${ax} ${ay}Q${(ax + bx) / 2} ${Math.min(ay, by) - lift} ${bx} ${by}`;
+}
+
 function arcDots(a: P, b: P, routeIndex: number) {
   const [ax, ay] = project(a);
   const [bx, by] = project(b);
@@ -67,19 +74,20 @@ function arcDots(a: P, b: P, routeIndex: number) {
 export function GlobalMap() {
   return (
     <figure className="m-0 grid gap-2">
-      <svg role="img" aria-label="A map of example connections from New York, London, Dubai, Toronto and Singapore to cities in India" viewBox={`0 0 ${W} ${H}`} className="thread">
+      <svg role="img" aria-label="A map of example connections: London to Mumbai, New York to Delhi, Toronto to Ahmedabad, Dubai to Bengaluru and Singapore to Hyderabad" viewBox={`0 0 ${W} ${H}`} className="thread">
         <path d={LAND_PATH} className="map-land" />
         {ROUTES.map((r, i) => (
           <g key={r.from[0]}>
+            <path d={arcPath(r.from[1], r.to[1])} className="map-arc" />
             {arcDots(r.from[1], r.to[1], i).map((d) => <circle key={`${d.x}-${d.y}`} className="thread-dot" cx={d.x} cy={d.y} r="2.2" style={{ animationDelay: `${d.delay}s` }} />)}
             <circle cx={project(r.from[1])[0]} cy={project(r.from[1])[1]} r="4" className="pin-a" />
             <circle cx={project(r.to[1])[0]} cy={project(r.to[1])[1]} r="3.5" className="pin-b" />
-            <text x={project(r.from[1])[0] + 8} y={project(r.from[1])[1] + (r.from[0] === "Singapore" ? 14 : -7)} className="map-label">{r.from[0]}</text>
+            <text x={project(r.from[1])[0] + (r.from[0] === "Dubai" ? -8 : 8)} y={project(r.from[1])[1] + (r.from[0] === "Singapore" || r.from[0] === "New York" ? 14 : -7)} textAnchor={r.from[0] === "Dubai" ? "end" : "start"} className="map-label">{r.from[0]}</text>
             <text x={project(r.to[1])[0] + (r.toSide === "start" ? 8 : -8)} y={project(r.to[1])[1] + 4} textAnchor={r.toSide} className="map-label">{r.to[0]}</text>
           </g>
         ))}
       </svg>
-      <figcaption className="text-[length:var(--text-micro)] text-muted">Illustrative connections. Not a list of where we operate today.</figcaption>
+      <figcaption className="text-[length:var(--text-micro)] text-muted">Illustrative routes only. Not a list of where we operate today.</figcaption>
     </figure>
   );
 }

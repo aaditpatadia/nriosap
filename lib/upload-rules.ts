@@ -22,6 +22,16 @@ export function sniffMime(b: Uint8Array): { mime: string; ext: string } | null {
   return null;
 }
 
+/** Voice notes only. Kept apart so every other upload path still accepts documents and photos alone. */
+export function sniffAudio(b: Uint8Array): { mime: string; ext: string } | null {
+  if (b.length < 12) return null;
+  const hex = Buffer.from(b.subarray(0, 12)).toString("hex");
+  if (hex.startsWith("1a45dfa3")) return { mime: "audio/webm", ext: "webm" };
+  if (hex.startsWith("4f676753")) return { mime: "audio/ogg", ext: "ogg" };
+  if (hex.slice(8, 16) === "66747970") return { mime: "audio/mp4", ext: "m4a" };
+  return null;
+}
+
 export function cleanTitle(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? "Document";
   return base.replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 120) || "Document";

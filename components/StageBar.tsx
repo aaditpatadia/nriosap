@@ -6,7 +6,7 @@ export function StageBar({ status }: { status: RequestStatus }) {
   const stopped = status === "cancelled";
   return (
     <div className="grid gap-2" role="img" aria-label={`Stage ${step + 1} of ${STAGES.length}: ${STAGES[step]}`}>
-      <div className="h-2 overflow-hidden rounded-full bg-line">
+      <div className="h-1.5 overflow-hidden rounded-full bg-line">
         {!stopped && <div className="stage-fill h-full origin-left rounded-full bg-accent" style={{ transform: `scaleX(${(step + 1) / STAGES.length})` }} />}
       </div>
       <div className="flex justify-between gap-1 text-[length:var(--text-micro)]">

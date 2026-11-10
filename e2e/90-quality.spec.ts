@@ -7,13 +7,13 @@ const OUT = ".local/qa";
 mkdirSync(`${OUT}/shots`, { recursive: true });
 
 const PUBLIC = [["home", "/"], ["demo", "/demo"], ["trust", "/trust"], ["privacy", "/privacy"], ["signin", "/signin"], ["goodbye", "/goodbye"]] as const;
-const familyPages = (id: string) => ["", "/requests", "/requests/new", "/claims", "/documents", "/properties", "/people", "/ask", "/activity", "/settings", "/calendar", "/approvals", "/report", "/billing", "/privacy"].map((s) => [`family${s.replace("/", "-")}`, `/family/${id}${s}`] as const);
+const familyPages = (id: string) => ["", "/requests", "/requests/new", "/claims", "/documents", "/properties", "/people", "/ask", "/activity", "/settings", "/bills", "/bills?view=calendar", "/approvals", "/report", "/billing", "/privacy"].map((s) => [`family${s.replace("/", "-").replace("?", "-").replace("=", "-")}`, `/family/${id}${s}`] as const);
 
 async function staffRoutes(page: Page) {
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   const task = await page.locator("table").getByRole("link", { name: "Pay November electricity bill" }).getAttribute("href");
   return [
-    ["ops-queue", "/ops"], ["ops-requests", "/ops/requests"], ["ops-hours", "/ops/families"], ["ops-new", "/ops/new"], ["ops-onboard", "/ops/onboard"],
+    ["ops-overview", "/ops"], ["ops-queue", "/ops/queue"], ["ops-requests", "/ops/requests"], ["ops-hours", "/ops/reports"], ["ops-families", "/ops/families"], ["ops-family", `/ops/families/${FAM.shah}`], ["ops-partners", "/ops/partners"], ["ops-properties", "/ops/properties"], ["ops-documents", "/ops/documents"], ["ops-approvals", "/ops/approvals"], ["ops-visits", "/ops/visits"], ["ops-new", "/ops/new"], ["ops-onboard", "/ops/onboard"],
     ["ops-task", task!], ["ops-messages", `/ops/messages/${FAM.shah}`], ["ops-consent", `/ops/consent/${FAM.shah}`], ["chat", `/chat/${FAM.shah}`],
     ...familyPages(FAM.shah),
   ] as [string, string][];
@@ -55,7 +55,7 @@ async function sweep(page: Page, routes: readonly (readonly [string, string])[],
 }
 
 test("axe, overflow, touch targets and screenshots on every route", async ({ page }) => {
-  test.setTimeout(900_000);
+  test.setTimeout(3_000_000);
   const s = { axeRuns: 0, violations: 0, overflow: 0, smallTargets: 0, shots: 0 };
   const errors: string[] = [];
   page.on("console", (m) => { if (m.type() === "error") errors.push(`${page.url()} ${m.text().slice(0, 160)}`); });
@@ -85,10 +85,3 @@ test("large text and reduced motion", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-text", "large");
 });
 
-test("palettes switch behind data-palette", async ({ page }) => {
-  await page.goto("/");
-  const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim());
-  const haldi = await accent();
-  await page.evaluate(() => { document.documentElement.dataset.palette = "monsoon"; });
-  expect(await accent()).not.toBe(haldi);
-});

@@ -103,7 +103,7 @@ test("wrong passwords are refused, and repeats alert an admin", async ({ page, b
 
 test("text a person types is shown as text and never runs", async ({ page }) => {
   await signInStaff(page, "meera");
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   const task = await page.locator("table").getByRole("link").first().getAttribute("href");
   await page.goto(task!);
   const payload = `<img src=x onerror="window.__pwned=1"><script>window.__pwned=1</script>`;

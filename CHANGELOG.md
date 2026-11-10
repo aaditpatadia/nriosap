@@ -1,5 +1,23 @@
 # Changelog
 
+## Ally 2.0, complete overhaul
+- New light design system, shared by the website, the customer app and Ops. New sidebar, phone drawer and bottom bar.
+- Website rebuilt around "Your life is abroad. Your responsibilities don't have to be." Eight service areas, a four-step demonstration and a sample dashboard.
+- Command Centre: needs your attention (by urgency), calendar, recent activity, quick actions and your coordinator.
+- Bills & Renewals: amounts, repeats, reminder choices, calendar and list views. Handled never means paid.
+- Document Vault: expiry dates, tags, versions, image previews, related requests, property links, an access log per document, and asking your documents.
+- Properties get their own page, with tenant, rent, bills, visits, requests and documents.
+- Family roles: administrator, member, read-only viewer and temporary contact with an end date.
+- Requests: property link, needed-by date, voice notes, a two-panel detail page. Approvals: reject, request a revised quote, ask a question, decision deadline.
+- Ally Assistant answers from the person's own records with sources, and refuses to pay, sign, file, approve or advise. An optional AI step sends titles and dates only, with consent, behind ASSISTANT_AI.
+- Reports: month, category and property filters, and a downloadable PDF.
+- Ops: Overview, Families, Requests, Task Queue with saved views, Coordinators, Service Partners, Properties, Document Review, Approvals, Visits with inspection reports, Reports and Settings.
+- Service partners earn each status in order, with who checked and when. Only approved partners can be assigned.
+- Plans live in the database and are enforced: Lite stops at 3 new requests a month, and visits need the plan or an approved quotation. "No visit caps" is gone.
+- Request categories are now the same eight the website shows.
+- Fixed: plain dates such as "expected by" came back in the wrong format.
+- Migration 012. Additive only.
+
 ## Ally 2.0, Phase 1
 - New website, map hero, service catalogue, six-stage workflow and a working sample of the dashboard.
 - Six-step onboarding after Google sign-in. Dashboards start empty.

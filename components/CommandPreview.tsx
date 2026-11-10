@@ -2,63 +2,57 @@
 
 import { useState } from "react";
 import { AnimatePresence, m } from "motion/react";
-import { Burst } from "./Burst";
-import { dur, ease, spring } from "@/lib/motion";
+import { dur, ease } from "@/lib/motion";
+import { Metric, Panel } from "./ui";
 
-const PANES: Record<string, { stat: string; rows: [string, string][] }> = {
-  "Active requests": { stat: "3", rows: [["Inspect the Pune flat", "In progress"], ["Certified degree copy", "Awaiting information"], ["Replace the geyser", "Under review"]] },
-  "Pending approvals": { stat: "1", rows: [] },
-  "Upcoming deadlines": { stat: "2", rows: [["Property tax, Pune", "In 12 days"], ["Vehicle insurance", "In 26 days"]] },
-  "Property updates": { stat: "1", rows: [["Inspection report ready", "2 hours ago"]] },
-  "Document vault": { stat: "14", rows: [["Health insurance policy", "Expires in 4 months"], ["Sale deed", "Added last week"]] },
-  "Family activity": { stat: "2", rows: [["Mum sent a voice note", "Today"], ["Rohan viewed the report", "Yesterday"]] },
-  "Recent completions": { stat: "5", rows: [["Electricity bill paid", "Receipt saved"], ["AC serviced", "Photos added"]] },
-  "Financial activity": { stat: "2", rows: [["Plumber visit approved", "Rs 1,354"], ["Society dues paid", "Rs 6,200"]] },
-};
+const Row = ({ a, b, level }: { a: string; b: string; level?: "urgent" | "soon" | "info" }) => (
+  <li className="flex items-center justify-between gap-3 py-2 text-[length:var(--text-small)]"><span className="flex min-w-0 items-center gap-2">{level && <span aria-hidden className="level" data-level={level} />}<span className="font-medium">{a}</span></span><span className="shrink-0 text-muted">{b}</span></li>
+);
 
-/** A working preview of the signed-in dashboard. Everything in it is sample data and nothing leaves the page. */
+/** The Command Centre's own building blocks, filled with a fictional example. Nothing here leaves the page. */
 export function CommandPreview() {
-  const names = Object.keys(PANES);
-  const [pane, setPane] = useState(names[1]);
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
-  const current = PANES[pane];
   return (
-    <div className="card grid gap-4 md:grid-cols-[240px_minmax(0,1fr)]">
-      <div className="grid content-start gap-1" role="group" aria-label="Sections of the sample dashboard">
-        {names.map((n) => (
-          <button key={n} type="button" aria-pressed={pane === n} onClick={() => setPane(n)} className={`relative flex min-h-12 items-center justify-between gap-2 rounded-xl px-3 text-left font-semibold ${pane === n ? "" : "text-muted"}`}>
-            {pane === n && <m.span layoutId="preview-pane" transition={spring.snappy} className="absolute inset-0 rounded-xl bg-tint" />}
-            <span className="relative">{n}</span>
-            <span className="relative tabular-nums">{n === "Pending approvals" && decision ? "0" : PANES[n].stat}</span>
-          </button>
-        ))}
+    <div className="rounded-[18px] border border-line bg-bg p-3 sm:p-5" style={{ boxShadow: "var(--shadow-lg)" }}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div><p className="text-[length:var(--text-h2)] font-bold">Good morning, Anjali.</p><p className="text-[length:var(--text-small)] text-muted">Here&apos;s what is happening back home.</p></div>
+        <span className="chip" data-tone="warn">Sample data</span>
       </div>
-      <div className="grid min-h-72 content-start gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-[length:var(--text-h3)] font-semibold">{pane}</h3>
-          <span className="chip" data-tone="warn">Sample data</span>
-        </div>
-        <AnimatePresence mode="wait" initial={false}>
-          <m.div key={pane} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: dur.fast, ease: ease.out }} className="grid gap-2">
-            {pane === "Pending approvals" ? (
-              <div className="relative grid gap-3 rounded-xl bg-tint p-4">
-                {decision === "approved" && <Burst />}
-                <p className="font-semibold">Plumber visit for the Pune flat</p>
-                <dl className="grid gap-1 text-[length:var(--text-small)]">
-                  {[["Provider", "Rs 1,000"], ["Ally coordination", "Rs 300"], ["Taxes", "Rs 54"]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted">{k}</dt><dd className="tabular-nums">{v}</dd></div>)}
-                  <div className="flex justify-between border-t border-line pt-1 font-bold"><dt>Total</dt><dd className="tabular-nums">Rs 1,354</dd></div>
-                </dl>
+      <div className="metric-strip mb-4">
+        <Metric label="Active requests" value={3} />
+        <Metric label="Pending approvals" value={decision ? 0 : 1} alert />
+        <Metric label="Upcoming deadlines" value={2} alert />
+        <Metric label="Properties" value={1} />
+        <Metric label="Documents stored" value={14} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="grid content-start gap-4">
+          <Panel title="Needs your attention">
+            <div className="grid gap-3 rounded-[10px] bg-sunken p-4">
+              <p className="font-semibold">Plumber visit for the Mumbai flat</p>
+              <dl className="grid gap-1 text-[length:var(--text-small)]">
+                {[["Provider", "Rs 1,000"], ["Ally coordination", "Rs 300"], ["Taxes", "Rs 54"]].map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted">{k}</dt><dd className="tabular-nums">{v}</dd></div>)}
+                <div className="flex justify-between border-t border-line pt-1 font-bold"><dt>Total</dt><dd className="tabular-nums">Rs 1,354</dd></div>
+              </dl>
+              <AnimatePresence mode="wait" initial={false}>
                 {decision ? (
-                  <div className="flex flex-wrap items-center gap-3"><span className="chip" data-tone={decision === "approved" ? "ok" : "warn"}>{decision === "approved" ? "Approved" : "Rejected"}</span><button type="button" className="btn btn-ghost" onClick={() => setDecision(null)}>Try again</button></div>
+                  <m.div key="done" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: dur.base, ease: ease.out }} className="flex flex-wrap items-center gap-3"><span className="chip" data-tone={decision === "approved" ? "ok" : "warn"}>{decision === "approved" ? "Approved in this example" : "Rejected in this example"}</span><button type="button" className="btn btn-ghost" onClick={() => setDecision(null)}>Try again</button></m.div>
                 ) : (
-                  <div className="flex flex-wrap gap-2"><button type="button" className="btn btn-primary" onClick={() => setDecision("approved")}>Approve</button><button type="button" className="btn btn-secondary" onClick={() => setDecision("rejected")}>Reject</button></div>
+                  <m.div key="ask" exit={{ opacity: 0 }} transition={{ duration: dur.fast }} className="flex flex-wrap gap-2"><button type="button" className="btn btn-secondary" onClick={() => setDecision("approved")}>Approve</button><button type="button" className="btn btn-ghost" onClick={() => setDecision("rejected")}>Reject</button></m.div>
                 )}
-              </div>
-            ) : current.rows.map(([a, b]) => <div key={a} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-tint p-3"><span className="font-medium">{a}</span><span className="text-[length:var(--text-small)] text-muted">{b}</span></div>)}
-          </m.div>
-        </AnimatePresence>
-        <p className="text-[length:var(--text-micro)] text-muted">A fictional example. Nothing here is a real customer, payment or request.</p>
+              </AnimatePresence>
+            </div>
+            <ul className="rows"><Row level="soon" a="Property tax, Mumbai flat" b="In 12 days" /><Row level="info" a="Health insurance renewal" b="In 26 days" /></ul>
+          </Panel>
+          <Panel title="Active requests"><ul className="rows"><Row a="Water leakage visit" b="In progress" /><Row a="Certified degree copy" b="Awaiting information" /><Row a="Replace the geyser" b="Under review" /></ul></Panel>
+        </div>
+        <div className="grid content-start gap-4">
+          <Panel title="Mumbai flat"><ul className="rows"><Row a="Tenant" b="In place" /><Row a="Last visit" b="12 Oct" /><Row a="Open requests" b="1" /></ul></Panel>
+          <Panel title="Family updates"><ul className="rows"><Row a="Appointment booked for Mum" b="Today" /><Row a="Your brother viewed the report" b="Yesterday" /></ul></Panel>
+          <Panel title="Recent activity"><ul className="rows"><Row a="Inspection report added" b="2 hours ago" /><Row a="Sale deed uploaded" b="Monday" /></ul></Panel>
+        </div>
       </div>
+      <p className="mt-3 text-[length:var(--text-micro)] text-muted">A fictional example. Nothing here is a real customer, payment or request.</p>
     </div>
   );
 }

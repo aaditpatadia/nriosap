@@ -26,13 +26,14 @@ export function StatusForm({ requestId, current }: { requestId: string; current:
   );
 }
 
-export function AssignForm({ requestId, providerName, estimatedCompletion, coordinators }: { requestId: string; providerName: string; estimatedCompletion: string; coordinators: { id: string; name: string }[] }) {
+export function AssignForm({ requestId, providerName, estimatedCompletion, coordinators, partners }: { requestId: string; providerName: string; estimatedCompletion: string; coordinators: { id: string; name: string }[]; partners: { id: string; name: string; category: string }[] }) {
   const [state, action, pending] = useActionState(assignAction, null);
   return (
     <form action={action} className="card grid gap-3">
       <Title>Assignment</Title>
       <input type="hidden" name="requestId" value={requestId} />
       {coordinators.length > 0 && <label className="field">Coordinator<select className="input" name="coordinatorId" defaultValue=""><option value="">Keep as is</option>{coordinators.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+      {partners.length > 0 && <label className="field">Approved service partner<select className="input" name="partnerId" defaultValue=""><option value="">Not from the directory</option>{partners.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.category})</option>)}</select></label>}
       <label className="field">Service provider<input className="input" name="providerName" maxLength={120} defaultValue={providerName} /></label>
       <label className="field">Expected by<input className="input" type="date" name="estimatedCompletion" defaultValue={estimatedCompletion} /></label>
       <button className="btn btn-secondary w-fit" disabled={pending}>Save assignment</button>
@@ -52,7 +53,7 @@ export function QuoteForm({ requestId, providerName }: { requestId: string; prov
       <input type="hidden" name="requestId" value={requestId} />
       <label className="field">Provider<input className="input" name="providerName" maxLength={120} defaultValue={providerName} /></label>
       <div className="grid gap-3 sm:grid-cols-3">{field("providerFee", "Provider fee (Rs)")}{field("coordinationFee", "Ally fee (Rs)")}{field("taxes", "Taxes (Rs)")}</div>
-      <label className="field">Expected by<input className="input" type="date" name="estimatedCompletion" /></label>
+      <div className="grid gap-3 sm:grid-cols-2"><label className="field">Expected by<input className="input" type="date" name="estimatedCompletion" /></label><label className="field">Customer decides by (optional)<input className="input" type="date" name="approvalDeadline" /></label></div>
       <label className="field">Notes for the customer<textarea className="input" name="notes" rows={2} maxLength={1000} /></label>
       <p className="font-semibold">Total: Rs {total.toLocaleString("en-IN")}</p>
       <button className="btn btn-primary w-fit" disabled={pending || total <= 0}>Send to the customer</button>

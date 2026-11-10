@@ -5,10 +5,10 @@ const row = (page: import("@playwright/test").Page, name: string) => page.locato
 
 test("timer survives a refresh, then hours and margin update", async ({ page }) => {
   await signInStaff(page, "meera");
-  await page.goto("/ops/families");
+  await page.goto("/ops/reports");
   const before = await row(page, "Shah family").getByTestId("hours").innerText();
 
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   await page.locator("table").getByRole("link", { name: "Renewal quotes for health policy" }).click();
   await page.getByRole("button", { name: "Start timer" }).click();
   await expect(page.getByRole("button", { name: "Stop and log" })).toBeVisible();
@@ -19,7 +19,7 @@ test("timer survives a refresh, then hours and margin update", async ({ page }) 
   const clock = await page.getByTestId("timer-clock").innerText();
   expect(clock).not.toBe("00:00");
 
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   await expect(page.getByText("Timer running:").filter({ visible: true })).toBeVisible();
   await page.getByText("Timer running:").filter({ visible: true }).click();
   await page.getByLabel("What are you doing?").fill("Compared renewal quotes");
@@ -33,7 +33,7 @@ test("timer survives a refresh, then hours and margin update", async ({ page }) 
   await page.getByRole("button", { name: "Add time" }).click();
   await expect(page.getByText("Added 180 min")).toBeVisible();
 
-  await page.goto("/ops/families");
+  await page.goto("/ops/reports");
   const after = await row(page, "Shah family").getByTestId("hours").innerText();
   expect(Number(after)).toBeGreaterThan(Number(before) + 2.9);
   await expect(row(page, "Shah family").getByTestId("margin")).not.toHaveText("100%");
@@ -80,7 +80,7 @@ test("template, note and one-click escalation", async ({ page }) => {
 
 test("coordinator cannot open another coordinator's task by id", async ({ page }) => {
   await signInStaff(page, "admin");
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   const href = await page.locator("table").getByRole("link", { name: "Assemble reimbursement claim documents" }).getAttribute("href");
   await page.context().clearCookies();
   await signInStaff(page, "meera");

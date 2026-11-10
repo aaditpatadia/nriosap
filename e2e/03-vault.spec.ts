@@ -29,13 +29,14 @@ test("low confidence forces a coordinator check, which then clears", async ({ pa
 
   await page.context().clearCookies();
   await signInStaff(page, "meera");
+  await page.goto("/ops/queue");
   await page.locator("table").getByRole("link", { name: "Check document: blurry-policy.pdf" }).click();
   await page.getByRole("link", { name: "Check the fields" }).click();
   await expect(page.getByText("Check this: 71%").first()).toBeVisible();
   await page.getByLabel(/^Policy number/).fill("SGI-44871");
   await page.getByRole("button", { name: "Confirm these details" }).click();
   await expect(page.getByText("Checked. Thank you.")).toBeVisible();
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   await expect(page.locator("table").getByRole("link", { name: "Check document: blurry-policy.pdf" })).toHaveCount(0);
 });
 
@@ -53,7 +54,7 @@ test("a model refusal becomes a human task, not a silent failure", async ({ page
   await page.goto(`/family/${FAM.shah}/documents`);
   await upload(page, "refused.pdf", SAMPLES.refused);
   await expect(page.getByText("A coordinator will check")).toBeVisible({ timeout: 30000 });
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   await expect(page.locator("table").getByRole("link", { name: "Check document: refused.pdf" })).toBeVisible();
 });
 

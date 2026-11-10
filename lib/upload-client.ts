@@ -3,11 +3,13 @@
 export interface UploadResult { ok: boolean; reason?: string; documentId?: string; needsCheck?: boolean }
 
 /** Uses XMLHttpRequest because fetch cannot report upload progress. */
-export function uploadFile(input: { familyId: string; file: File; purposes: string[]; category?: string; onProgress?: (fraction: number) => void }): Promise<UploadResult> {
+export function uploadFile(input: { familyId: string; file: File; purposes: string[]; category?: string; voice?: boolean; supersedes?: string; onProgress?: (fraction: number) => void }): Promise<UploadResult> {
   const body = new FormData();
   body.set("familyId", input.familyId);
   body.set("file", input.file);
   if (input.category) body.set("category", input.category);
+  if (input.voice) body.set("voice", "1");
+  if (input.supersedes) body.set("supersedes", input.supersedes);
   input.purposes.forEach((p) => body.append("purpose", p));
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();

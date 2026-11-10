@@ -7,6 +7,7 @@ import { actionViewer, isStaff } from "@/lib/auth";
 import { actionIp } from "@/lib/action-ip";
 import { acceptInvite, addMember, preferencesFor, revokeMember, savePreferences, setDocumentCategory, setMemberPermissions, shareDocument } from "@/lib/family-members";
 import { rateLimit } from "@/lib/ratelimit";
+import { MEMBER_ROLES, ROLE_PERMISSIONS, type MemberRole } from "@/lib/workspace-rules";
 import { DOCUMENT_CATEGORIES, DEFAULT_PERMISSIONS, PERMISSIONS, RELATIONS, REQUEST_STATUSES, SERVICE_CATEGORIES, type DocumentCategory, type Permission, type Relation } from "@/lib/request-engine";
 import { normalisePhone } from "@/lib/consent";
 import {
@@ -26,17 +27,19 @@ const newRequest = z.object({
   location: z.string().trim().max(120),
   urgent: z.enum(["on"]).optional(),
   extra: z.string().trim().max(1000).optional(),
+  propertyId: z.union([id, z.literal("")]),
+  dueOn: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/),
 });
 
 export async function submitRequest(_p: Msg, form: FormData): Promise<Msg> {
   const v = await actionViewer();
   if (!v) return { ok: false, message: "Please sign in again." };
-  const p = newRequest.safeParse({ familyId: form.get("familyId"), description: form.get("description"), category: form.get("category"), location: form.get("location") ?? "", urgent: form.get("urgent") ?? undefined, extra: form.get("extra") ?? "" });
+  const p = newRequest.safeParse({ familyId: form.get("familyId"), description: form.get("description"), category: form.get("category"), location: form.get("location") ?? "", urgent: form.get("urgent") ?? undefined, extra: form.get("extra") ?? "", propertyId: form.get("propertyId") ?? "", dueOn: form.get("dueOn") ?? "" });
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the form." };
   if (!(await rateLimit(`request:${v.id}`, 30, 3600))) return { ok: false, message: "That is a lot of requests. Please wait a little." };
   const attachmentIds = form.getAll("attachment").filter((x): x is string => typeof x === "string");
   const description = p.data.extra ? `${p.data.description}\n\nMore details: ${p.data.extra}` : p.data.description;
-  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name });
+  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name, propertyId: p.data.propertyId || null, dueOn: p.data.dueOn || null });
   if (!r.ok) return { ok: false, message: r.reason };
   refresh(p.data.familyId);
   redirect(`/family/${p.data.familyId}/requests/${r.id}`);
@@ -99,10 +102,10 @@ export async function setStatusFormAction(_p: Msg, form: FormData): Promise<Msg>
 
 export async function assignAction(_p: Msg, form: FormData): Promise<Msg> {
   const v = await staffUser();
-  const p = z.object({ requestId: id, providerName: z.string().trim().max(120), estimatedCompletion: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/), coordinatorId: z.union([id, z.literal("")]).optional() }).safeParse(Object.fromEntries(form));
+  const p = z.object({ requestId: id, providerName: z.string().trim().max(120), estimatedCompletion: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/), coordinatorId: z.union([id, z.literal("")]).optional(), partnerId: z.union([id, z.literal("")]).optional() }).safeParse(Object.fromEntries(form));
   if (!v || !p.success) return { ok: false, message: "Please check the form." };
   // Only an admin can move a request to another coordinator.
-  const r = await assignRequest(p.data.requestId, { providerName: p.data.providerName, estimatedCompletion: p.data.estimatedCompletion, coordinatorId: v.role === "admin" ? p.data.coordinatorId : undefined }, v.id, v.name);
+  const r = await assignRequest(p.data.requestId, { providerName: p.data.providerName, estimatedCompletion: p.data.estimatedCompletion, coordinatorId: v.role === "admin" ? p.data.coordinatorId : undefined, partnerId: p.data.partnerId || undefined }, v.id, v.name);
   opsRefresh(p.data.requestId);
   return { ok: r.ok, message: r.ok ? "Saved." : (r.reason ?? "That did not save.") };
 }
@@ -119,10 +122,10 @@ export async function updateAction(_p: Msg, form: FormData): Promise<Msg> {
 const rupees = z.coerce.number().int("Whole rupees only.").min(0).max(100000000);
 export async function quoteAction(_p: Msg, form: FormData): Promise<Msg> {
   const v = await staffUser();
-  const p = z.object({ requestId: id, providerName: z.string().trim().max(120), providerFee: rupees, coordinationFee: rupees, taxes: rupees, notes: z.string().trim().max(1000), estimatedCompletion: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/) }).safeParse(Object.fromEntries(form));
+  const p = z.object({ requestId: id, providerName: z.string().trim().max(120), providerFee: rupees, coordinationFee: rupees, taxes: rupees, notes: z.string().trim().max(1000), estimatedCompletion: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/), approvalDeadline: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).optional() }).safeParse(Object.fromEntries(form));
   if (!v) return { ok: false, message: "Please sign in again." };
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the amounts." };
-  const r = await createQuotation(p.data.requestId, { providerName: p.data.providerName, providerFeeInr: p.data.providerFee, coordinationFeeInr: p.data.coordinationFee, taxesInr: p.data.taxes, notes: p.data.notes, estimatedCompletion: p.data.estimatedCompletion }, v.id, v.name);
+  const r = await createQuotation(p.data.requestId, { providerName: p.data.providerName, providerFeeInr: p.data.providerFee, coordinationFeeInr: p.data.coordinationFee, taxesInr: p.data.taxes, notes: p.data.notes, estimatedCompletion: p.data.estimatedCompletion, approvalDeadline: p.data.approvalDeadline }, v.id, v.name);
   opsRefresh(p.data.requestId);
   return { ok: r.ok, message: r.ok ? "Sent to the customer. Nothing happens until they decide." : (r.reason ?? "That did not save.") };
 }
@@ -149,10 +152,10 @@ export async function reportAction(_p: Msg, form: FormData): Promise<Msg> {
 // ---------- Properties ----------
 export async function addPropertyAction(_p: Msg, form: FormData): Promise<Msg> {
   const v = await actionViewer();
-  const p = z.object({ familyId: id, name: z.string().trim().min(2, "Please give it a name.").max(120), kind: z.enum(["flat", "house", "plot", "shop", "vehicle", "other"]), address: z.string().trim().max(300), city: z.string().trim().max(80), tenantName: z.string().trim().max(120), notes: z.string().trim().max(1000) }).safeParse(Object.fromEntries(form));
+  const p = z.object({ familyId: id, name: z.string().trim().min(2, "Please give it a name.").max(120), kind: z.enum(["flat", "house", "plot", "shop", "vehicle", "other"]), address: z.string().trim().max(300), city: z.string().trim().max(80), tenantName: z.string().trim().max(120), notes: z.string().trim().max(1000), ownership: z.string().trim().max(200).optional(), rent: z.union([z.literal(""), z.coerce.number().int().min(0).max(100000000)]).optional() }).safeParse(Object.fromEntries(form));
   if (!v) return { ok: false, message: "Please sign in again." };
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the form." };
-  const ok = await addProperty(p.data.familyId, p.data, v.id);
+  const ok = await addProperty(p.data.familyId, { ...p.data, rentInr: typeof p.data.rent === "number" ? p.data.rent : null }, v.id);
   refresh(p.data.familyId);
   return { ok, message: ok ? "Added." : "Only the account owner can add this." };
 }
@@ -179,15 +182,19 @@ export async function addMemberAction(_p: Msg, form: FormData): Promise<Msg> {
     phone: z.string().trim().max(24),
     language: z.enum(["Hindi", "Gujarati", "Marathi", "English"]),
     access: z.enum(["invite", "contact"]),
-  }).safeParse({ familyId: form.get("familyId"), name: form.get("name"), relation: form.get("relation"), email: form.get("email") ?? "", phone: form.get("phone") ?? "", language: form.get("language"), access: form.get("access") });
+    role: z.enum(Object.keys(MEMBER_ROLES) as [MemberRole, ...MemberRole[]]),
+    location: z.string().trim().max(120),
+    accessEnds: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/),
+  }).safeParse({ familyId: form.get("familyId"), name: form.get("name"), relation: form.get("relation"), email: form.get("email") ?? "", phone: form.get("phone") ?? "", language: form.get("language"), access: form.get("access"), role: form.get("role") ?? "member", location: form.get("location") ?? "", accessEnds: form.get("accessEnds") ?? "" });
   if (!v) return { ok: false, message: "Please sign in again." };
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the form." };
   const phone = p.data.phone ? normalisePhone(p.data.phone) : null;
   if (p.data.phone && !phone) return { ok: false, message: "Please enter the WhatsApp number with its country code, like +91 98000 00000." };
   if (p.data.access === "contact" && !phone) return { ok: false, message: "A contact without an account needs a WhatsApp number." };
   if (!(await rateLimit(`invite:${v.id}`, 30, 3600))) return { ok: false, message: "That is a lot of invitations. Please wait a little." };
+  if (p.data.role === "temporary" && !p.data.accessEnds) return { ok: false, message: "Please choose when their access ends." };
   const chosen = pickPermissions(form);
-  const r = await addMember({ familyId: p.data.familyId, name: p.data.name, relation: p.data.relation, permissions: chosen.length ? chosen : DEFAULT_PERMISSIONS[p.data.relation], email: p.data.email, phone, language: p.data.language, whatsappOk: form.get("whatsappOk") === "on", isEmergency: form.get("isEmergency") === "on", invite: p.data.access === "invite", userId: v.id, base: base() });
+  const r = await addMember({ role: p.data.role, location: p.data.location || null, accessExpiresAt: p.data.role === "temporary" ? `${p.data.accessEnds}T23:59:59+05:30` : null, familyId: p.data.familyId, name: p.data.name, relation: p.data.relation, permissions: chosen.length ? chosen : (p.data.access === "invite" ? (ROLE_PERMISSIONS[p.data.role] as Permission[]) : DEFAULT_PERMISSIONS[p.data.relation]), email: p.data.email, phone, language: p.data.language, whatsappOk: form.get("whatsappOk") === "on", isEmergency: form.get("isEmergency") === "on", invite: p.data.access === "invite", userId: v.id, base: base() });
   if (!r.ok) return { ok: false, message: r.reason };
   refresh(p.data.familyId);
   return { ok: true, message: r.inviteLink ? "Added. Send them this link. It works once and lasts 7 days." : "Added.", link: r.inviteLink };

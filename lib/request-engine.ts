@@ -1,15 +1,13 @@
 /** Rules that read a request. No AI service is involved, so nothing leaves the server and the result is the same every time. */
 
 export const SERVICE_CATEGORIES = [
-  "Property & Assets",
-  "Government & Documentation",
-  "Bills & Renewals",
-  "Family & Personal Assistance",
-  "Home Maintenance",
-  "Purchases & Deliveries",
-  "Healthcare Administration",
-  "Banking Administration",
-  "Business & Supplier Operations",
+  "Property and Assets",
+  "Documents and Government Paperwork",
+  "Family and Personal Assistance",
+  "Bills and Renewals",
+  "Repairs and Local Services",
+  "Insurance Administration",
+  "Business and Administrative Coordination",
   "Custom Requests",
 ] as const;
 export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
@@ -37,15 +35,13 @@ export const isOpenStatus = (s: RequestStatus) => s !== "completed" && s !== "ca
 const CITIES = ["Mumbai", "Delhi", "New Delhi", "Bengaluru", "Bangalore", "Hyderabad", "Ahmedabad", "Chennai", "Kolkata", "Pune", "Surat", "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Bhopal", "Vadodara", "Baroda", "Rajkot", "Noida", "Gurugram", "Gurgaon", "Thane", "Nashik", "Goa", "Kochi", "Chandigarh", "Coimbatore", "Mysuru", "Patna", "Ludhiana", "Amritsar", "Visakhapatnam", "Bhubaneswar", "Guwahati"];
 
 const CATEGORY_RULES: [ServiceCategory, RegExp][] = [
-  ["Healthcare Administration", /\b(hospital|discharge|insurance claim|cashless|health card|medical bill|doctor'?s appointment|appointment|pharmacy)\b/i],
-  ["Banking Administration", /\b(bank|nre|nro|passbook|locker|cheque|kyc|demat)\b/i],
-  ["Business & Supplier Operations", /\b(supplier|vendor|factory|gst|company|invoice|business|sample|manufacturer)\b/i],
-  ["Government & Documentation", /\b(pan|aadhaar|aadhar|passport|oci|certificate|attest\w*|apostille|notary|affidavit|ration card|government|degree|birth certificate|driving licen[cs]e)\b/i],
-  ["Bills & Renewals", /\b(bill|electricity|water bill|gas bill|renew\w*|premium|due date|subscription|maintenance charge)\b/i],
-  ["Home Maintenance", /\b(leak\w*|plumber|electrician|repair|paint\w*|ac\b|air conditioner|geyser|broken|clean\w*|pest)\b/i],
-  ["Property & Assets", /\b(flat|apartment|property|tenant|rent\w*|house|plot|land|society|vehicle|car|inspection)\b/i],
-  ["Purchases & Deliveries", /\b(buy|purchase|deliver\w*|courier|gift|send .* to|parcel|order)\b/i],
-  ["Family & Personal Assistance", /\b(mother|father|mum|mom|dad|parents?|grandmother|grandfather|sister|brother|family|visit (my|our))\b/i],
+  ["Insurance Administration", /\b(insurance|insurer|cashless|health card|policy|premium)\b/i],
+  ["Business and Administrative Coordination", /\b(bank|nre|nro|passbook|locker|cheque|kyc|demat|supplier|vendor|factory|gst|company|invoice|business|sample|manufacturer)\b/i],
+  ["Documents and Government Paperwork", /\b(pan|aadhaar|aadhar|passport|oci|certificate|attest\w*|apostille|notary|affidavit|ration card|government|degree|birth certificate|driving licen[cs]e)\b/i],
+  ["Bills and Renewals", /\b(bill|electricity|water bill|gas bill|renew\w*|due date|subscription|maintenance charge)\b/i],
+  ["Repairs and Local Services", /\b(leak\w*|plumber|electrician|repair|paint\w*|ac\b|air conditioner|geyser|broken|clean\w*|pest|buy|purchase|deliver\w*|courier|gift|parcel|order)\b/i],
+  ["Property and Assets", /\b(flat|apartment|property|tenant|rent\w*|house|plot|land|society|vehicle|car|inspection)\b/i],
+  ["Family and Personal Assistance", /\b(hospital|discharge|doctor|appointment|pharmacy|mother|father|mum|mom|dad|parents?|grandmother|grandfather|sister|brother|family|visit (my|our))\b/i],
 ];
 
 /** Things Ally will never do. Each carries a plain reason, shown to the customer. */
@@ -107,13 +103,13 @@ export function understandRequest(raw: string): Understanding {
 
   const missing: string[] = [];
   if (!location) missing.push("Which city in India is this in?");
-  if (category === "Property & Assets" && !/\b(address|society|sector|road|flat no|building)\b/i.test(text)) missing.push("What is the full address?");
+  if (category === "Property and Assets" && !/\b(address|society|sector|road|flat no|building)\b/i.test(text)) missing.push("What is the full address?");
   if (/\b(tenant|someone there|caretaker)\b/i.test(text) && !/\b\d{10}\b/.test(text)) missing.push("Who should we contact there, and on what number?");
   if (/\bbill|tax|premium|payment\b/i.test(text) && !/\b(rs\.?|inr|₹)\s*\d|\d{3,}/i.test(text)) missing.push("Do you know the amount, or can you add a photo of the bill?");
   if (!/\b(by|before|this week|next week|today|tomorrow|urgent\w*|asap|\d{1,2}\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))/i.test(text)) missing.push("When do you need this done by?");
 
   if (refusal) return { category, location, action, urgent: false, missing: [], verdict: "not_possible", reason: refusal[1] };
-  if (money) return { category: "Banking Administration", location, action, urgent: false, missing: [], verdict: "not_possible", reason: "We cannot send money across borders. That needs a licensed partner, and we are not one. We can arrange a payment in India from funds you control, once you approve it." };
+  if (money) return { category: "Business and Administrative Coordination", location, action, urgent: false, missing: [], verdict: "not_possible", reason: "We cannot send money across borders. That needs a licensed partner, and we are not one. We can arrange a payment in India from funds you control, once you approve it." };
   return {
     category,
     location,
@@ -133,7 +129,7 @@ export function requestTitle(text: string): string {
 }
 
 // ---------- Vault categories ----------
-export const DOCUMENT_CATEGORIES = { identity: "Identity", property: "Property", banking: "Banking", insurance: "Insurance", family: "Family", legal: "Legal", business: "Business", other: "Other" } as const;
+export const DOCUMENT_CATEGORIES = { identity: "Identity", property: "Property", banking: "Banking and Financial Records", insurance: "Insurance", family: "Family", legal: "Legal and Authorisations", business: "Business", other: "Other" } as const;
 export type DocumentCategory = keyof typeof DOCUMENT_CATEGORIES;
 export const isDocumentCategory = (c: unknown): c is DocumentCategory => typeof c === "string" && c in DOCUMENT_CATEGORIES;
 
@@ -157,6 +153,8 @@ export const PERMISSIONS = {
   view_documents: "See all documents in the vault",
   upload_documents: "Add documents",
   view_activity: "See the activity timeline",
+  view_bills: "See bills and renewals",
+  manage_bills: "Add and update bills and renewals",
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
 export const RELATIONS = { parent: "Parent", sibling: "Sibling", spouse: "Spouse", relative: "Other relative", representative: "Trusted representative" } as const;

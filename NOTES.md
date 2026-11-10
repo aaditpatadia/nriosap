@@ -38,3 +38,12 @@
 - Verdict wins: build what makes the concierge fast and measures hours. Partner logins, fraud freeze automation and multi-parent screens are left out.
 - PRD says hour target 4 at $79. `lib/rules.ts` uses the kill line of 6 hours as the budget. Rules are the source of truth, so the budget stays 6.
 - The `partner` role exists in the schema but has no access to anything. Partners get a briefed message by WhatsApp or email.
+
+## Ally 2.0 overhaul
+- `/ops` is now the Overview. The task queue moved to `/ops/queue` and old `/ops?...` filter links redirect there. Hours per family moved to `/ops/reports`. `/family/[id]/calendar` redirects to Bills & Renewals.
+- Business decision taken in code, to confirm: Lite and Family get visits only on an approved quotation, Plus includes them. Editable in Ops Settings.
+- The assistant runs on fixed rules. The optional Claude step needs `ANTHROPIC_API_KEY`, `ASSISTANT_AI=1` and the person's own opt-in, and has only been tested with a fake client.
+- PDF previews open in a new tab because `frame-ancestors 'none'` blocks embedding. Images preview on the page through the same audited route.
+- `Permissions-Policy` now allows the microphone on our own origin, for voice notes. Voice notes are stored for a person and never sent to AI.
+- Reminders appear in the app only. Email and WhatsApp reminders are not connected.
+- PDF reports use the built-in Helvetica font, so non-Latin text prints as a question mark.

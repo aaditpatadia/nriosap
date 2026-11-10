@@ -28,12 +28,14 @@ test("handshake and bad signatures", async ({ request }) => {
 test("emergency message becomes a top-of-queue ops task for the right coordinator", async ({ request, page }) => {
   expect((await webhook(request, msg(KUSUM, "Please send an ambulance")).then((r) => r.status()))).toBe(200);
   await signInStaff(page, "meera");
+  await page.goto("/ops/queue");
   const row = page.locator("table tbody tr").first();
   await expect(row).toContainText("EMERGENCY: call the parent now");
   await expect(row).toContainText("Emergency");
   await expect(row).toContainText("Shah family");
   await page.context().clearCookies();
   await signInStaff(page, "kavita");
+  await page.goto("/ops/queue");
   await expect(page.locator("table").getByText("EMERGENCY: call the parent now")).toHaveCount(0);
 });
 

@@ -12,7 +12,8 @@ export function SiteHeader({ talkHref = desk ? `https://wa.me/${desk}` : "/#wait
       <div className="flex items-center gap-2">
         <MotionToggle />
         <TextSizeToggle />
-        <Link className="btn btn-secondary from-tablet" href="/demo">Live demo</Link>
+        <Link className="btn btn-ghost from-tablet" href="/demo">Live demo</Link>
+        <Link className="btn btn-ghost from-tablet" href="/signin">Sign in</Link>
         <a className="btn btn-secondary" href={talkHref} aria-label="Talk to a person">
           <span aria-hidden className="sm:hidden">Talk</span>
           <span aria-hidden className="hidden sm:inline">Talk to a person</span>

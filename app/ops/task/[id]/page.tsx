@@ -20,7 +20,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <section className="grid content-start gap-4">
-        <Link href="/ops" className="btn btn-ghost w-fit">Back to queue</Link>
+        <Link href="/ops/queue" className="btn btn-ghost w-fit">Back to queue</Link>
         <h1 className="text-[length:var(--text-h1)] font-bold">{t.title}</h1>
         <div className="card grid gap-1">
           <p><strong>{fam.name}</strong>: {fam.parent.name}, {fam.parent.city}, speaks {fam.parent.language}</p>

@@ -48,7 +48,7 @@ export function ApprovalCard({ approval, canDecide = true }: { approval: View; c
   }
 
   return (
-    <m.article layout="position" transition={spring.calm} className="card" aria-labelledby={`ap-${approval.id}`}>
+    <m.article layout="position" transition={spring.calm} className="rounded-[10px] border border-line p-4" aria-labelledby={`ap-${approval.id}`}>
       <h2 id={`ap-${approval.id}`} className="text-[length:var(--text-h3)] font-semibold">{approval.summary}</h2>
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[length:var(--text-small)]">
         <dt className="text-muted">Who</dt><dd>{approval.payee}</dd>
@@ -58,7 +58,7 @@ export function ApprovalCard({ approval, canDecide = true }: { approval: View; c
         <dt className="text-muted">Evidence</dt><dd>{approval.evidence.join(", ") || "None attached"}</dd>
       </dl>
       <p className="mt-3 text-[length:var(--text-micro)] text-muted">
-        Prepared by AI, checked by your coordinator. Nothing is sent or paid until you approve.
+        Checked by your coordinator. Nothing is sent or paid until you approve.
       </p>
 
       <div className="mt-4 min-h-14" aria-live="polite">
@@ -71,14 +71,14 @@ export function ApprovalCard({ approval, canDecide = true }: { approval: View; c
                 {approval.amountInr ? "Approve payment" : "Approve action"}
               </button>
               <button type="button" className="btn btn-secondary" disabled={pending} onClick={() => decide("declined")}>
-                Not now
+                Reject
               </button>
             </m.div>
           ) : (
             <m.div key="done" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={spring.gentle} className="relative flex flex-wrap items-center gap-3">
               {status === "approved" && <Burst />}
               <span className="chip" data-tone={status === "approved" ? "ok" : "warn"}>
-                {status === "approved" ? "Approved" : "Declined"}
+                {status === "approved" ? "Approved" : "Rejected"}
               </span>
               {canDecide && leftMs > 0 && (
                 <button type="button" className="btn btn-ghost" disabled={pending} onClick={undo}>

@@ -14,7 +14,7 @@ export default async function Settings({ params }: { params: Promise<{ id: strin
   const prefs = await preferencesFor(viewer.id);
   return (
     <section className="grid max-w-3xl gap-5">
-      <h1 className="text-[length:var(--text-h1)] font-extrabold">Settings</h1>
+      <h1 className="text-[length:var(--text-h1)] font-bold">Settings</h1>
       <PreferencesForm prefs={prefs} />
       {(access.owner || access.staff) && (
         <div className="card grid gap-2">

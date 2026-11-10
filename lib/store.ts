@@ -83,8 +83,8 @@ export async function getFamily(id: string) {
 
 export async function getCoordinator(id: string | null | undefined): Promise<Coordinator | undefined> {
   if (!isUuid(id)) return undefined;
-  const r = await one<Row>("select id, name, city, role, phone from profiles where id = $1", [id]);
-  return r ? { id: r.id, name: r.name, city: r.city ?? "", role: r.role, phone: r.phone ?? undefined } : undefined;
+  const r = await one<Row>("select id, name, city, role, phone, working_hours from profiles where id = $1", [id]);
+  return r ? { id: r.id, name: r.name, city: r.city ?? "", role: r.role, phone: r.phone ?? undefined, workingHours: r.working_hours ?? undefined } : undefined;
 }
 
 export async function listCoordinators(): Promise<Coordinator[]> {
@@ -159,6 +159,14 @@ function toDocument(r: Row): DocumentRecord {
     consentPurposes: r.purposes ?? [],
     scanStatus: r.scan_status,
     extractionStatus: r.extraction_status,
+    tags: r.tags ?? [],
+    mime: r.mime ?? undefined,
+    expiresOn: r.expires_on ?? (["Renewal date", "Expiry date"].map((k) => fields[k]?.value).find((v) => /^\d{4}-\d{2}-\d{2}$/.test(v ?? "")) || undefined),
+    issuedOn: r.issued_on ?? undefined,
+    expiryConfirmed: !!r.expiry_confirmed,
+    propertyId: r.property_id ?? undefined,
+    version: r.version ?? 1,
+    supersedes: r.supersedes ?? undefined,
   };
 }
 

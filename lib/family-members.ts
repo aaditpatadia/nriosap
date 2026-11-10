@@ -4,21 +4,22 @@ import { asService, isUuid, one, rows, tx } from "./db";
 import { familyAccess } from "./service-requests";
 import { WORDING_VERSION } from "./consent";
 import type { Permission, Relation } from "./request-engine";
+import type { MemberRole } from "./workspace-rules";
 
 type Row = Record<string, any>;
 const INVITE_DAYS = 7;
 const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
 
-export interface FamilyMember { id: string; name: string; relation: Relation; permissions: Permission[]; status: "contact" | "invited" | "active" | "revoked"; phone: string | null; language: string | null; whatsappOk: boolean; isEmergency: boolean; inviteEmail: string | null; inviteExpiresAt: string | null; userId: string | null }
+export interface FamilyMember { id: string; name: string; relation: Relation; permissions: Permission[]; status: "contact" | "invited" | "active" | "revoked"; phone: string | null; language: string | null; whatsappOk: boolean; isEmergency: boolean; inviteEmail: string | null; inviteExpiresAt: string | null; userId: string | null; role: MemberRole; location: string | null; accessExpiresAt: string | null }
 
-const toMember = (m: Row): FamilyMember => ({ id: m.id, name: m.name, relation: m.relation, permissions: m.permissions ?? [], status: m.status, phone: m.phone, language: m.language, whatsappOk: m.whatsapp_ok, isEmergency: m.is_emergency, inviteEmail: m.invite_email, inviteExpiresAt: m.invite_expires_at, userId: m.user_id });
+const toMember = (m: Row): FamilyMember => ({ id: m.id, name: m.name, relation: m.relation, permissions: m.permissions ?? [], status: m.status, phone: m.phone, language: m.language, whatsappOk: m.whatsapp_ok, isEmergency: m.is_emergency, inviteEmail: m.invite_email, inviteExpiresAt: m.invite_expires_at, userId: m.user_id, role: m.role ?? "member", location: m.location ?? null, accessExpiresAt: m.access_expires_at ?? null });
 
 export async function membersFor(familyId: string): Promise<FamilyMember[]> {
   if (!isUuid(familyId)) return [];
   return (await rows<Row>("select * from family_members where family_id = $1 and status <> 'revoked' order by created_at", [familyId])).map(toMember);
 }
 
-export interface NewMember { familyId: string; name: string; relation: Relation; permissions: Permission[]; email: string; phone: string | null; language: string; whatsappOk: boolean; isEmergency: boolean; invite: boolean; userId: string; base: string }
+export interface NewMember { familyId: string; name: string; relation: Relation; permissions: Permission[]; email: string; phone: string | null; language: string; whatsappOk: boolean; isEmergency: boolean; invite: boolean; userId: string; base: string; role?: MemberRole; location?: string | null; accessExpiresAt?: string | null }
 
 /** Only the account owner adds people. A member can be a WhatsApp contact with no login, so nobody is forced to use the app. */
 export async function addMember(n: NewMember): Promise<{ ok: true; inviteLink?: string } | { ok: false; reason: string }> {
@@ -28,9 +29,9 @@ export async function addMember(n: NewMember): Promise<{ ok: true; inviteLink?: 
     tx(async (t) => {
       const f = await t.one<Row>("select coordinator_id from families where id = $1", [n.familyId]);
       const m = await t.one<Row>(
-        `insert into family_members(family_id, name, relation, permissions, status, invite_email, invite_token_hash, invite_expires_at, phone, language, whatsapp_ok, is_emergency, created_by)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning id`,
-        [n.familyId, n.name, n.relation, n.permissions, n.invite ? "invited" : "contact", n.email || null, token ? hashToken(token) : null, token ? new Date(Date.now() + INVITE_DAYS * 86_400_000) : null, n.phone, n.language || null, n.whatsappOk, n.isEmergency, n.userId],
+        `insert into family_members(family_id, name, relation, permissions, status, invite_email, invite_token_hash, invite_expires_at, phone, language, whatsapp_ok, is_emergency, created_by, role, location, access_expires_at)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) returning id`,
+        [n.familyId, n.name, n.relation, n.permissions, n.invite ? "invited" : "contact", n.email || null, token ? hashToken(token) : null, token ? new Date(Date.now() + INVITE_DAYS * 86_400_000) : null, n.phone, n.language || null, n.whatsappOk, n.isEmergency, n.userId, n.role ?? "member", n.location ?? null, n.accessExpiresAt ?? null],
       );
       // Someone reached by phone agrees on a call first, in their own language.
       if (n.phone) {
@@ -47,13 +48,13 @@ export async function addMember(n: NewMember): Promise<{ ok: true; inviteLink?: 
   return { ok: true, inviteLink: token ? `${n.base}/invite/${token}` : undefined };
 }
 
-export async function setMemberPermissions(memberId: string, permissions: Permission[], userId: string): Promise<string | null> {
+export async function setMemberPermissions(memberId: string, permissions: Permission[], userId: string, role?: MemberRole): Promise<string | null> {
   if (!isUuid(memberId)) return null;
   const m = await one<Row>("select family_id from family_members where id = $1", [memberId]);
   if (!m || !(await familyAccess(m.family_id)).owner) return null;
   await asService(() =>
     tx(async (t) => {
-      await t.run("update family_members set permissions = $2 where id = $1", [memberId, permissions]);
+      await t.run("update family_members set permissions = $2, role = coalesce($3, role) where id = $1", [memberId, permissions, role ?? null]);
       await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'member_permissions_changed','family_member',$2,$3)", [userId, memberId, m.family_id]);
     }),
   );

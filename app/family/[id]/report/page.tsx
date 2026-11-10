@@ -1,46 +1,58 @@
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
-import { claimsFor, documentsFor, getFamily, tasksFor, timeFor, timeline } from "@/lib/store";
+import { Metric, PageHeader, Panel, Tabs } from "@/components/ui";
 import { fmtDate, fmtShort, inr } from "@/lib/format";
-import { entriesThisMonth, hoursFor, monthStartIst } from "@/lib/rules";
+import { SERVICE_CATEGORIES, STATUS_META, type RequestStatus } from "@/lib/request-engine";
+import { familyAccess, propertiesFor } from "@/lib/service-requests";
+import { claimsFor, getFamily } from "@/lib/store";
+import { reportFor } from "@/lib/workspace";
+import { isMonthKey, istDate, monthLabel } from "@/lib/workspace-rules";
 
+export const metadata = { title: "Monthly report" };
 const STATUS_WORDS = { preparing: "being prepared", submitted: "submitted", query: "the insurer has a question", approved: "approved", settled: "settled" } as const;
 
-export default async function Report({ params }: { params: Promise<{ id: string }> }) {
+const List = ({ items, none }: { items: string[]; none: string }) => items.length === 0 ? <p className="text-[length:var(--text-small)] text-muted">{none}</p> : <ul className="grid list-disc gap-1 pl-5 text-[length:var(--text-small)]">{items.map((t, i) => <li key={i} className="[overflow-wrap:anywhere]">{t}</li>)}</ul>;
+
+export default async function Report({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ month?: string; category?: string; property?: string }> }) {
   const { id } = await params;
+  const sp = await searchParams;
   const fam = await getFamily(id);
-  if (!fam) notFound();
+  const access = await familyAccess(id);
+  if (!fam || (!access.owner && !access.staff)) notFound();
   const now = new Date();
-  const start = monthStartIst(now);
-  const [all, tasks, claims, time, docs] = await Promise.all([timeline(id), tasksFor(id), claimsFor(id), timeFor(id), documentsFor(id)]);
-  const events = all.filter((e) => new Date(e.at) >= start);
-  const done = tasks.filter((t) => t.status === "done");
-  const open = tasks.filter((t) => t.status !== "done").sort((a, b) => a.dueAt.localeCompare(b.dueAt));
-  const hours = hoursFor(entriesThisMonth(time, now));
-  const newDocs = docs.filter((d) => new Date(d.uploadedAt) >= start);
-  const month = now.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+  const month = isMonthKey(sp.month) ? sp.month : istDate(now).slice(0, 7);
+  const category = sp.category && (SERVICE_CATEGORIES as readonly string[]).includes(sp.category) ? sp.category : undefined;
+  const [claims, properties, r] = await Promise.all([claimsFor(id), propertiesFor(id), reportFor(id, month, category, sp.property)]);
+  const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 15)); return d.toISOString().slice(0, 7); });
+  const base = `/family/${id}`;
+  const query = new URLSearchParams({ month, ...(category ? { category } : {}), ...(sp.property ? { property: sp.property } : {}) }).toString();
   return (
-    <section className="report grid gap-4 lg:grid-cols-3 lg:items-start [&>div:first-child]:lg:col-span-3 [&>p]:lg:col-span-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <h1 className="text-[length:var(--text-h1)] font-bold">{month} report for {fam.parent.name}</h1>
+    <section className="report grid gap-5">
+      <PageHeader title={`${monthLabel(month)} report${fam.parent.isSelf ? "" : ` for ${fam.parent.name}`}`} sub={`Prepared ${fmtDate(now.toISOString())}, from what is recorded in Ally.`}>
+        <a className="btn btn-secondary no-print" href={`${base}/report/pdf?${query}`}>Download PDF</a>
         <PrintButton />
+      </PageHeader>
+      <Tabs items={[{ href: `${base}/activity`, label: "Activity", active: false }, { href: `${base}/report`, label: "Monthly report", active: true }, { href: `${base}/privacy`, label: "Access log", active: false }]} />
+      <form className="no-print flex flex-wrap items-end gap-2" aria-label="Filter the report">
+        <label className="field">Month<select className="input" name="month" defaultValue={month}>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</select></label>
+        <label className="field">Category<select className="input" name="category" defaultValue={category ?? ""}><option value="">All</option>{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
+        {properties.length > 0 && <label className="field">Property<select className="input" name="property" defaultValue={sp.property ?? ""}><option value="">All</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+        <button className="btn btn-secondary">Apply</button>
+      </form>
+      <div className="metric-strip">
+        <Metric label="Requests completed" value={r.completed.length} /><Metric label="In progress" value={r.inProgress.length} /><Metric label="Visits" value={r.visits.length} /><Metric label="Documents added" value={r.documents.length} /><Metric label="Bills and renewals handled" value={r.handledDeadlines.length} />
       </div>
-      <p className="text-muted">Written in plain words so you can read it in two minutes. Prepared {fmtDate(now.toISOString())}.</p>
-      <div className="card grid gap-2">
-        <h2 className="text-[length:var(--text-h3)] font-semibold">What happened</h2>
-        <p>{events.length} update{events.length === 1 ? "" : "s"}, {done.length} task{done.length === 1 ? "" : "s"} finished, {open.length} still open, {newDocs.length} new document{newDocs.length === 1 ? "" : "s"}.</p>
-        <p>Desk time spent on your family this month: about {hours.toFixed(1)} hours.</p>
-        <ul className="list-disc pl-6">{events.slice(0, 8).map((e) => <li key={e.id}>{fmtShort(e.at)}: {e.text}</li>)}</ul>
-      </div>
-      <div className="card grid gap-2">
-        <h2 className="text-[length:var(--text-h3)] font-semibold">Claims</h2>
-        {claims.length === 0 && <p className="text-muted">No claims.</p>}
-        {claims.map((c) => (<p key={c.id}>{c.hospital}: {STATUS_WORDS[c.status]}{c.amountSettledInr ? `, settled ${inr(c.amountSettledInr)}` : ""}. Next check {fmtShort(c.slaDueAt)}.{c.missing.length ? ` Still missing: ${c.missing.join(", ")}.` : ""}</p>))}
-      </div>
-      <div className="card grid gap-2">
-        <h2 className="text-[length:var(--text-h3)] font-semibold">Coming up</h2>
-        {open.length === 0 && <p className="text-muted">Nothing open.</p>}
-        <ul className="list-disc pl-6">{open.slice(0, 5).map((t) => (<li key={t.id}>{t.title} (due {fmtShort(t.dueAt)})</li>))}</ul>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Completed"><List items={r.completed.map((x) => `${x.ref}: ${x.title}`)} none="Nothing completed in this month." /></Panel>
+        <Panel title="In progress"><List items={r.inProgress.map((x) => `${x.ref}: ${x.title} (${STATUS_META[x.status as RequestStatus].label})`)} none="Nothing in progress." /></Panel>
+        <Panel title="Visits"><List items={r.visits.map((v) => `${fmtShort(v.at)}: ${v.purpose}${v.status === "completed" ? "" : " (scheduled)"}`)} none="No visits in this month." /></Panel>
+        <Panel title="Documents collected"><List items={r.documents} none="No new documents." /></Panel>
+        <Panel title="Bills and renewals handled"><List items={r.handledDeadlines} none="None marked handled." /></Panel>
+        <Panel title="Approved costs"><List items={r.approved.map((a) => `${a.title}: ${inr(a.totalInr)}. Approved. Payment not confirmed by any payment system.`)} none="No costs approved in this month." /></Panel>
+        <Panel title="Coming up"><List items={r.upcoming.map((d) => `${d.title}, due ${fmtDate(d.dueOn)}`)} none="Nothing upcoming." /></Panel>
+        <Panel title="Waiting on you"><List items={r.pending} none="Nothing is waiting on you." /></Panel>
+        {claims.length > 0 && <Panel title="Claims"><List items={claims.map((c) => `${c.hospital}: ${STATUS_WORDS[c.status]}${c.amountSettledInr ? `, settled ${inr(c.amountSettledInr)}` : ""}.${c.missing.length ? ` Still missing: ${c.missing.join(", ")}.` : ""}`)} none="" /></Panel>}
+        <Panel title="Coordinator updates"><List items={r.updates.map((u) => `${fmtShort(u.at)}: ${u.text}`)} none="No updates in this month." /></Panel>
       </div>
       <p className="text-[length:var(--text-small)] text-muted">This report covers administration only. For medical, legal or tax questions, please speak to the relevant professional.</p>
     </section>

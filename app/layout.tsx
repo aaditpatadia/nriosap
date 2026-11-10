@@ -4,17 +4,17 @@ import { sans } from "./fonts";
 import { MotionProvider } from "@/components/MotionProvider";
 
 export const metadata: Metadata = {
-  title: { default: "Ally: get anything done in India", template: "%s | Ally" },
+  title: { default: "Ally: your personal operations platform for life back home", template: "%s | Ally" },
   description:
-    "Living abroad? A named person in India gets it done: property, government papers, bills, repairs and looking after your family. You see everything. You approve everything.",
+    "From property and paperwork to family responsibilities and everyday tasks, Ally helps you organise and get things done back home in India. You see everything. You approve everything.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbf7ef" },
-    { media: "(prefers-color-scheme: dark)", color: "#14110e" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f6f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d141c" },
   ],
 };
 

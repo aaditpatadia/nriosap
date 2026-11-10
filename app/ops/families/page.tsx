@@ -1,64 +1,35 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
+import { Empty, PageHeader } from "@/components/ui";
 import { requireStaff } from "@/lib/auth";
-import { hoursReport } from "@/lib/ops";
-import { fmtShort, usd } from "@/lib/format";
+import { loadPlans } from "@/lib/plans";
+import { planForPrice } from "@/lib/plan-rules";
+import { isOpenStatus } from "@/lib/request-engine";
+import { allRequests } from "@/lib/service-requests";
+import { getCoordinator, listFamilies } from "@/lib/store";
 
-export default async function Hours() {
+export const metadata = { title: "Families" };
+
+export default async function Families({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireStaff();
-  const rows = await hoursReport();
-  const totalRev = rows.reduce((s, r) => s + r.planUsd, 0);
-  const totalHours = rows.reduce((s, r) => s + r.hours, 0);
-  const weeks = rows[0]?.weeks ?? [];
+  const { q } = await searchParams;
+  const [families, requests, plans] = await Promise.all([listFamilies(), allRequests(), loadPlans()]);
+  const search = (q ?? "").trim().toLowerCase().slice(0, 80);
+  const shown = families.filter((f) => !search || `${f.name} ${f.owner.name} ${f.parent.city}`.toLowerCase().includes(search));
+  const coords = new Map(await Promise.all([...new Set(families.map((f) => f.coordinatorId).filter(Boolean))].map(async (id) => [id, (await getCoordinator(id))?.name] as const)));
   return (
     <section className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[length:var(--text-h1)] font-bold">Hours per family</h1>
-        <a className="btn btn-secondary" href="/ops/families/export" download>Download CSV</a>
-      </div>
-      <p className="max-w-3xl text-muted">The number that decides whether this business works. Hours are for this calendar month in India. Margin uses the research model: $2.92 loaded labour per hour plus 15% overhead, $6.74 fixed cost per family, and 4.5% of price for payment fees and bad debt. Kill line from the research: more than 6 hours at $79, or 3.4 at $40.</p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="card"><p className="text-muted">Monthly revenue</p><p className="text-3xl font-bold">{usd(totalRev)}</p></div>
-        <div className="card"><p className="text-muted">Desk hours this month</p><p className="text-3xl font-bold">{totalHours.toFixed(1)}</p></div>
-        <div className="card"><p className="text-muted">Average hours per family</p><p className="text-3xl font-bold">{rows.length ? (totalHours / rows.length).toFixed(1) : "0.0"}</p></div>
-      </div>
-      <div role="region" aria-label="Hours table" tabIndex={0} className="overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface">
-        <table className="w-full min-w-[720px] text-left text-[length:var(--text-small)]">
-          <caption className="sr-only">Hours, budget and margin per family this month</caption>
-          <thead className="text-muted"><tr><th className="p-3">Family</th><th className="p-3">Plan</th><th className="p-3">Hours</th><th className="p-3">Budget</th><th className="p-3">Gross margin</th><th className="p-3">Break-even hours</th><th className="p-3">Flags</th></tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-line" data-family={r.name}>
-                <td className="p-3 font-semibold">{r.name}</td>
-                <td className="p-3">${r.planUsd}</td>
-                <td className="p-3" data-testid="hours">{r.hours.toFixed(1)}</td>
-                <td className="p-3">{r.budget}</td>
-                <td className="p-3" data-testid="margin">{r.margin}%</td>
-                <td className="p-3">{r.breakEven}</td>
-                <td className="p-3"><div className="flex flex-wrap gap-1">
-                  {r.over ? <span className="chip" data-tone="danger">Over hour budget</span> : <span className="chip" data-tone="ok">Within budget</span>}
-                  {r.late > 0 && <span className="chip" data-tone="warn">{r.late} past SLA</span>}
-                </div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <h2 className="text-[length:var(--text-h2)] font-bold">Trend by week</h2>
-      <div role="region" aria-label="Weekly hours table" tabIndex={0} className="overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface">
-        <table className="w-full min-w-[720px] text-left text-[length:var(--text-small)] tabular-nums">
-          <caption className="sr-only">Desk hours per family for each of the last eight weeks</caption>
-          <thead className="text-muted"><tr><th className="p-3">Family</th>{weeks.map((w) => <th key={w.weekStart} className="p-3">{fmtShort(w.weekStart)}</th>)}</tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-line">
-                <td className="p-3 font-semibold">{r.name}</td>
-                {r.weeks.map((w) => <td key={w.weekStart} className="p-3">{w.hours.toFixed(1)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <PageHeader title="Families"><a className="btn btn-secondary" href="/ops/families/export" download>Download hours CSV</a><Link className="btn btn-secondary" href="/ops/onboard">Onboard a family</Link></PageHeader>
+      <form className="flex flex-wrap items-end gap-2" role="search"><label className="field min-w-0 flex-1 basis-56">Search<input className="input" name="q" defaultValue={q ?? ""} placeholder="Family, customer or city" /></label><button className="btn btn-secondary">Search</button></form>
+      {shown.length === 0 && <Empty title="No families found." />}
+      {shown.length > 0 && (
+        <ul className="card rows p-0">
+          {shown.map((f) => (
+            <li key={f.id}><Link href={`/ops/families/${f.id}`} className="grid gap-1 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-4"><span className="min-w-0"><span className="block font-semibold">{f.name}</span><span className="block text-[length:var(--text-small)] text-muted">{f.owner.name}{f.owner.country ? ` in ${f.owner.country}` : ""} · {f.parent.city || "City not given"} · {f.coordinatorId ? coords.get(f.coordinatorId) : "No coordinator"}</span></span><span className="flex flex-wrap gap-2"><span className="chip">{planForPrice(f.planUsd, plans).name}</span><span className="chip">{requests.filter((r) => r.familyId === f.id && isOpenStatus(r.status)).length} open</span></span></Link></li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

@@ -47,6 +47,6 @@ test("the only properties any animation moves are transform and opacity", async 
 test("the family page shows the time where the parents are", async ({ page }) => {
   await signInOwner(page, "priya");
   await page.goto(`/family/${FAM.shah}`);
-  await expect(page.getByText(/^In .+ it is$/)).toBeVisible();
+  await expect(page.getByText(/^In .+ it is$/).filter({ visible: true })).toBeVisible();
   await expect(page.getByText(/^\d{1,2}:\d{2} (am|pm)$/)).toBeVisible();
 });

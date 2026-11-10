@@ -4,7 +4,7 @@ import { buildBriefing, categoriseDocument, greetingFor, requestTitle, understan
 describe("reading a request", () => {
   it("understands the brief's own example", () => {
     const u = understandRequest("I need someone to inspect my flat in Pune. The tenant says there's a leakage problem.");
-    expect(u).toMatchObject({ category: "Home Maintenance", location: "Pune", action: "Local visit", verdict: "ok" });
+    expect(u).toMatchObject({ category: "Repairs and Local Services", location: "Pune", action: "Local visit", verdict: "ok" });
     expect(u.missing).toContain("Who should we contact there, and on what number?");
   });
   it("asks for the city when it is missing", () => {

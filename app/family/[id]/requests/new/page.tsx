@@ -1,23 +1,21 @@
 import { notFound } from "next/navigation";
 import { RequestComposer } from "@/components/RequestComposer";
+import { PageHeader } from "@/components/ui";
 import { documentsFor, getFamily } from "@/lib/store";
-import { familyAccess } from "@/lib/service-requests";
+import { familyAccess, propertiesFor } from "@/lib/service-requests";
 
-export const metadata = { title: "Get Anything Done" };
+export const metadata = { title: "New request" };
 
-export default async function NewRequest({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ text?: string }> }) {
+export default async function NewRequest({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ text?: string; property?: string }> }) {
   const { id } = await params;
-  const { text } = await searchParams;
+  const { text, property } = await searchParams;
   const [fam, access] = await Promise.all([getFamily(id), familyAccess(id)]);
   if (!fam || !access.canCreate) notFound();
-  const docs = access.canSeeVault ? await documentsFor(id) : [];
+  const [docs, properties] = await Promise.all([access.canSeeVault ? documentsFor(id) : [], access.canReadRequests ? propertiesFor(id) : []]);
   return (
-    <section className="grid max-w-4xl gap-6">
-      <div>
-        <h1 className="text-[length:var(--text-h1)] font-extrabold">Get Anything Done</h1>
-        <p className="mt-1 text-muted">Say what you need, in your own words. If it is legal and a person can do it in India, ask.</p>
-      </div>
-      <RequestComposer familyId={id} vault={docs.map((d) => ({ id: d.id, title: d.title }))} canUpload={access.canUpload && fam.parent.consentStatus === "granted"} initial={(text ?? "").slice(0, 500)} />
+    <section className="grid max-w-3xl gap-5">
+      <PageHeader title="New request" sub="Say what you need, in your own words. You check everything before it is sent." />
+      <RequestComposer familyId={id} vault={docs.map((d) => ({ id: d.id, title: d.title }))} properties={properties.map((p) => ({ id: p.id, name: p.name }))} defaultProperty={property ?? ""} canUpload={access.canUpload && fam.parent.consentStatus === "granted"} initial={(text ?? "").slice(0, 500)} />
     </section>
   );
 }

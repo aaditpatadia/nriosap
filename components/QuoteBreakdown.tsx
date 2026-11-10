@@ -11,7 +11,7 @@ const LABEL: Record<string, { text: string; tone?: "ok" | "warn" | "danger" }> =
 
 export function QuoteBreakdown({ quote }: { quote: Quotation }) {
   const s = LABEL[quote.status] ?? { text: quote.status };
-  const rows: [string, number][] = [["Third-party provider", quote.providerFeeInr], ["Ally coordination fee", quote.coordinationFeeInr], ["Taxes", quote.taxesInr]];
+  const rows: [string, number][] = [["Provider fee", quote.providerFeeInr], ["Ally service fee", quote.coordinationFeeInr], ["Taxes", quote.taxesInr]];
   return (
     <div className="grid gap-2">
       <span className="chip w-fit" data-tone={s.tone}>{s.text}</span>

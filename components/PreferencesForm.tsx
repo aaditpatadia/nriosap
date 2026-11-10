@@ -8,7 +8,7 @@ export function PreferencesForm({ prefs }: { prefs: Preferences }) {
   const [state, action, pending] = useActionState(savePreferencesAction, null);
   return (
     <form action={action} className="card grid gap-4">
-      <h2 className="text-[length:var(--text-h3)] font-semibold">Your preferences</h2>
+      <h2 className="section-title">Your preferences</h2>
       <label className="field">Country you live in<input className="input" name="country" maxLength={80} defaultValue={prefs.country ?? ""} /></label>
       <label className="field">Cities in India (separate with commas)<input className="input" name="cities" maxLength={300} defaultValue={prefs.indiaCities.join(", ")} /></label>
       <label className="field">Preferred language

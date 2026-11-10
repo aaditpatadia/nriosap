@@ -4,19 +4,20 @@ import { ApprovalCard } from "@/components/ApprovalCard";
 import { QuoteBreakdown } from "@/components/QuoteBreakdown";
 import { CancelRequestButton, DisputeForm, QuoteChangesForm, ReplyForm } from "@/components/RequestActions";
 import { StageBar } from "@/components/StageBar";
+import { Facts, Panel } from "@/components/ui";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { isOpenStatus, STATUS_META } from "@/lib/request-engine";
-import { familyAccess, getRequest, quotesForRequest, requestAttachments, requestEvents, type RequestAttachment } from "@/lib/service-requests";
-import { approvalsFor } from "@/lib/store";
+import { familyAccess, getRequest, propertiesFor, quotesForRequest, requestAttachments, requestEvents, type RequestAttachment } from "@/lib/service-requests";
+import { approvalsFor, getFamily } from "@/lib/store";
 
 export const metadata = { title: "Request" };
 
 function FileList({ items }: { items: RequestAttachment[] }) {
   return (
-    <ul className="grid gap-2">
+    <ul className="rows">
       {items.map((f) => (
-        <li key={f.id} className="flex flex-wrap items-center justify-between gap-2">
-          <span className="[overflow-wrap:anywhere]">{f.caption || f.title || "Document"}</span>
+        <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+          <span className="text-[length:var(--text-small)] [overflow-wrap:anywhere]">{f.caption || f.title || "Document"}</span>
           {f.title && <a className="btn btn-secondary" href={`/api/documents/${f.documentId}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${f.title}`}>Open</a>}
         </li>
       ))}
@@ -28,87 +29,75 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
   const { id, requestId } = await params;
   const r = await getRequest(requestId);
   if (!r || r.familyId !== id) notFound();
-  const [events, files, quotes, access, approvals] = await Promise.all([requestEvents(requestId), requestAttachments(requestId), quotesForRequest(requestId), familyAccess(id), approvalsFor(id)]);
+  const [events, files, quotes, access, approvals, properties, fam] = await Promise.all([requestEvents(requestId), requestAttachments(requestId), quotesForRequest(requestId), familyAccess(id), approvalsFor(id), propertiesFor(id), getFamily(id)]);
   const s = STATUS_META[r.status];
   const quote = quotes[0];
   const approval = quote?.approvalId ? approvals.find((a) => a.id === quote.approvalId) : undefined;
   const evidence = files.filter((f) => f.kind === "evidence");
   const given = files.filter((f) => f.kind === "customer");
   const open = isOpenStatus(r.status);
+  const property = properties.find((p) => p.id === r.propertyId);
+  const messages = events.filter((e) => e.kind === "message" || e.kind === "update");
+  const history = events.filter((e) => e.kind !== "message" && e.kind !== "update");
   return (
-    <section className="grid gap-6">
-      <Link className="btn btn-ghost w-fit" href={`/family/${id}/requests`}>Back to My Requests</Link>
+    <section className="grid gap-5">
+      <Link className="btn btn-ghost w-fit px-0" href={`/family/${id}/requests`}>Back to My Requests</Link>
       <header className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[length:var(--text-small)] font-semibold text-muted">{r.ref} · {r.category}</span>
           <span className="chip" data-tone={s.tone}>{s.label}</span>
           {r.priority === "urgent" && <span className="chip" data-tone="danger">Urgent</span>}
         </div>
-        <h1 className="text-[length:var(--text-h1)] font-extrabold [overflow-wrap:anywhere]">{r.title}</h1>
+        <h1 className="text-[length:var(--text-h1)] font-bold [overflow-wrap:anywhere]">{r.title}</h1>
       </header>
+      <div className="card"><StageBar status={r.status} /></div>
+      {r.needsProfessional && <p className="card text-[length:var(--text-small)]" style={{ borderColor: "var(--warn)" }}>Part of this needs a licensed professional. We prepare the papers and connect you. The advice is theirs, and we label it that way.</p>}
 
-      <div className="card grid gap-4">
-        <StageBar status={r.status} />
-        <dl className="grid gap-3 md:grid-cols-3">
-          <div><dt className="text-[length:var(--text-small)] text-muted">Who has it now</dt><dd className="font-semibold">{s.who === "Your coordinator" && r.coordinatorName ? r.coordinatorName : s.who}</dd></div>
-          <div className="md:col-span-2"><dt className="text-[length:var(--text-small)] text-muted">What happens next</dt><dd className="font-semibold">{s.next}</dd></div>
-          {r.providerName && <div><dt className="text-[length:var(--text-small)] text-muted">Provider</dt><dd>{r.providerName}</dd></div>}
-          {r.location && <div><dt className="text-[length:var(--text-small)] text-muted">Where</dt><dd>{r.location}</dd></div>}
-          {r.estimatedCompletion && <div><dt className="text-[length:var(--text-small)] text-muted">Expected by</dt><dd>{fmtDate(r.estimatedCompletion)}</dd></div>}
-        </dl>
-      </div>
-
-      {r.needsProfessional && <p className="card" style={{ borderColor: "var(--warn)" }}>Part of this needs a licensed professional. We prepare the papers and connect you. The advice is theirs, and we label it that way.</p>}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
-        <div className="grid gap-4">
-          <div className="card grid gap-2">
-            <h2 className="text-[length:var(--text-h3)] font-semibold">What you asked for</h2>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
+        <div className="grid gap-5">
+          <Panel title="What you asked for">
             <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{r.description}</p>
             {given.length > 0 && <FileList items={given} />}
-          </div>
-
-          {quote && (
-            <div className="card grid gap-3">
-              <h2 className="text-[length:var(--text-h3)] font-semibold">Quotation</h2>
-              <QuoteBreakdown quote={quote} />
-              {quote.status === "changes_requested" && <p className="chip w-fit whitespace-normal" data-tone="warn">You asked for changes: {quote.changeNote}</p>}
-              {approval && (
-                <ApprovalCard canDecide={access.owner} approval={{ id: approval.id, summary: approval.summary, amountInr: approval.amountInr, payee: approval.payee, feesInr: approval.feesInr, when: approval.when, status: approval.status, undoUntil: approval.undoUntil, evidence: [] }} />
-              )}
-              {quote.status === "sent" && access.owner && <QuoteChangesForm quoteId={quote.id} familyId={id} />}
-              <p className="text-[length:var(--text-micro)] text-muted">Approving agrees the work and the price. Ally does not hold your money. Online payment is not set up yet, so your coordinator will tell you how this is paid, and nothing is marked paid until it is.</p>
-            </div>
+          </Panel>
+          {(messages.length > 0 || (open && access.canCreate)) && (
+            <Panel title="Work updates and messages">
+              {messages.length > 0 && <ol className="timeline grid gap-4">{messages.map((e) => <li key={e.id}><p className="text-[length:var(--text-small)] [overflow-wrap:anywhere]">{e.body}</p><p className="text-[length:var(--text-micro)] text-muted">{e.actorName} · {fmtDate(e.at)}, {fmtTime(e.at)} India time</p></li>)}</ol>}
+            </Panel>
           )}
-
+          {open && access.canCreate && <div id="message"><ReplyForm requestId={requestId} /></div>}
           {(evidence.length > 0 || r.finalReport) && (
-            <div className="card grid gap-3">
-              <h2 className="text-[length:var(--text-h3)] font-semibold">Proof and report</h2>
+            <Panel title="Proof and completion report">
               {r.finalReport && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{r.finalReport}</p>}
               {evidence.length > 0 && <FileList items={evidence} />}
-            </div>
+            </Panel>
           )}
+          <Panel title="Timeline">
+            <ol className="timeline grid gap-4">{history.map((e) => <li key={e.id}><p className="text-[length:var(--text-small)] [overflow-wrap:anywhere]">{e.body}</p><p className="text-[length:var(--text-micro)] text-muted">{e.actorName} · {fmtDate(e.at)}, {fmtTime(e.at)} India time</p></li>)}</ol>
+          </Panel>
+        </div>
 
-          {open && access.canCreate && <ReplyForm requestId={requestId} />}
+        <aside className="grid gap-5" aria-label="Request details">
+          <Panel title="Where this stands">
+            <Facts items={[["Who has it now", s.who === "Your coordinator" && r.coordinatorName ? r.coordinatorName : s.who], ["Requested for", r.dueOn ? fmtDate(r.dueOn) : null], ["Expected by", r.estimatedCompletion ? fmtDate(r.estimatedCompletion) : null], ["Where", r.location], ["Provider", r.providerName], ["Created", fmtDate(r.createdAt)], ["Customer", fam?.owner.name]]} />
+            <p className="text-[length:var(--text-small)] font-medium">{s.next}</p>
+            {property && <Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`/family/${id}/properties/${property.id}`}>{property.name}</Link>}
+          </Panel>
+          {quote && (
+            <Panel title="Quotation">
+              <QuoteBreakdown quote={quote} />
+              {quote.status === "changes_requested" && <p className="chip w-fit whitespace-normal" data-tone="warn">You asked for changes: {quote.changeNote}</p>}
+              {approval && <ApprovalCard canDecide={access.owner} approval={{ id: approval.id, summary: approval.summary, amountInr: approval.amountInr, payee: approval.payee, feesInr: approval.feesInr, when: approval.when, status: approval.status, undoUntil: approval.undoUntil, evidence: [] }} />}
+              {quote.status === "sent" && access.owner && <QuoteChangesForm quoteId={quote.id} familyId={id} />}
+              <p className="text-[length:var(--text-micro)] text-muted">Approving agrees the work and the price. Ally does not hold your money. Online payment is not set up yet, so your coordinator will tell you how this is paid, and nothing is marked paid until it is.</p>
+            </Panel>
+          )}
           {access.owner && (
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {open && <CancelRequestButton requestId={requestId} />}
               {r.status !== "cancelled" && r.status !== "disputed" && <DisputeForm requestId={requestId} />}
             </div>
           )}
-        </div>
-
-        <div className="card grid gap-3">
-          <h2 className="text-[length:var(--text-h3)] font-semibold">Timeline</h2>
-          <ol className="timeline grid gap-4">
-            {events.map((e) => (
-              <li key={e.id}>
-                <p className="[overflow-wrap:anywhere]">{e.body}</p>
-                <p className="text-[length:var(--text-micro)] text-muted">{e.actorName} · {fmtDate(e.at)}, {fmtTime(e.at)} India time</p>
-              </li>
-            ))}
-          </ol>
-        </div>
+        </aside>
       </div>
     </section>
   );

@@ -9,7 +9,7 @@ import { getScanner } from "./scan";
 import type { StoredField } from "./store";
 import { supabaseAdmin } from "./supabase";
 import { categoriseDocument, type DocumentCategory } from "./request-engine";
-import { cleanTitle, sniffMime, type Purpose } from "./upload-rules";
+import { cleanTitle, sniffAudio, sniffMime, type Purpose } from "./upload-rules";
 
 export const BUCKET = "vault";
 type Row = Record<string, any>;
@@ -28,6 +28,10 @@ export interface IngestInput {
   uploaderId: string | null;
   source: "web" | "whatsapp";
   category?: DocumentCategory;
+  /** Web voice notes only. Audio is kept for a person to listen to and is never sent to the reader. */
+  allowAudio?: boolean;
+  /** The earlier version this upload replaces. Must be in the same family. */
+  supersedes?: string;
 }
 
 /**
@@ -37,7 +41,8 @@ export interface IngestInput {
 export async function ingestDocument(input: IngestInput): Promise<IngestResult> {
   if (input.bytes.byteLength === 0) return { ok: false, reason: "That file is empty.", status: 400 };
   if (input.bytes.byteLength > input.maxBytes) return { ok: false, reason: `Please send a file under ${Math.floor(input.maxBytes / 1048576)} MB.`, status: 413 };
-  const type = sniffMime(input.bytes);
+  const type = sniffMime(input.bytes) ?? (input.allowAudio ? sniffAudio(input.bytes) : null);
+  const isAudio = !!type?.mime.startsWith("audio/");
   if (!type) return { ok: false, reason: "We accept PDF, JPG, PNG and WebP files.", status: 415 };
   if (!input.purposes.includes("store")) return { ok: false, reason: "We need your consent to keep this file before we can accept it.", status: 400 };
 
@@ -65,13 +70,17 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
     tx(async (t) => {
       await t.run("insert into documents(id, family_id, kind, storage_path, title, mime, size_bytes, scan_status, uploaded_by, source) values ($1,$2,'report',$3,$4,$5,$6,$7,$8,$9)", [id, input.familyId, path, title, type.mime, input.bytes.byteLength, verdict, input.uploaderId, input.source]);
       await t.run("update documents set category = $2 where id = $1", [id, category]);
+      if (input.supersedes && isUuid(input.supersedes)) {
+        // Copied by this statement only when the earlier version is in the same family.
+        await t.run("update documents d set supersedes = o.id, version = o.version + 1, category = o.category, tags = o.tags, property_id = o.property_id, expires_on = null from documents o where d.id = $1 and o.id = $2 and o.family_id = d.family_id and o.deleted_at is null", [id, input.supersedes]);
+      }
       for (const p of input.purposes) await t.run("insert into document_consents(document_id, family_id, purpose, granted_by) values ($1,$2,$3,$4)", [id, input.familyId, p, input.uploaderId]);
       await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'document_uploaded','document',$2,$3)", [input.uploaderId, id, input.familyId]);
       await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'document','system','Desk',$2)", [input.familyId, `New document received: ${title}.`]);
     }),
   );
 
-  if (!input.purposes.includes("read_records")) {
+  if (!input.purposes.includes("read_records") || isAudio) {
     await asService(() => tx((t) => t.run("update documents set extraction_status = 'skipped' where id = $1", [id])));
     return { ok: true, documentId: id, needsCheck: false, confidence: 0 };
   }
@@ -147,6 +156,16 @@ export async function signedDocumentUrl(id: string): Promise<string | undefined>
     await t.run("select audit_event('view_document','document',$1,$2)", [id, d.family_id]);
     return s.data.signedUrl;
   });
+}
+
+/** Bytes for an on-page image preview. Same access rules and the same audit entry as opening the file. */
+export async function previewBytes(id: string): Promise<{ bytes: ArrayBuffer; mime: string } | undefined> {
+  const url = await signedDocumentUrl(id);
+  if (!url) return undefined;
+  const res = await fetch(url, { cache: "no-store" });
+  const mime = res.headers.get("content-type")?.split(";")[0] ?? "";
+  if (!res.ok || !/^image\/(jpeg|png|webp)$/.test(mime)) return undefined;
+  return { bytes: await res.arrayBuffer(), mime };
 }
 
 export interface CheckDoc {

@@ -52,7 +52,7 @@ describe("requests", () => {
     const id = await newRequest();
     const r = (await db.query("select * from service_requests where id = $1", [id])).rows[0];
     expect(r.ref).toMatch(/^ALY-\d+$/);
-    expect(r).toMatchObject({ status: "submitted", location: "Pune", category: "Property & Assets", coordinator_id: ID.coord });
+    expect(r).toMatchObject({ status: "submitted", location: "Pune", category: "Property and Assets", coordinator_id: ID.coord });
     expect((await db.query("select kind from tasks where id = $1", [r.task_id])).rows[0].kind).toBe("errand");
     expect((await db.query("select count(*)::int n from request_events where request_id = $1", [id])).rows[0].n).toBe(1);
   });

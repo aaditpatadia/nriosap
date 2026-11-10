@@ -15,12 +15,12 @@ test("a new customer goes from sign-in to a finished, approved, proven request",
   await finishOnboarding(page);
   await expect(page).toHaveURL(/\/family\//);
   await expect(page.getByRole("heading", { level: 1, name: /^Good (morning|afternoon|evening)/ }).filter({ visible: true })).toBeVisible();
-  await expect(v(page, "Start here")).toBeVisible();
+  await expect(v(page, "Your dashboard fills up with your real requests, documents and dates.")).toBeVisible();
   await expect(v(page, "Nothing needs you right now.")).toBeVisible();
 
-  await page.getByRole("link", { name: "Get Anything Done" }).filter({ visible: true }).first().click();
-  await page.getByLabel("What do you need done?").fill("I need someone to inspect my flat in Pune. The tenant says there's a leakage problem.");
-  await expect(v(page, "What we understood")).toBeVisible();
+  await page.getByRole("link", { name: "New request" }).filter({ visible: true }).first().click();
+  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("I need someone to inspect my flat in Pune. The tenant says there's a leakage problem.");
+  await expect(v(page, "Please check this")).toBeVisible();
   await expect(page.getByLabel("Where in India")).toHaveValue("Pune");
   await page.getByRole("button", { name: "Send to my coordinator" }).click();
   await expect(page).toHaveURL(/\/requests\/[0-9a-f-]{36}$/);
@@ -62,7 +62,7 @@ test("a new customer goes from sign-in to a finished, approved, proven request",
 test("work that cannot be done is refused with a reason", async ({ page }) => {
   await signInOwner(page, "priya");
   await page.goto(`/family/${FAM.shah}/requests/new`);
-  await page.getByLabel("What do you need done?").fill("Please bribe the clerk so the file moves faster.");
+  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("Please bribe the clerk so the file moves faster.");
   await expect(page.getByRole("alert").filter({ hasText: "bribe" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send to my coordinator" })).toBeDisabled();
 });
@@ -70,14 +70,14 @@ test("work that cannot be done is refused with a reason", async ({ page }) => {
 test("asking to send money across borders gets a plain answer", async ({ page }) => {
   await signInOwner(page, "priya");
   await page.goto(`/family/${FAM.shah}/requests/new`);
-  await page.getByLabel("What do you need done?").fill("Please transfer money to my father from my US account");
+  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("Please transfer money to my father from my US account");
   await expect(page.getByRole("alert").filter({ hasText: "licensed partner" })).toBeVisible();
 });
 
 test("the owner can ask for changes to a quotation", async ({ page, browser }) => {
   await signInOwner(page, "priya");
   await page.goto(`/family/${FAM.shah}/requests/new`);
-  await page.getByLabel("What do you need done?").fill("Please replace the geyser in the flat in Rajkot by next week.");
+  await page.getByLabel("What do you need done in India?").filter({ visible: true }).fill("Please replace the geyser in the flat in Rajkot by next week.");
   await page.getByRole("button", { name: "Send to my coordinator" }).click();
   await expect(page).toHaveURL(/\/requests\/[0-9a-f-]{36}$/);
   const requestId = page.url().split("/").pop()!;
@@ -141,24 +141,22 @@ test("properties can be added, and the menu folds", async ({ page }) => {
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(v(page, name)).toBeVisible();
-  const label = page.locator(".app-link .app-label").first();
+  const label = page.locator(".side-link .side-text").first();
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(label).toBeVisible();
-  const before = await page.locator("aside.app-side").evaluate((e) => e.getBoundingClientRect().width);
+  const before = await page.locator("aside.side").evaluate((e) => e.getBoundingClientRect().width);
   await page.getByRole("button", { name: "Fold the menu" }).click();
-  await expect.poll(() => page.locator("aside.app-side").evaluate((e) => e.getBoundingClientRect().width)).toBeLessThan(before);
+  await expect.poll(() => page.locator("aside.side").evaluate((e) => e.getBoundingClientRect().width)).toBeLessThan(before);
 });
 
 test("the home page explains itself and its preview works", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Anything you need done in India. Done.");
-  await expect(page.getByRole("link", { name: "Get Started", exact: true })).toHaveAttribute("href", "/signin");
-  await page.getByRole("link", { name: "See How Ally Works" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Your life is abroad.");
+  await expect(page.getByRole("link", { name: "Get started with Ally" })).toHaveAttribute("href", "/signin");
+  await page.getByRole("link", { name: "Explore how it works" }).click();
   await expect(page).toHaveURL(/#how$/);
-  await page.getByText("Banking Administration", { exact: true }).click();
+  await page.getByText("Business and Administrative Coordination", { exact: true }).click();
   await expect(v(page, "We do not move money or give financial advice.")).toBeVisible();
-  await page.getByRole("button", { name: /Your electricity bill is overdue/ }).click();
-  await expect(v(page, "We check it and arrange payment once you approve.")).toBeVisible();
   await expect(v(page, "Sample data")).toBeVisible();
   await page.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.locator(".chip", { hasText: "Approved" })).toBeVisible();

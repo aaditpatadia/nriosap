@@ -1,23 +1,22 @@
-import Link from "next/link";
+import { notFound } from "next/navigation";
+import { AssistantChat } from "@/components/AssistantChat";
+import { PageHeader } from "@/components/ui";
+import { assistantAiConfigured } from "@/lib/assistant-ai";
+import { getViewer } from "@/lib/auth";
+import { familyAccess } from "@/lib/service-requests";
+import { assistantConsent } from "@/lib/workspace";
 
-export const metadata = { title: "Ally AI" };
+export const metadata = { title: "Ally Assistant" };
 
-export default async function Ask({ params }: { params: Promise<{ id: string }> }) {
+export default async function Ask({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ q?: string }> }) {
   const { id } = await params;
-  const base = `/family/${id}`;
+  const { q } = await searchParams;
+  const [viewer, access] = await Promise.all([getViewer(), familyAccess(id)]);
+  if (!viewer || (!access.owner && !access.staff && !access.member)) notFound();
   return (
-    <section className="grid max-w-3xl gap-5">
-      <h1 className="text-[length:var(--text-h1)] font-extrabold">Ask Ally</h1>
-      <div className="card grid gap-3">
-        <span className="chip w-fit" data-tone="warn">Not built yet</span>
-        <p className="text-[length:var(--text-h3)] font-semibold">Ask Ally is the next thing we are building.</p>
-        <p className="text-muted">It will answer questions from your own documents and requests, and show which document each answer came from. It will not pay, file, sign or decide anything for you.</p>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Link className="card lift font-semibold" href={`${base}/documents`}>Search your documents</Link>
-        <Link className="card lift font-semibold" href={`${base}/calendar`}>See what is due</Link>
-        <Link className="card lift font-semibold" href={`${base}/requests/new`}>Ask your coordinator</Link>
-      </div>
+    <section className="grid max-w-4xl gap-5">
+      <PageHeader title="Ally Assistant" sub="Ask about your own records. Every answer shows where it came from." />
+      <AssistantChat familyId={id} initial={(q ?? "").slice(0, 300)} aiAvailable={assistantAiConfigured()} aiOn={await assistantConsent(viewer.id)} />
     </section>
   );
 }

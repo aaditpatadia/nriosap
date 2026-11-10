@@ -68,8 +68,8 @@ test("parent sends STOP on WhatsApp: consent ends at once and uploads stop", asy
     return page.getByText("Consent withdrawn").filter({ visible: true }).count();
   }, { timeout: 20000 }).toBeGreaterThan(0);
   await page.goto(`/family/${FAM.mehta}/documents`);
-  await expect(page.getByText("once your parent's consent call is finished")).toBeVisible();
-  await page.goto("/ops");
+  await expect(page.getByText("once your parent's consent call is finished").filter({ visible: true })).toBeVisible();
+  await page.goto("/ops/queue");
   await expect(page.locator("table").getByRole("link", { name: "Consent withdrawn: stop work" })).toBeVisible();
 });
 

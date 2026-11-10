@@ -12,7 +12,7 @@ test("owner signs in with a magic link and lands on their family", async ({ page
   await signInOwner(page, "priya");
   await expect(page).toHaveURL(new RegExp(`/family/${FAM.shah}`));
   await expect(page.getByText("Signed in as")).toContainText("Priya Shah");
-  await expect(page.getByRole("heading", { level: 2, name: /need/ }).filter({ visible: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: /Needs your attention/ }).filter({ visible: true })).toBeVisible();
 });
 
 test("owner cannot open ops", async ({ page }) => {
@@ -23,14 +23,16 @@ test("owner cannot open ops", async ({ page }) => {
 
 test("coordinator signs in with a password and sees only assigned families", async ({ page }) => {
   await signInStaff(page, "meera");
-  await expect(page.locator("table").getByText("Pay November electricity bill")).toBeVisible();
+  await page.goto("/ops/queue");
+  await expect(page.locator("table").getByText("Pay November electricity bill").filter({ visible: true })).toBeVisible();
   await expect(page.getByText("Assemble reimbursement claim documents")).toHaveCount(0);
 });
 
 test("admin signs in and sees every family", async ({ page }) => {
   await signInStaff(page, "admin");
-  await expect(page.locator("table").getByText("Pay November electricity bill")).toBeVisible();
-  await expect(page.locator("table").getByText("Assemble reimbursement claim documents")).toBeVisible();
+  await page.goto("/ops/queue");
+  await expect(page.locator("table").getByText("Pay November electricity bill").filter({ visible: true })).toBeVisible();
+  await expect(page.locator("table").getByText("Assemble reimbursement claim documents").filter({ visible: true })).toBeVisible();
 });
 
 test("demo buttons sign in as each role through real Auth", async ({ page }) => {
@@ -50,7 +52,8 @@ test("demo buttons sign in as each role through real Auth", async ({ page }) => 
   await page.goto("/signin");
   await page.getByRole("button", { name: "Open as Aadit, admin" }).click();
   await expect(page).toHaveURL(/\/ops/);
-  await expect(page.locator("table").getByText("Assemble reimbursement claim documents")).toBeVisible();
+  await page.goto("/ops/queue");
+  await expect(page.locator("table").getByText("Assemble reimbursement claim documents").filter({ visible: true })).toBeVisible();
 });
 
 test("the email form hands over the link when no email can be sent", async ({ page }) => {

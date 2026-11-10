@@ -42,6 +42,7 @@ export async function describeRequest(page: Page) {
 export async function finishOnboarding(page: Page) {
   await page.getByRole("button", { name: "Get started" }).click();
   for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByText("One last thing.").waitFor();
   await page.getByRole("checkbox").nth(0).check();
   await page.getByRole("checkbox").nth(1).check();
   await page.getByRole("button", { name: "Create my dashboard" }).click();

@@ -90,7 +90,7 @@ test("full concierge path: coordinator onboards, parent consent call, policy upl
   await page.getByLabel("Minutes", { exact: true }).fill("0");
   await page.getByRole("button", { name: "Add time" }).click();
   await expect(page.getByText("Added 420 min")).toBeVisible();
-  await page.goto("/ops/families");
+  await page.goto("/ops/reports");
   const row = page.locator('tr[data-family="Testwala family"]:visible');
   await expect(row).toContainText("7.0");
   await expect(row).toContainText("Over hour budget");
@@ -103,6 +103,7 @@ test("sign-up needs the two consents and nothing else", async ({ page }) => {
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByRole("button", { name: "Get started" }).click();
   for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByText("One last thing.").waitFor();
   await expect(page.getByRole("button", { name: "Create my dashboard" })).toBeDisabled();
   await page.getByRole("checkbox").nth(0).check();
   await page.getByRole("checkbox").nth(1).check();
@@ -134,7 +135,7 @@ test("claim checklist: desk marks a document received and the owner sees it", as
 
 test("coordinator raises an approval and the owner sees it", async ({ page }) => {
   await signInStaff(page, "meera");
-  await page.goto("/ops");
+  await page.goto("/ops/queue");
   await page.locator("table").getByRole("link", { name: "Renewal quotes for health policy" }).click();
   await page.getByLabel("What is it?").fill("Renew health policy");
   await page.getByLabel("Who is paid or sent to?").fill("Demo Insurer A");

@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { AccountBar } from "@/components/AccountBar";
-import { Logo } from "@/components/Logo";
+import { Shell, type ShellItem } from "@/components/FamilyNav";
+import { MotionToggle } from "@/components/MotionToggle";
+import { TextSizeToggle } from "@/components/TextSizeToggle";
 import { requireStaff } from "@/lib/auth";
 
 export const metadata = { title: "Ops console" };
@@ -8,18 +9,29 @@ export const dynamic = "force-dynamic";
 
 export default async function OpsLayout({ children }: { children: React.ReactNode }) {
   const viewer = await requireStaff();
+  const admin = viewer.role === "admin";
+  const items: (ShellItem & { show?: boolean })[] = [
+    { href: "/ops", label: "Overview", icon: "home", primary: true },
+    { href: "/ops/families", label: "Families", icon: "people" },
+    { href: "/ops/requests", label: "Requests", icon: "list", primary: true },
+    { href: "/ops/queue", label: "Task Queue", icon: "queue", primary: true, short: "Queue" },
+    { href: "/ops/coordinators", label: "Coordinators", icon: "person", show: admin },
+    { href: "/ops/partners", label: "Service Partners", icon: "tool" },
+    { href: "/ops/properties", label: "Properties", icon: "building" },
+    { href: "/ops/documents", label: "Document Review", icon: "doc" },
+    { href: "/ops/approvals", label: "Approvals", icon: "check" },
+    { href: "/ops/visits", label: "Visits & Scheduling", icon: "calendar", primary: true, short: "Visits" },
+    { href: "/ops/reports", label: "Reports", icon: "chart" },
+    { href: "/ops/settings", label: "Settings", icon: "settings", show: admin },
+  ];
   return (
-    <div className="wrap">
-      <header className="flex flex-wrap items-center justify-between gap-3 py-4">
-        <Link href="/ops" className="inline-flex min-h-12 items-center gap-2"><Logo /><span className="chip">Ops</span></Link>
-        <nav aria-label="Ops" className="flex flex-wrap gap-2">
-          <Link className="btn btn-secondary" href="/ops/requests">Requests</Link>
-          <Link className="btn btn-secondary" href="/ops">Queue</Link>
-          <Link className="btn btn-secondary" href="/ops/families">Hours per family</Link>
-        </nav>
-      </header>
-      <AccountBar name={`${viewer.name} (${viewer.role})`} />
-      <main id="main" className="pb-24 pt-2">{children}</main>
-    </div>
+    <Shell
+      home="/ops"
+      navLabel="Ops"
+      items={items.filter((i) => i.show !== false).map(({ show: _s, ...i }) => i)}
+      foot={<><div className="flex gap-1"><MotionToggle /><TextSizeToggle /></div><AccountBar name={`${viewer.name} (${viewer.role})`} /></>}
+    >
+      <main id="main">{children}</main>
+    </Shell>
   );
 }

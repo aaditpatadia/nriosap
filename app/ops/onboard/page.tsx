@@ -8,7 +8,7 @@ export default async function StaffOnboard() {
   await requireStaff();
   return (
     <section className="grid gap-4">
-      <Link href="/ops" className="btn btn-ghost w-fit">Back to queue</Link>
+      <Link href="/ops/queue" className="btn btn-ghost w-fit">Back to queue</Link>
       <h1 className="text-[length:var(--text-h1)] font-bold">Onboard a family</h1>
       <p className="text-muted">Creates the owner&apos;s account and the family. The owner signs in with an emailed link and confirms their own consent. You then call the parent.</p>
       <StaffOnboardForm />

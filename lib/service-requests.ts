@@ -1,6 +1,9 @@
 import "server-only";
 import { asService, isUuid, one, rows, tx } from "./db";
 import { looksLikeAdvice } from "./rules";
+import { loadPlans } from "./plans";
+import { planForPrice, requestLimitReason } from "./plan-rules";
+import { monthStartIst } from "./rules";
 import { isOpenStatus, requestTitle, understandRequest, type RequestStatus, type ServiceCategory, type Understanding } from "./request-engine";
 
 type Row = Record<string, any>;
@@ -9,13 +12,13 @@ export interface ServiceRequest {
   id: string; ref: string; familyId: string; category: string; title: string; description: string; location: string | null;
   priority: "normal" | "urgent"; status: RequestStatus; coordinatorId: string | null; coordinatorName: string | null; providerName: string | null;
   taskId: string | null; understanding: Partial<Understanding>; needsProfessional: boolean; estimatedCompletion: string | null; finalReport: string | null;
-  createdAt: string; updatedAt: string; completedAt: string | null; familyName?: string;
+  createdAt: string; updatedAt: string; completedAt: string | null; familyName?: string; partnerId: string | null; propertyId: string | null; memberId: string | null; dueOn: string | null; escalatedAt: string | null;
 }
 export interface RequestEvent { id: string; kind: string; status: string | null; body: string; actorName: string; at: string; customerVisible: boolean }
 export interface RequestAttachment { id: string; documentId: string; title: string | null; kind: "customer" | "evidence"; caption: string | null }
 export interface Quotation {
   id: string; requestId: string; approvalId: string | null; providerName: string | null; providerFeeInr: number; coordinationFeeInr: number; taxesInr: number; totalInr: number;
-  notes: string | null; estimatedCompletion: string | null; status: string; changeNote: string | null; createdAt: string; requestRef?: string; requestTitle?: string; undoUntil?: string; approvalStatus?: "pending" | "approved" | "declined";
+  notes: string | null; estimatedCompletion: string | null; status: string; changeNote: string | null; createdAt: string; requestRef?: string; requestTitle?: string; undoUntil?: string; approvalStatus?: "pending" | "approved" | "declined"; approvalDeadline: string | null; documentId: string | null;
 }
 
 const SELECT = `select r.*, c.name as coordinator_name, f.name as family_name from service_requests r
@@ -24,40 +27,47 @@ const SELECT = `select r.*, c.name as coordinator_name, f.name as family_name fr
 const toRequest = (r: Row): ServiceRequest => ({
   id: r.id, ref: r.ref, familyId: r.family_id, category: r.category, title: r.title, description: r.description, location: r.location, priority: r.priority, status: r.status,
   coordinatorId: r.coordinator_id, coordinatorName: r.coordinator_name ?? null, providerName: r.provider_name, taskId: r.task_id, understanding: r.understanding ?? {}, needsProfessional: r.needs_professional,
-  estimatedCompletion: r.estimated_completion ? String(r.estimated_completion).slice(0, 10) : null, finalReport: r.final_report, createdAt: r.created_at, updatedAt: r.updated_at, completedAt: r.completed_at, familyName: r.family_name,
+  estimatedCompletion: r.estimated_completion ? String(r.estimated_completion).slice(0, 10) : null, finalReport: r.final_report, createdAt: r.created_at, updatedAt: r.updated_at, completedAt: r.completed_at, familyName: r.family_name, partnerId: r.partner_id ?? null, propertyId: r.property_id ?? null, memberId: r.member_id ?? null, dueOn: r.due_on ?? null, escalatedAt: r.escalated_at ?? null,
 });
 const toQuote = (q: Row): Quotation => ({
   id: q.id, requestId: q.request_id, approvalId: q.approval_id, providerName: q.provider_name, providerFeeInr: Number(q.provider_fee_inr), coordinationFeeInr: Number(q.coordination_fee_inr), taxesInr: Number(q.taxes_inr), totalInr: Number(q.total_inr),
-  notes: q.notes, estimatedCompletion: q.estimated_completion ? String(q.estimated_completion).slice(0, 10) : null, status: q.status, changeNote: q.change_note, createdAt: q.created_at, requestRef: q.ref, requestTitle: q.title, undoUntil: q.undo_until ?? undefined, approvalStatus: q.approval_status ?? undefined,
+  notes: q.notes, estimatedCompletion: q.estimated_completion ? String(q.estimated_completion).slice(0, 10) : null, status: q.status, changeNote: q.change_note, createdAt: q.created_at, requestRef: q.ref, requestTitle: q.title, undoUntil: q.undo_until ?? undefined, approvalStatus: q.approval_status ?? undefined, approvalDeadline: q.approval_deadline ?? null, documentId: q.document_id ?? null,
 });
 
 // ---------- Who may do what. Asked of Postgres as the signed-in person ----------
-export interface FamilyAccess { owner: boolean; staff: boolean; canCreate: boolean; canUpload: boolean; canReadRequests: boolean; canSeeVault: boolean; canSeeActivity: boolean; member: boolean }
-const NO_ACCESS: FamilyAccess = { owner: false, staff: false, canCreate: false, canUpload: false, canReadRequests: false, canSeeVault: false, canSeeActivity: false, member: false };
+export interface FamilyAccess { owner: boolean; staff: boolean; canCreate: boolean; canUpload: boolean; canReadRequests: boolean; canSeeVault: boolean; canSeeActivity: boolean; canSeeBills: boolean; canManageBills: boolean; member: boolean }
+const NO_ACCESS: FamilyAccess = { owner: false, staff: false, canCreate: false, canUpload: false, canReadRequests: false, canSeeVault: false, canSeeActivity: false, canSeeBills: false, canManageBills: false, member: false };
 
 export async function familyAccess(familyId: string): Promise<FamilyAccess> {
   if (!isUuid(familyId)) return NO_ACCESS;
   const r = await one<Row>(
     `select public.is_family_owner($1) as owner, public.can_work_family($1) as staff, public.is_family_member($1) as member,
             public.member_can($1,'create_requests') as create_req, public.member_can($1,'upload_documents') as upload,
-            public.member_can($1,'view_requests') as read_req, public.member_can($1,'view_documents') as vault, public.member_can($1,'view_activity') as activity`,
+            public.member_can($1,'view_requests') as read_req, public.member_can($1,'view_documents') as vault, public.member_can($1,'view_activity') as activity, public.member_can($1,'view_bills') as bills, public.member_can($1,'manage_bills') as manage_bills`,
     [familyId],
   );
   if (!r) return NO_ACCESS;
   const full = r.owner || r.staff;
-  return { owner: r.owner, staff: r.staff, member: r.member, canCreate: full || r.create_req, canUpload: full || r.upload, canReadRequests: full || r.read_req, canSeeVault: full || r.vault, canSeeActivity: full || r.activity };
+  return { owner: r.owner, staff: r.staff, member: r.member, canCreate: full || r.create_req, canUpload: full || r.upload, canReadRequests: full || r.read_req, canSeeVault: full || r.vault, canSeeActivity: full || r.activity, canSeeBills: full || r.bills || r.manage_bills, canManageBills: full || r.manage_bills };
 }
 
 // ---------- Customer ----------
 export type CreateResult = { ok: true; id: string; ref: string } | { ok: false; reason: string };
 
-export async function createServiceRequest(input: { familyId: string; description: string; category?: ServiceCategory; location?: string; urgent?: boolean; attachmentIds: string[]; userId: string; userName: string }): Promise<CreateResult> {
+export async function createServiceRequest(input: { familyId: string; description: string; category?: ServiceCategory; location?: string; urgent?: boolean; attachmentIds: string[]; userId: string; userName: string; propertyId?: string | null; memberId?: string | null; dueOn?: string | null; fromDesk?: boolean }): Promise<CreateResult> {
   const access = await familyAccess(input.familyId);
   if (!access.canCreate) return { ok: false, reason: "You do not have permission to ask for work on this account." };
   const seen = understandRequest(input.description);
   if (seen.verdict === "not_possible") return { ok: false, reason: seen.reason ?? "We cannot take this on." };
+  if (!input.fromDesk) {
+    const used = await asService(() => one<Row>("select f.plan_usd, (select count(*)::int from service_requests r where r.family_id = f.id and r.created_at >= $2) as used from families f where f.id = $1", [input.familyId, monthStartIst(new Date())]));
+    const limit = used && requestLimitReason(planForPrice(Number(used.plan_usd), await loadPlans()), used.used);
+    if (limit) return { ok: false, reason: limit };
+  }
   const category = input.category ?? seen.category;
-  const location = input.location?.trim() || seen.location;
+  const linked = input.propertyId && isUuid(input.propertyId) ? await asService(() => one<Row>("select id, city from properties where id = $1 and family_id = $2", [input.propertyId, input.familyId])) : undefined;
+  const person = input.memberId && isUuid(input.memberId) ? await asService(() => one<Row>("select id from family_members where id = $1 and family_id = $2 and status <> 'revoked'", [input.memberId, input.familyId])) : undefined;
+  const location = input.location?.trim() || seen.location || linked?.city || null;
   const priority = input.urgent ?? seen.urgent ? "urgent" : "normal";
   const title = requestTitle(input.description);
   const professional = seen.verdict === "needs_professional" || looksLikeAdvice(input.description);
@@ -75,9 +85,9 @@ export async function createServiceRequest(input: { familyId: string; descriptio
       );
       await t.run("insert into task_notes(task_id, family_id, author_id, body) values ($1,$2,$3,$4)", [task!.id, input.familyId, input.userId, input.description]);
       const r = await t.one<Row>(
-        `insert into service_requests(family_id, created_by, category, title, description, location, priority, coordinator_id, task_id, understanding, needs_professional)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning id, ref`,
-        [input.familyId, input.userId, category, title, input.description, location, priority, f.coordinator_id, task!.id, JSON.stringify(seen), professional],
+        `insert into service_requests(family_id, created_by, category, title, description, location, priority, coordinator_id, task_id, understanding, needs_professional, property_id, member_id, due_on)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning id, ref`,
+        [input.familyId, input.userId, category, title, input.description, location, priority, f.coordinator_id, task!.id, JSON.stringify(seen), professional, linked?.id ?? null, person?.id ?? null, input.dueOn || null],
       );
       await t.run("insert into request_events(request_id, family_id, kind, status, body, actor_id, actor_name) values ($1,$2,'status','submitted','Request received.',$3,$4)", [r!.id, input.familyId, input.userId, input.userName]);
       for (const docId of input.attachmentIds.filter(isUuid).slice(0, 10)) {
@@ -213,14 +223,20 @@ export async function setRequestStatus(id: string, status: RequestStatus, note: 
   );
 }
 
-export async function assignRequest(id: string, input: { providerName?: string; coordinatorId?: string; estimatedCompletion?: string }, userId: string, userName: string): Promise<StaffResult> {
+export async function assignRequest(id: string, input: { providerName?: string; coordinatorId?: string; estimatedCompletion?: string; partnerId?: string }, userId: string, userName: string): Promise<StaffResult> {
   const r = await workable(id);
   if (!r) return { ok: false, reason: "That request is not on your list." };
+  let provider = input.providerName;
+  if (input.partnerId) {
+    const p = isUuid(input.partnerId) ? await one<Row>("select name, status from service_partners where id = $1", [input.partnerId]) : undefined;
+    if (!p || p.status !== "approved") return { ok: false, reason: "Only a partner approved for use can be assigned." };
+    provider = p.name;
+  }
   return asService(() =>
     tx(async (t) => {
-      await t.run("update service_requests set provider_name = coalesce($2, provider_name), coordinator_id = coalesce($3, coordinator_id), estimated_completion = coalesce($4::date, estimated_completion), updated_at = now() where id = $1", [id, input.providerName || null, input.coordinatorId || null, input.estimatedCompletion || null]);
+      await t.run("update service_requests set provider_name = coalesce($2, provider_name), coordinator_id = coalesce($3, coordinator_id), estimated_completion = coalesce($4::date, estimated_completion), partner_id = coalesce($5::uuid, partner_id), updated_at = now() where id = $1", [id, provider || null, input.coordinatorId || null, input.estimatedCompletion || null, input.partnerId || null]);
       if (input.coordinatorId) await t.run("update tasks set owner_id = $2 where id = $1", [r.task_id, input.coordinatorId]);
-      const parts = [input.providerName && `Provider: ${input.providerName}`, input.estimatedCompletion && `Expected by ${input.estimatedCompletion}`, input.coordinatorId && "Coordinator updated"].filter(Boolean);
+      const parts = [provider && `Provider: ${provider}`, input.estimatedCompletion && `Expected by ${input.estimatedCompletion}`, input.coordinatorId && "Coordinator updated"].filter(Boolean);
       await logEvent(t, r as { id: string; family_id: string }, "assignment", null, parts.join(". ") || "Assignment updated.", userId, userName);
       return { ok: true };
     }),
@@ -236,7 +252,7 @@ export async function addRequestUpdate(id: string, body: string, customerVisible
 }
 
 /** The total is worked out here, never taken from the browser. Sending it creates the approval the customer decides on. */
-export async function createQuotation(id: string, q: { providerName: string; providerFeeInr: number; coordinationFeeInr: number; taxesInr: number; notes: string; estimatedCompletion?: string }, userId: string, userName: string): Promise<StaffResult> {
+export async function createQuotation(id: string, q: { providerName: string; providerFeeInr: number; coordinationFeeInr: number; taxesInr: number; notes: string; estimatedCompletion?: string; approvalDeadline?: string; documentId?: string }, userId: string, userName: string): Promise<StaffResult> {
   const r = await workable(id);
   if (!r) return { ok: false, reason: "That request is not on your list." };
   if (!r.task_id) return { ok: false, reason: "This request has no desk task." };
@@ -254,8 +270,8 @@ export async function createQuotation(id: string, q: { providerName: string; pro
         [r.family_id, r.task_id, `${req!.ref}: ${req!.title}`.slice(0, 200), total, q.providerName || "Ally coordination", q.coordinationFeeInr + q.taxesInr, q.estimatedCompletion ? `By ${q.estimatedCompletion}` : "To be agreed", userId],
       );
       await t.run(
-        "insert into quotations(request_id, family_id, approval_id, provider_name, provider_fee_inr, coordination_fee_inr, taxes_inr, total_inr, notes, estimated_completion, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
-        [id, r.family_id, a!.id, q.providerName || null, q.providerFeeInr, q.coordinationFeeInr, q.taxesInr, total, q.notes || null, q.estimatedCompletion || null, userId],
+        "insert into quotations(request_id, family_id, approval_id, provider_name, provider_fee_inr, coordination_fee_inr, taxes_inr, total_inr, notes, estimated_completion, created_by, approval_deadline, document_id) select $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,(select d.id from documents d where d.id = $13::uuid and d.family_id = $2 and d.deleted_at is null)",
+        [id, r.family_id, a!.id, q.providerName || null, q.providerFeeInr, q.coordinationFeeInr, q.taxesInr, total, q.notes || null, q.estimatedCompletion || null, userId, q.approvalDeadline || null, q.documentId && isUuid(q.documentId) ? q.documentId : null],
       );
       await t.run("update service_requests set status = 'awaiting_approval', provider_name = coalesce(nullif($2,''), provider_name), estimated_completion = coalesce($3::date, estimated_completion), updated_at = now() where id = $1", [id, q.providerName, q.estimatedCompletion || null]);
       await t.run("update tasks set status = 'waiting_owner', needs_approval = true where id = $1", [r.task_id]);
@@ -293,18 +309,40 @@ export async function saveFinalReport(id: string, report: string, userId: string
   return { ok: true };
 }
 
+export async function setRequestPriority(id: string, priority: "normal" | "urgent", userId: string, userName: string): Promise<StaffResult> {
+  const r = await workable(id);
+  if (!r) return { ok: false, reason: "That request is not on your list." };
+  await asService(() => tx(async (t) => {
+    await t.run("update service_requests set priority = $2, updated_at = now() where id = $1", [id, priority]);
+    await logEvent(t, r as { id: string; family_id: string }, "note", null, `Priority set to ${priority}.`, userId, userName, false);
+  }));
+  return { ok: true };
+}
+
+export async function escalateRequest(id: string, reason: string, userId: string, userName: string): Promise<StaffResult> {
+  const r = await workable(id);
+  if (!r) return { ok: false, reason: "That request is not on your list." };
+  await asService(() => tx(async (t) => {
+    await t.run("update service_requests set escalated_at = now(), updated_at = now() where id = $1", [id]);
+    await logEvent(t, r as { id: string; family_id: string }, "note", null, `Escalated: ${reason}`, userId, userName, false);
+    await t.run("insert into alerts(kind, family_id, body, dedupe_key) values ('sla', $1, $2, $3)", [r.family_id, `Request escalated: ${reason}`.slice(0, 300), `escalated:${id}:${Date.now()}`]);
+    await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'request_escalated','service_request',$2,$3)", [userId, id, r.family_id]);
+  }));
+  return { ok: true };
+}
+
 // ---------- Properties ----------
-export interface Property { id: string; name: string; kind: string; address: string | null; city: string | null; tenantName: string | null; notes: string | null; createdAt: string }
+export interface Property { id: string; name: string; kind: string; address: string | null; city: string | null; tenantName: string | null; notes: string | null; createdAt: string; ownership: string | null; rentInr: number | null; tenantPhone: string | null; leaseEnd: string | null; contactMemberIds: string[] }
 export async function propertiesFor(familyId: string): Promise<Property[]> {
   if (!isUuid(familyId)) return [];
-  return (await rows<Row>("select * from properties where family_id = $1 order by created_at", [familyId])).map((p) => ({ id: p.id, name: p.name, kind: p.kind, address: p.address, city: p.city, tenantName: p.tenant_name, notes: p.notes, createdAt: p.created_at }));
+  return (await rows<Row>("select * from properties where family_id = $1 order by created_at", [familyId])).map((p) => ({ id: p.id, name: p.name, kind: p.kind, address: p.address, city: p.city, tenantName: p.tenant_name, notes: p.notes, createdAt: p.created_at, ownership: p.ownership ?? null, rentInr: p.rent_inr == null ? null : Number(p.rent_inr), tenantPhone: p.tenant_phone ?? null, leaseEnd: p.lease_end ?? null, contactMemberIds: p.contact_member_ids ?? [] }));
 }
-export async function addProperty(familyId: string, p: { name: string; kind: string; address: string; city: string; tenantName: string; notes: string }, userId: string): Promise<boolean> {
+export async function addProperty(familyId: string, p: { name: string; kind: string; address: string; city: string; tenantName: string; notes: string; ownership?: string; rentInr?: number | null }, userId: string): Promise<boolean> {
   const a = await familyAccess(familyId);
   if (!a.owner && !a.staff) return false;
   await asService(() =>
     tx(async (t) => {
-      const r = await t.one<Row>("insert into properties(family_id, name, kind, address, city, tenant_name, notes, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id", [familyId, p.name, p.kind, p.address || null, p.city || null, p.tenantName || null, p.notes || null, userId]);
+      const r = await t.one<Row>("insert into properties(family_id, name, kind, address, city, tenant_name, notes, created_by, ownership, rent_inr) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id", [familyId, p.name, p.kind, p.address || null, p.city || null, p.tenantName || null, p.notes || null, userId, p.ownership || null, p.rentInr ?? null]);
       await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'property_added','property',$2,$3)", [userId, r!.id, familyId]);
     }),
   );

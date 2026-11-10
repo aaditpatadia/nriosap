@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   if (!(await familyAccess(fam.id)).canUpload) return NextResponse.json({ ok: false, reason: "You do not have permission to add documents here." }, { status: 403 });
   if (file.size > MAX_WEB_UPLOAD_BYTES) return NextResponse.json({ ok: false, reason: "Please send a file under 4 MB, or send it on WhatsApp." }, { status: 413 });
   const purposes = form.getAll("purpose").filter((p): p is Purpose => PURPOSES.includes(p as Purpose));
-  const r = await ingestDocument({ familyId: fam.id, filename: file.name, bytes: new Uint8Array(await file.arrayBuffer()), maxBytes: MAX_WEB_UPLOAD_BYTES, purposes: [...new Set(purposes)], uploaderId: viewer.id, source: "web", category: isDocumentCategory(form.get("category")) ? (form.get("category") as DocumentCategory) : undefined });
+  const r = await ingestDocument({ familyId: fam.id, filename: file.name, bytes: new Uint8Array(await file.arrayBuffer()), maxBytes: MAX_WEB_UPLOAD_BYTES, purposes: [...new Set(purposes)], uploaderId: viewer.id, source: "web", category: isDocumentCategory(form.get("category")) ? (form.get("category") as DocumentCategory) : undefined, allowAudio: form.get("voice") === "1", supersedes: typeof form.get("supersedes") === "string" ? (form.get("supersedes") as string) : undefined });
   if (!r.ok) return NextResponse.json({ ok: false, reason: r.reason }, { status: r.status });
   return NextResponse.json(r);
 }

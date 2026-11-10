@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useMemo, useRef, useState } from "react";
+import { VoiceNote } from "./VoiceNote";
 import { submitRequest } from "@/app/family/platform-actions";
 import { SERVICE_CATEGORIES, understandRequest, type ServiceCategory } from "@/lib/request-engine";
 import { uploadFile } from "@/lib/upload-client";
 
 interface Attached { id: string; title: string }
 
-export function RequestComposer({ familyId, vault, canUpload, initial = "" }: { familyId: string; vault: Attached[]; canUpload: boolean; initial?: string }) {
+export function RequestComposer({ familyId, vault, properties, defaultProperty, canUpload, initial = "" }: { familyId: string; vault: Attached[]; properties: { id: string; name: string }[]; defaultProperty: string; canUpload: boolean; initial?: string }) {
   const [state, action, pending] = useActionState(submitRequest, null);
   const [text, setText] = useState(initial);
   const [picked, setPicked] = useState<ServiceCategory | "">("");
@@ -45,13 +46,13 @@ export function RequestComposer({ familyId, vault, canUpload, initial = "" }: { 
       <input type="hidden" name="category" value={category} />
       {attached.map((a) => <input key={a.id} type="hidden" name="attachment" value={a.id} />)}
 
-      <label className="field">What do you need done?
-        <textarea className="input" name="description" rows={5} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="I need someone to inspect my flat in Pune. The tenant says there's a leakage problem." required />
+      <label className="field text-[length:var(--text-h3)]">What do you need done in India?
+        <textarea className="input" name="description" rows={5} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="I need someone to visit my flat in Mumbai because the tenant says there is a water leakage." required />
       </label>
 
       {hasText && (
         <div className="card rise grid gap-4" aria-live="polite">
-          <h2 className="text-[length:var(--text-h3)] font-semibold">What we understood</h2>
+          <h2 className="section-title">Please check this</h2>
           {seen.verdict === "not_possible" && <p role="alert" className="font-semibold text-danger">{seen.reason}</p>}
           {seen.verdict === "needs_professional" && <p className="chip w-fit whitespace-normal" data-tone="warn">{seen.reason}</p>}
           {!blocked && (
@@ -65,6 +66,8 @@ export function RequestComposer({ familyId, vault, canUpload, initial = "" }: { 
                 <label className="field">Where in India
                   <input className="input" name="location" maxLength={120} value={place} onChange={(e) => setLocation(e.target.value)} placeholder="City" />
                 </label>
+                {properties.length > 0 && <label className="field">Property (optional)<select className="input" name="propertyId" defaultValue={defaultProperty}><option value="">None</option>{properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+                <label className="field">Needed by (optional)<input className="input" type="date" name="dueOn" /></label>
               </div>
               {seen.action && <p className="text-muted">Likely next step: <strong className="text-ink">{seen.action}</strong></p>}
               <label className="flex min-h-12 items-center gap-3"><input type="checkbox" name="urgent" className="size-6" checked={isUrgent} onChange={(e) => setUrgent(e.target.checked)} /><span>This is urgent</span></label>
@@ -74,7 +77,7 @@ export function RequestComposer({ familyId, vault, canUpload, initial = "" }: { 
                   <textarea className="input" name="extra" rows={2} maxLength={1000} placeholder="Add anything you can. You can also skip this." />
                 </label>
               )}
-              <p className="text-[length:var(--text-micro)] text-muted">This is a quick read of your words. Your coordinator checks everything and you can change any of it.</p>
+              <p className="text-[length:var(--text-micro)] text-muted">This is a quick read of your words. Your coordinator checks everything and you can change any of it. Sending this starts no work and no spending.</p>
             </>
           )}
         </div>
@@ -82,12 +85,13 @@ export function RequestComposer({ familyId, vault, canUpload, initial = "" }: { 
 
       {!blocked && (
         <fieldset className="card grid gap-3">
-          <legend className="px-1 font-semibold">Add photos or papers (optional)</legend>
+          <legend className="px-1 font-semibold">Add a photo, paper or voice note (optional)</legend>
           {canUpload ? (
             <>
               <div className="flex flex-wrap gap-2">
                 <label className="btn btn-secondary cursor-pointer">Choose files<input ref={input} type="file" className="sr-only" multiple accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => onFiles(e.target.files)} /></label>
                 <label className="btn btn-secondary cursor-pointer">Take a photo<input type="file" className="sr-only" accept="image/*" capture="environment" onChange={(e) => onFiles(e.target.files)} /></label>
+                <VoiceNote familyId={familyId} onSaved={(id, title) => setAttached((a) => [...a, { id, title }])} />
               </div>
               <label className="flex min-h-12 items-center gap-3"><input type="checkbox" className="size-6" checked={read} onChange={(e) => setRead(e.target.checked)} /><span>Let an AI service read these to pull out key facts. A person checks anything it is unsure of.</span></label>
               {progress !== null && <div className="h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Uploading"><div className="h-full origin-left rounded-full bg-accent" style={{ transform: `scaleX(${progress})` }} /></div>}
@@ -107,7 +111,7 @@ export function RequestComposer({ familyId, vault, canUpload, initial = "" }: { 
               {attached.map((a) => <li key={a.id}><button type="button" className="chip min-h-12" aria-label={`Remove ${a.title}`} onClick={() => setAttached(attached.filter((x) => x.id !== a.id))}>{a.title} ✕</button></li>)}
             </ul>
           )}
-          <p className="text-[length:var(--text-micro)] text-muted">Voice notes and video are not available here yet. You can send a voice note on WhatsApp.</p>
+          <p className="text-[length:var(--text-micro)] text-muted">Your coordinator listens to voice notes. They are not sent to an AI service.</p>
         </fieldset>
       )}
 
