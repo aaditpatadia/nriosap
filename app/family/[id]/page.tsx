@@ -14,6 +14,7 @@ import { consentsFor } from "@/lib/onboarding";
 import { greetingFor, isOpenStatus, STATUS_META } from "@/lib/request-engine";
 import { familyAccess, propertiesFor, quotesForFamily, requestsFor, type FamilyAccess } from "@/lib/service-requests";
 import { IndiaClock } from "@/components/IndiaClock";
+import { deskChat } from "@/lib/contact";
 import { approvalsFor, claimsFor, documentsFor, getCoordinator, getFamily, tasksFor, timeline } from "@/lib/store";
 import type { Family } from "@/lib/types";
 import { PURPOSES } from "@/lib/upload-rules";
@@ -50,10 +51,11 @@ const summaryFor = cache(async function summaryFor(id: string, today: string) {
 
 /** The band and the four numbers. The first thing worth reading, so it streams first. */
 async function Summary({ id, base, today }: Ctx) {
-  const { access, attention, active, pending, upcoming, overdue, waitingOnYou, expiring, calendar, coord, ownerPending } = await summaryFor(id, today);
+  const [{ access, attention, active, pending, upcoming, overdue, waitingOnYou, expiring, calendar, coord, ownerPending, fam }, properties] = await Promise.all([summaryFor(id, today), propertiesFor(id).catch(() => [])]);
+  const top = attention[0];
   return (
     <>
-      <OverviewBand base={base} today={today} attention={attention.length} calendar={calendar} canCreate={access.canCreate} coordinator={coord ? { name: coord.name, city: coord.city ?? null } : null} />
+      <OverviewBand base={base} today={today} attention={attention.length} top={top ? { text: top.detail, href: base + top.href } : null} calendar={calendar} canCreate={access.canCreate} coordinator={coord ? { name: coord.name, city: coord.city ?? null } : null} place={properties[0] ? { name: properties[0].name, city: properties[0].city } : null} city={fam.parent.city} />
       <StatCards cards={[
         { label: "Active requests", value: active.length, href: `${base}/requests`, icon: "list", sub: waitingOnYou ? `${waitingOnYou} waiting on you` : "All moving", tone: waitingOnYou ? undefined : "ok", go: "See all" },
         { label: "Needs your approval", value: pending.length, href: `${base}/requests?show=waiting`, icon: "check", sub: pending.length ? "Nothing starts until you decide" : "Nothing to decide", tone: pending.length ? "danger" : undefined },
@@ -136,9 +138,14 @@ async function Side({ id, base, access, fam, today }: Ctx) {
             <p className="text-[length:var(--text-h3)] font-semibold">{coord.name}</p>
             <p className="text-muted">{coord.city ? `Based in ${coord.city}` : "Based in India"}{coord.workingHours ? `. ${coord.workingHours}` : ""}</p>
             {access.canReadRequests && <p className="text-muted">Handling {working} of your request{working === 1 ? "" : "s"}.</p>}
-            {coord.phone && <a className="btn btn-secondary w-fit" href={`https://wa.me/${coord.phone.replace(/\D/g, "")}`}>Contact {coord.name.split(" ")[0]}</a>}
+            <a className="btn btn-secondary w-fit" href={deskChat(`Hi ${coord.name.split(" ")[0]}, I have a question about my Ally account.`)} target="_blank" rel="noopener noreferrer">Message {coord.name.split(" ")[0]} on WhatsApp</a>
           </div>
-        ) : <p className="text-[length:var(--text-small)] text-muted">We are assigning a person to you.</p>}
+        ) : (
+          <div className="grid gap-2 text-[length:var(--text-small)]">
+            <p className="text-muted">We are assigning a person to you.</p>
+            <a className="btn btn-secondary w-fit" href={deskChat("Hi Ally, I have a question about my account.")} target="_blank" rel="noopener noreferrer">Message us on WhatsApp</a>
+          </div>
+        )}
       </Panel>
       {!fam.parent.isSelf && (
         <Panel title={fam.parent.name} action={<span className="chip" data-tone={consent.tone}>{consent.label}</span>}>

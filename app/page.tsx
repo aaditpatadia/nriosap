@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CommandPreview } from "@/components/CommandPreview";
 import { GlobalMap } from "@/components/GlobalMap";
+import { HeroPreview } from "@/components/HeroPreview";
 import { HowItWorks } from "@/components/HowItWorks";
 import { IconArrow, IconCheck } from "@/components/Icons";
 import { Kinetic } from "@/components/Kinetic";
@@ -12,6 +13,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { WaitlistForm } from "@/components/WaitlistForm";
 import { backendReady } from "@/lib/backend";
 import { CATALOGUE } from "@/lib/catalogue";
+import { deskChat } from "@/lib/contact";
 import { loadPlans } from "@/lib/plans";
 
 // Plan changes made in the Ops console reach this page without a rebuild.
@@ -37,7 +39,10 @@ const FAQ = [
   ["Can I leave?", "Any time. No lock-in. You can download everything, or delete it all, yourself."],
 ];
 
-const H2 = "text-[length:var(--text-section)] font-bold";
+const H2 = "text-[length:var(--text-section)] font-bold tracking-[-0.025em]";
+
+// How the product works. Facts about the rules, not claims about customers.
+const FACTS = ["A named person in India", "You approve every cost", "Proof for every step", "Cancel any time"];
 
 export default async function Home() {
   const plans = await loadPlans();
@@ -54,20 +59,34 @@ export default async function Home() {
               <Link href="/signin" className="btn btn-primary">Get started with Ally <IconArrow className="arrow" /></Link>
               <a href="#how" className="btn btn-secondary min-h-14">Explore how it works</a>
             </div>
+            <ul className="facts rise mt-8 max-w-lg" aria-label="How Ally works, in short">
+              {FACTS.map((f) => <li key={f}><IconCheck size={18} />{f}</li>)}
+            </ul>
           </div>
-          <div className="band rise rounded-[20px] p-5 sm:p-7" style={{ boxShadow: "var(--shadow-lg)" }}><GlobalMap /></div>
+          <div className="rise"><HeroPreview /></div>
         </section>
 
         <section aria-labelledby="problem" className="wrap grid gap-8 py-16 lg:py-24">
           <div className="grid max-w-3xl gap-3">
+            <span className="eyebrow">The problem</span>
             <h2 id="problem" className={H2}>You left. The responsibilities didn&apos;t.</h2>
             <p className="text-muted">You are not short of apps. You are short of one reliable person, and one clear view of what is going on.</p>
           </div>
           <ProblemCards />
         </section>
 
+        <section aria-labelledby="reach" className="wrap grid gap-8 pb-16 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center lg:pb-24">
+          <div className="grid max-w-xl gap-3">
+            <span className="eyebrow">Wherever you live</span>
+            <h2 id="reach" className={H2}>From your time zone to theirs.</h2>
+            <p className="text-muted">Send the task from London, Toronto, Dubai or Singapore. A person in India picks it up during their working day, and you see every step when you wake up.</p>
+          </div>
+          <Reveal><div className="band rounded-[20px] p-5 sm:p-7" style={{ boxShadow: "var(--shadow-lg)" }}><GlobalMap /></div></Reveal>
+        </section>
+
         <section aria-labelledby="services" className="wrap grid gap-8 bg-sunken py-16 lg:py-24">
           <div className="grid max-w-3xl gap-3">
+            <span className="eyebrow">Services</span>
             <h2 id="services" className={H2}>What Ally handles</h2>
             <p className="text-muted">We coordinate the work. Some steps still need you in person, a valid authorisation or a licensed professional, and we say so before you spend anything.</p>
           </div>
@@ -85,12 +104,13 @@ export default async function Home() {
         </section>
 
         <section id="how" aria-labelledby="how-title" className="wrap grid gap-8 py-16 lg:py-24">
-          <h2 id="how-title" className={H2}>How Ally works</h2>
+          <div className="grid gap-3"><span className="eyebrow">How it works</span><h2 id="how-title" className={H2}>How Ally works</h2></div>
           <HowItWorks />
         </section>
 
         <section aria-labelledby="command" className="wrap grid gap-8 bg-sunken py-16 lg:py-24">
           <div className="grid max-w-3xl gap-3">
+            <span className="eyebrow">Your dashboard</span>
             <h2 id="command" className={H2}>One place for everything back home</h2>
             <p className="text-muted">Built from the same parts as the real dashboard. Try approving the quotation.</p>
           </div>
@@ -107,13 +127,14 @@ export default async function Home() {
 
         <section aria-labelledby="pricing" className="wrap grid gap-8 py-16 lg:py-24">
           <div className="grid max-w-3xl gap-3">
+            <span className="eyebrow">Pricing</span>
             <h2 id="pricing" className={H2}>Simple monthly plans</h2>
             <p className="text-muted">Your subscription pays for coordination. Provider fees, government charges and other third-party costs are quoted separately for your approval. Prices in US dollars. Cancel any time.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {plans.map((p, i) => (
               <Reveal key={p.slug} delay={i * 0.06}>
-                <article className="card lift grid h-full content-start gap-4 p-6" style={p.featured ? { borderColor: "var(--accent)" } : undefined}>
+                <article className="card lift grid h-full content-start gap-4 p-6" style={p.featured ? { background: "var(--mint)", borderColor: "var(--mint-line)" } : undefined}>
                   <div className="flex items-center justify-between gap-2"><h3 className="text-[length:var(--text-h2)] font-bold">{p.name}</h3>{p.featured && <span className="chip" data-tone="accent">A good place to start</span>}</div>
                   <p className="text-5xl font-bold tracking-tight">${p.priceUsd}<span className="text-[length:var(--text-small)] font-medium tracking-normal text-muted"> / month</span></p>
                   {!p.featured && <p className="text-[length:var(--text-small)] text-muted">{p.blurb}</p>}
@@ -139,7 +160,10 @@ export default async function Home() {
         <section id="waitlist" aria-labelledby="join" className="band wrap grid gap-8 py-16 lg:grid-cols-2 lg:gap-16 lg:py-24">
           <div className="grid content-start gap-5">
             <h2 id="join" className={H2}>India is still home. Let Ally help take care of the details.</h2>
-            <Link href="/signin" className="btn btn-primary w-fit">Get started <IconArrow className="arrow" /></Link>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/signin" className="btn btn-primary w-fit">Get started <IconArrow className="arrow" /></Link>
+              <a href={deskChat("Hi Ally, I would like to know more.")} target="_blank" rel="noopener noreferrer" className="btn btn-secondary w-fit min-h-14">Talk to a person on WhatsApp</a>
+            </div>
             <p className="text-muted">Not ready yet? Leave your details and we will write to you.</p>
           </div>
           <div>

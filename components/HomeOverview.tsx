@@ -15,12 +15,16 @@ const when = (today: string, date: string) => {
   return d === 0 ? "Today" : d === 1 ? "Tomorrow" : d < 0 ? `${-d} day${d === -1 ? "" : "s"} late` : `In ${d} days`;
 };
 
-const QUICK: [string, string][] = [
-  ["A property check or repair", "Please arrange someone to check my flat in "],
-  ["Papers and certificates", "I need help getting a copy of "],
-  ["Something for my family", "Please help my parents with "],
-  ["Something else", ""],
-];
+/** Quick starts that use what we already know: their own property and their family's city. */
+function quickStarts(place: { name: string; city: string | null } | null, city: string | null): [string, string][] {
+  const where = place?.city ?? city;
+  return [
+    place ? [`A check at ${place.name}`, `Please arrange someone to check ${place.name}${place.city ? ` in ${place.city}` : ""}. `] : ["A property check or repair", `Please arrange someone to check my flat${where ? ` in ${where}` : ""}. `],
+    ["Papers and certificates", "I need help getting a copy of "],
+    [where ? `Something for family in ${where}` : "Something for my family", `Please help my family${where ? ` in ${where}` : ""} with `],
+    ["Something else", ""],
+  ];
+}
 
 export interface BandNote { text: string; href?: string; ok?: boolean }
 export interface BandQuick { prompt: string; options: [string, string][]; cta: { label: string; href: string } }
@@ -86,9 +90,9 @@ export function BandQuickStart({ prompt, options, cta }: BandQuick) {
 }
 
 /** Home for a customer. */
-export function OverviewBand({ base, today, attention, calendar, canCreate, coordinator }: { base: string; today: string; attention: number; calendar: CalItem[]; canCreate: boolean; coordinator: { name: string; city: string | null } | null }) {
+export function OverviewBand({ base, today, attention, top = null, calendar, canCreate, coordinator, place = null, city = null }: { base: string; today: string; attention: number; top?: { text: string; href: string } | null; calendar: CalItem[]; canCreate: boolean; coordinator: { name: string; city: string | null } | null; place?: { name: string; city: string | null } | null; city?: string | null }) {
   const quick = canCreate
-    ? <BandQuickStart prompt="What do you need handled in India?" options={QUICK.map(([label, text]) => [label, `${base}/requests/new${text ? `?text=${encodeURIComponent(text)}` : ""}`])} cta={{ label: "New request", href: `${base}/requests/new` }} />
+    ? <BandQuickStart prompt="What do you need handled in India?" options={quickStarts(place, city).map(([label, text]) => [label, `${base}/requests/new${text ? `?text=${encodeURIComponent(text)}` : ""}`])} cta={{ label: "New request", href: `${base}/requests/new` }} />
     : (
       <>
         <p className="band-muted text-[length:var(--text-small)]">Your coordinator</p>
@@ -99,7 +103,7 @@ export function OverviewBand({ base, today, attention, calendar, canCreate, coor
   return (
     <DarkBand
       today={today}
-      note={attention > 0 ? { text: `${attention} thing${attention === 1 ? "" : "s"} need${attention === 1 ? "s" : ""} you. See below.`, href: "#attention" } : { text: "All clear for now.", ok: true }}
+      note={attention > 0 && top ? { text: `Start with: ${top.text}${attention > 1 ? ` (and ${attention - 1} more)` : ""}`, href: top.href } : { text: "All clear for now.", ok: true }}
       pill={{ label: "Coming up", href: `${base}/bills` }}
       empty="Add bills, renewals and important dates, and they show here before they are due."
       calendar={calendar}
