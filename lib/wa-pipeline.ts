@@ -115,7 +115,7 @@ type Vars = { name?: string; coordinator?: string; ref?: string };
 interface Ctx { t: Tx; m: Row; s: Sender; to: Recipient; vars: Vars; replies: string[]; after: After[] }
 
 const setStatus = (c: Ctx, status: string, extra = "") => c.t.run(`update whatsapp_messages set status = $2${extra} where id = $1`, [c.m.id, status]);
-const reply = async (c: Ctx, kind: ReplyKind, extra: Vars = {}) => void c.replies.push(await queueReply(c.t, c.to, kind, { ...c.vars, ...extra }));
+const reply = async (c: Ctx, kind: ReplyKind, extra: Vars = {}, requestId: string | null = null) => void c.replies.push(await queueReply(c.t, c.to, kind, { ...c.vars, ...extra }, { requestId }));
 
 async function recentlySent(t: Tx, hash: string, kind: ReplyKind) {
   return !!(await t.one<Row>("select 1 as x from whatsapp_messages where phone_hash = $1 and direction = 'out' and title = $2 and created_at > now() - interval '24 hours' limit 1", [hash, kind]));
@@ -199,7 +199,7 @@ export async function createLinkCode(profileId: string): Promise<string> {
     tx(async (t) => {
       await t.run("delete from whatsapp_link_codes where profile_id = $1 or expires_at < now()", [profileId]);
       await t.run("insert into whatsapp_link_codes(code_hash, profile_id, expires_at) values ($1,$2, now() + make_interval(mins => $3))", [codeHash(code), profileId, LINK_TTL_MINUTES]);
-      await t.run("insert into audit_log(actor_id, action, entity, entity_id) values ($1,'whatsapp_link_code_created','profile',$1)", [profileId]);
+      await t.run("insert into audit_log(actor_id, action, entity, entity_id) values ($1,'whatsapp_link_code_created','profile',$2)", [profileId, profileId]);
     }),
   );
   return code;
@@ -210,7 +210,7 @@ async function link(c: Ctx, code: string, e164: string): Promise<boolean> {
   if (!r) return false;
   await c.t.run("update profiles set whatsapp_hash = null, whatsapp_verified_at = null, whatsapp_phone_enc = null where whatsapp_hash = $1 and id <> $2", [c.m.phone_hash, r.profile_id]);
   await c.t.run("update profiles set whatsapp_hash = $2, whatsapp_verified_at = now(), whatsapp_phone_enc = $3 where id = $1", [r.profile_id, c.m.phone_hash, encryptPhone(e164)]);
-  await c.t.run("insert into audit_log(actor_id, action, entity, entity_id) values ($1,'whatsapp_linked','profile',$1)", [r.profile_id]);
+  await c.t.run("insert into audit_log(actor_id, action, entity, entity_id) values ($1,'whatsapp_linked','profile',$2)", [r.profile_id, r.profile_id]);
   return true;
 }
 
@@ -250,6 +250,17 @@ async function handleFast(c: Ctx, cmd: Command, e164: string): Promise<boolean> 
     if (!(await recentlySent(t, m.phone_hash, "unknown"))) await reply(c, "unknown");
     return true;
   }
+  // A named person is always reachable, and an owner's own decision is theirs, so neither waits for message consent.
+  if (cmd.kind === "human") {
+    await setStatus(c, "command");
+    await addTask(c, `Call back: ${s.name ?? "a family contact"} asked for a person on WhatsApp`, { minutes: 60, kind: "checkin" });
+    await reply(c, "human");
+    return true;
+  }
+  if (cmd.kind === "approve" || cmd.kind === "decline" || cmd.kind === "undo") {
+    await quoteDecision(c, cmd);
+    return true;
+  }
   const stopped = await isOptedOut(t, m.phone_hash);
   if (s.consentByCallOnly && (!s.consent.handle || stopped)) {
     // A parent's consent is taken on a call in their own language, never by a WhatsApp reply.
@@ -262,25 +273,27 @@ async function handleFast(c: Ctx, cmd: Command, e164: string): Promise<boolean> 
   }
   if (stopped || !s.consent.handle) {
     if (cmd.kind === "consent_yes" || cmd.kind === "consent_person_only") {
-    await grantConsent(c, cmd.kind === "consent_person_only");
-    return true;
-  }
+      await grantConsent(c, cmd.kind === "consent_person_only");
+      return true;
+    }
     if (cmd.kind === "consent_no" && !stopped) {
       await setStatus(c, "command");
       await reply(c, "consent_declined");
       return true;
     }
+    if (cmd.kind === "start") {
+      // START alone is not a request. It only brings back the consent question.
+      await setStatus(c, "command");
+      await t.run("update whatsapp_optouts set consent_prompted_at = now() where phone_hash = $1", [m.phone_hash]);
+      await reply(c, "consent_prompt");
+      return true;
+    }
     await promptConsent(c);
     return true;
   }
-  if (cmd.kind === "human") {
+  // A bare YES, NO or START from someone already consented is not a new request, unless it answers one of our messages.
+  if ((cmd.kind === "start" || cmd.kind === "consent_yes" || cmd.kind === "consent_no" || cmd.kind === "consent_person_only") && !m.reply_to_wamid) {
     await setStatus(c, "command");
-    await addTask(c, `Call back: ${s.name ?? "a family contact"} asked for a person on WhatsApp`, { minutes: 60, kind: "checkin" });
-    await reply(c, "human");
-    return true;
-  }
-  if (cmd.kind === "approve" || cmd.kind === "decline" || cmd.kind === "undo") {
-    await quoteDecision(c, cmd);
     return true;
   }
   if (m.type === "other" || !mediaAllowed(m.type, m.media_mime)) {
@@ -469,7 +482,7 @@ async function route(c: Ctx, slow: Slow, plans: Plan[]) {
     await t.run("update whatsapp_messages set request_id = $2 where id = $1", [m.id, open.id]);
     if (d.needsHuman) await addTask(c, `Check WhatsApp message on ${open.ref}: ${title}`, { checklist: [checkNote ?? "Read the message and the AI reading", "Confirm or change the category in the WhatsApp inbox"] });
     await setStatus(c, d.needsHuman ? "needs_human" : "routed");
-    await reply(c, d.needsProfessional ? "professional" : "request_continued", { ref: open.ref });
+    await reply(c, d.needsProfessional ? "professional" : "request_continued", { ref: open.ref }, open.id);
     return;
   }
   if (!isServiceCategory(d.category)) {
@@ -499,7 +512,7 @@ async function route(c: Ctx, slow: Slow, plans: Plan[]) {
   });
   await t.run("update whatsapp_messages set request_id = $2, task_id = coalesce(task_id, $3) where id = $1", [m.id, made.id, made.taskId]);
   await setStatus(c, d.needsHuman ? "needs_human" : "routed");
-  await reply(c, d.needsProfessional ? "professional" : "request_opened", { ref: made.ref });
+  await reply(c, d.needsProfessional ? "professional" : "request_opened", { ref: made.ref }, made.id);
 }
 
 async function runAfter(a: After): Promise<string[]> {

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { asksForAdvice, looksLikeAdvice } from "./rules";
-import { SERVICE_CATEGORIES, understandRequest, type ServiceCategory } from "./request-engine";
+import { requestTitle, SERVICE_CATEGORIES, understandRequest, type ServiceCategory } from "./request-engine";
 import { detectEmergency } from "./wa-emergency";
 
 /**
@@ -145,7 +145,27 @@ export class ClaudeCategoriser implements Categoriser {
   }
 }
 
-export const getCategoriser = (): Categoriser => new ClaudeCategoriser();
+/** Deterministic stand-in for tests and demos with no API key. Selected only with WHATSAPP_CATEGORISER=mock. "[lowconf]" scores 0.6, "[fail]" refuses. */
+export class MockCategoriser implements Categoriser {
+  readonly model = "mock-categoriser";
+  async categorise(text: string): Promise<Reading> {
+    if (text.includes("[fail]")) throw new CategoriseError("refusal");
+    const seen = understandRequest(text);
+    const c = text.includes("[lowconf]") ? 0.6 : 0.95;
+    const dates = text.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
+    const amounts = text.match(/(?:rs\.?|inr|₹)\s?[\d,]+/gi) ?? [];
+    return {
+      category: seen.verdict === "not_possible" ? "refused" : seen.category,
+      title: requestTitle(text.replace(/\[(lowconf|fail)\]/g, "").trim() || "WhatsApp message"),
+      facts: { amounts, dates, biller: null, consumerNumber: null, policyNumber: null, property: null, person: null },
+      language: "English", urgency: seen.urgent ? "high" : "normal", needsProfessional: seen.verdict === "needs_professional",
+      confidence: { category: c, title: c, language: c, urgency: c, licensed_professional_needed: c, ...(amounts.length ? { amounts: c } : {}), ...(dates.length ? { dates: c } : {}) },
+      model: this.model, promptVersion: PROMPT_VERSION,
+    };
+  }
+}
+
+export const getCategoriser = (): Categoriser => (process.env.WHATSAPP_CATEGORISER === "mock" ? new MockCategoriser() : new ClaudeCategoriser());
 
 /** What the code does with a reading. The model never decides this. */
 export interface Decision {
