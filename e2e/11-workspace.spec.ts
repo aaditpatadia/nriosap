@@ -146,7 +146,7 @@ test("a payment shows as confirmed only with proof", async ({ page, browser }) =
   await desk.getByLabel("Payment reference").fill("UTR123456");
   await desk.getByRole("button", { name: "Mark confirmed" }).click();
   await page.reload();
-  await expect(v(page, "Payment confirmed")).toBeVisible();
+  await expect(page.getByText("Payment confirmed", { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(v(page, "reference UTR123456")).toBeVisible();
 });
 

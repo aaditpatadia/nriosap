@@ -100,7 +100,7 @@ async function Requests({ id, base, access }: Ctx) {
         <h2 id="your-requests" className="text-[length:var(--text-h2)] font-semibold">Your requests</h2>
         <Link className="text-[length:var(--text-small)] font-semibold text-accent" href={`${base}/requests`}>See all {requests.length}</Link>
       </div>
-      <RequestTable base={base} requests={shown} quotes={quotes} />
+      <RequestTable base={`${base}/requests`} requests={shown} quotes={quotes} />
     </section>
   );
 }

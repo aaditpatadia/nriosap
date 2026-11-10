@@ -33,6 +33,12 @@ export async function opsOverview(now = new Date()) {
     completedThisMonth: requests.filter((r) => r.completedAt && new Date(r.completedAt) >= monthStart).length + doneTasks.filter((t) => !requests.some((r) => r.taskId === t.id) && time.some((e) => e.taskId === t.id && new Date(e.at) >= monthStart)).length,
     workload: coordinators.map((c) => ({ id: c.id, name: c.name, open: tasks.filter((t) => t.ownerId === c.id && t.status !== "done").length, late: tasks.filter((t) => t.ownerId === c.id && isPastSla(t, now)).length })).sort((a, b) => b.open - a.open),
     newest: open.slice(0, 6),
+    today,
+    // Dates for the desk calendar: booked visits, and open requests with a needed-by date.
+    calendar: [
+      ...visits.filter((v) => v.status === "scheduled").map((v) => ({ date: istDate(new Date(v.scheduledAt)), label: v.familyName ? `${v.purpose}, ${v.familyName}` : v.purpose, kind: "Visit", href: "/ops/visits" })),
+      ...open.filter((r) => r.dueOn).map((r) => ({ date: r.dueOn!, label: `${r.ref}: ${r.title}`, kind: "Needed by", href: `/ops/requests/${r.id}` })),
+    ],
   };
 }
 

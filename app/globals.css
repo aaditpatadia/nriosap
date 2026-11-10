@@ -235,6 +235,7 @@ details[open] > :not(summary) { animation: rise 240ms var(--ease-out) both; }
 .metric-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-sm); overflow: hidden; }
 .metric-strip[data-cols="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 768px) { .metric-strip[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.metric-strip[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .metric-cell { display: grid; align-content: start; gap: 6px; padding: 16px 18px; min-height: 92px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; transition: opacity var(--dur-fast) var(--ease-out); }
 a.metric-cell:hover .metric-label { color: var(--ink); }
 .section-title { font-size: var(--text-h3); font-weight: 650; }
@@ -383,9 +384,13 @@ a.band-note:hover { color: var(--b-ink); }
 @media (max-width: 767px) {
   .dtable, .dtable tbody { display: block; }
   .dtable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .dtable tr.dt-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-bottom: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+  .dtable tr.dt-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
   .dtable tr.dt-row td { display: block; padding: 0; border: 0; border-radius: 0; background: none; }
   .dtable tr.dt-row td.dt-wide { display: none; }
   .dt-meta { display: block; }
+  .dtable tr.dt-row td:last-child { padding-left: 54px; }
 }
 .chip { border-radius: 99px; padding: 0.2rem 0.7rem; }
+
+.card .dtable td { background: var(--bg); }
+@media (max-width: 767px) { .card .dtable tr.dt-row { background: var(--bg); } }
