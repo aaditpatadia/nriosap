@@ -146,7 +146,24 @@ test("properties can be added, and the menu folds", async ({ page }) => {
   await expect(label).toBeVisible();
   const before = await page.locator("aside.side").evaluate((e) => e.getBoundingClientRect().width);
   await page.getByRole("button", { name: "Fold the menu" }).click();
+  await page.mouse.move(900, 500);
   await expect.poll(() => page.locator("aside.side").evaluate((e) => e.getBoundingClientRect().width)).toBeLessThan(before);
+  // Folded: only icons show. Words are hidden until the pointer is over the menu.
+  await expect(page.locator(".side-link .side-text").first()).not.toBeInViewport();
+  await page.locator("aside.side").hover();
+  await expect(page.locator(".side-link .side-text").first()).toBeVisible();
+  expect(await page.locator("aside.side").evaluate((e) => e.getBoundingClientRect().width)).toBeGreaterThan(200);
+  await page.mouse.move(900, 500);
+  await expect(page.locator(".side-link .side-text").first()).not.toBeInViewport();
+  // The fold button sits in the top right of the menu.
+  await page.locator("aside.side").hover();
+  const box = await page.getByRole("button", { name: "Keep the menu open" }).boundingBox();
+  const side = await page.locator("aside.side").boundingBox();
+  expect(box!.y).toBeLessThan(side!.y + 90);
+  expect(box!.x + box!.width).toBeGreaterThan(side!.x + side!.width - 30);
+  await page.getByRole("button", { name: "Keep the menu open" }).click();
+  await page.mouse.move(900, 500);
+  await expect.poll(() => page.locator("aside.side").evaluate((e) => e.getBoundingClientRect().width)).toBeGreaterThan(200);
 });
 
 test("the home page explains itself and its preview works", async ({ page }) => {

@@ -1,16 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { FAM, signInOwner } from "./helpers";
 
-test("the map animates and the pause button stops it", async ({ page }) => {
+test("the map animates, and there is no pause button anywhere", async ({ page }) => {
   await page.goto("/");
   await expect.poll(() => page.locator(".thread-dot").first().evaluate((e) => getComputedStyle(e).animationPlayState)).toBe("running");
-  await page.getByRole("button", { name: "Pause motion" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-motion", "paused");
-  const state = await page.locator(".thread-dot").first().evaluate((e) => getComputedStyle(e).animationPlayState);
-  expect(state).toBe("paused");
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-motion", "paused");
-  await expect(page.getByRole("button", { name: "Pause motion" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Pause motion" })).toHaveCount(0);
 });
 
 test("headline words keep their spaces, and phones get a tidy header", async ({ page }) => {

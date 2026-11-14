@@ -207,7 +207,9 @@ details[open] > :not(summary) { animation: rise 240ms var(--ease-out) both; }
   .side { position: fixed; z-index: 50; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform var(--dur-slow) var(--ease-out); box-shadow: var(--shadow-lg); }
   .shell[data-open="true"] .side { transform: none; }
   .shell[data-open="true"] .side-scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgb(13 20 28 / 0.45); animation: fade-in var(--dur-base) var(--ease-out) both; }
-  .shell[data-collapsed="true"] .side-text { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+  .shell[data-collapsed="true"] .side-text { position: relative; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+  .shell[data-collapsed="true"] .side-badge { display: inline-flex; }
+  .shell[data-collapsed="true"] .side-foot-detail { display: grid; }
   .shell[data-collapsed="true"] .side-link { justify-content: flex-start; padding: 0 10px; }
   .side-fold { display: none; }
   .bottom-nav { position: fixed; z-index: 35; inset: auto 0 0 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: color-mix(in srgb, var(--surface) 86%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
@@ -277,8 +279,6 @@ a.metric-cell:hover .metric-label { color: var(--ink); }
 .typing span:nth-child(2) { animation-delay: 140ms; } .typing span:nth-child(3) { animation-delay: 280ms; }
 @keyframes typing { 50% { transform: translateY(-4px); } }
 
-html[data-motion="paused"] *, html[data-motion="paused"] *::before, html[data-motion="paused"] *::after { animation-play-state: paused !important; }
-html[data-motion="paused"] .word > span, html[data-motion="paused"] .rise, html[data-motion="paused"] main, html[data-motion="paused"] .page-in, html[data-motion="paused"] .skel-in { animation: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .thread-dot, .pin-ring, .vault-paper, .vault-shackle, .orb::after, .typing span, .word > span, .rise, main, .page-in { animation: none !important; }
@@ -410,7 +410,6 @@ a.band-note:hover { color: var(--b-ink); }
 .dt-row:nth-child(2) { animation-delay: 340ms; }
 .dt-row:nth-child(3) { animation-delay: 380ms; }
 .dt-row:nth-child(n + 4) { animation-delay: 420ms; }
-html[data-motion="paused"] .band-dark > *, html[data-motion="paused"] .stats > .stat, html[data-motion="paused"] .dt-row { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .band-dark > *, .stats > .stat, .dt-row { animation: none; } }
 
 /* Landing hero: a framed sample of the app that floats gently. */
@@ -440,5 +439,22 @@ html[data-motion="paused"] .band-dark > *, html[data-motion="paused"] .stats > .
 .facts li { display: flex; align-items: center; gap: 8px; font-size: var(--text-small); font-weight: 600; }
 .facts svg { flex: none; color: var(--mint-strong); }
 .eyebrow { display: inline-flex; width: fit-content; padding: 0.2rem 0.7rem; border-radius: 99px; background: var(--mint); color: var(--mint-strong); font-size: var(--text-micro); font-weight: 700; letter-spacing: 0.02em; }
-html[data-motion="paused"] .hero-frame, html[data-motion="paused"] .hero-frame * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .hero-frame, .hero-frame * { animation: none !important; } }
+
+/* Menu fold: the button sits at the top right of the menu. Folded, only icons show; pointing at it opens it over the page. */
+.side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+@media (min-width: 1024px) {
+  .side-fold { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
+  .side-fold:hover { background: var(--sunken); color: var(--ink); }
+  .shell[data-collapsed="true"] .side-head { justify-content: center; }
+  .shell[data-collapsed="true"] .side:not(:hover):not(:has(:focus-visible)) .side-fold { display: none; }
+  .shell[data-collapsed="true"] .side:not(:hover):not(:has(:focus-visible)) .btn-primary { padding: 0; justify-content: center; }
+  .side .btn-primary svg { flex: none; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) { width: 256px; z-index: 40; box-shadow: var(--shadow-lg); }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-head { justify-content: space-between; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-text { width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; position: relative; animation: fade-in var(--dur-base) var(--ease-out) both; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-link { justify-content: flex-start; padding: 0 10px; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-badge { display: inline-flex; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-foot-detail { display: grid; animation: fade-in var(--dur-base) var(--ease-out) both; }
+}
+@media (prefers-reduced-motion: reduce) { .shell[data-collapsed="true"] .side * { animation: none !important; } }

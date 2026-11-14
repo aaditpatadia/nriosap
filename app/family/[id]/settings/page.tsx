@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MotionToggle } from "@/components/MotionToggle";
 import { PageHeader, Panel } from "@/components/ui";
 import { signOut } from "@/app/signin/actions";
 import { getViewer } from "@/lib/auth";
@@ -36,10 +35,6 @@ export default async function Settings({ params }: { params: Promise<{ id: strin
           <WhatsAppLink linkedAt={await whatsappLinkedAt(viewer.id)} deskNumber={process.env.NEXT_PUBLIC_DESK_WHATSAPP?.replace(/\D/g, "") || null} />
         </Panel>
       )}
-      <Panel title="Display">
-        <p className="text-[length:var(--text-small)] text-muted">Make the text larger, or pause moving parts of the page.</p>
-        <div className="flex flex-wrap gap-2"><MotionToggle /></div>
-      </Panel>
       <Panel title="Signed in as">
         <p className="font-medium">{viewer.name}{viewer.email ? <span className="block text-[length:var(--text-small)] font-normal text-muted">{viewer.email}</span> : null}</p>
         <form action={signOut}><button className="btn btn-secondary">Sign out</button></form>

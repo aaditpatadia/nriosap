@@ -2,7 +2,6 @@
 
 import { m, useReducedMotion } from "motion/react";
 import { ease } from "@/lib/motion";
-import { useMotionPaused } from "@/lib/motion-pref";
 
 const BITS = Array.from({ length: 16 }, (_, i) => {
   const angle = (i / 16) * Math.PI * 2;
@@ -13,8 +12,7 @@ const BITS = Array.from({ length: 16 }, (_, i) => {
 /** A small burst of dots when something good finishes. */
 export function Burst() {
   const reduce = useReducedMotion();
-  const paused = useMotionPaused();
-  if (reduce || paused) return null;
+  if (reduce) return null;
   return (
     <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 z-10">
       {BITS.map((b) => (

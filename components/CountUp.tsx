@@ -7,7 +7,7 @@ export function CountUp({ value, className }: { value: number; className?: strin
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (!el || value <= 0 || matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "paused") return;
+    if (!el || value <= 0 || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const start = performance.now();
     let frame = 0;
     const tick = (now: number) => {

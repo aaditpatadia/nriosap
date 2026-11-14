@@ -52,7 +52,7 @@ export function HowItWorks() {
   const visible = useInView(ref, { margin: "-20% 0px" });
   const reduce = useReducedMotion();
   useEffect(() => {
-    if (!auto || !visible || reduce || document.documentElement.dataset.motion === "paused") return;
+    if (!auto || !visible || reduce) return;
     const t = setInterval(() => setStep((s) => (s + 1) % STEPS.length), 4200);
     return () => clearInterval(t);
   }, [auto, visible, reduce]);
