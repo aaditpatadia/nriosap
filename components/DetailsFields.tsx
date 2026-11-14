@@ -63,6 +63,20 @@ export function DetailsFields({ initial, area = { from: DEFAULT_RATE_CARD.areaPi
         <PlaceFields prefix="p" title={delivering ? "Pick up from" : "The place we should go to"} init={initial.pickup} area={area} />
         {delivering && <PlaceFields prefix="d" title="Drop at" init={initial.drop} area={area} />}
 
+        <label className="field">About how long will the work take once we are there?
+          <select className="input" name="workMinutes" defaultValue={String(initial.workMinutes || 0)}>
+            <option value="0">Not sure</option>
+            <option value="10">A few minutes (up to 10)</option>
+            <option value="20">About 20 minutes</option>
+            <option value="30">About half an hour</option>
+            <option value="60">About an hour</option>
+            <option value="120">About 2 hours</option>
+            <option value="180">About 3 hours</option>
+            <option value="240">Half a day (4 hours)</option>
+          </select>
+          <span className="text-[length:var(--text-micro)] font-normal text-muted">We price by time: travelling, the work itself, and any waiting. An honest guess helps us quote fairly.</span>
+        </label>
+
         <fieldset className="grid gap-3 sm:grid-cols-3">
           <legend className="mb-1 px-1 font-semibold">When suits you?</legend>
           <label className="field">Day<input className="input" type="date" name="w_date" defaultValue={initial.window.date} /></label>

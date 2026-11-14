@@ -144,3 +144,13 @@ Source: developers.facebook.com/docs/whatsapp/pricing, read 2026-11-11 with an a
 - The site says "India" everywhere. Ally works in Mumbai only for now.
 - The site says the subscription pays for coordination. A 25% fee on each task needs the same sentence to say so.
 - Nothing on the site says electric vehicles yet. Say it only once it is true on the road.
+
+## Time pricing (phase 5)
+- Default mode is time: blocks of 30 minutes at 7 US dollars, turned into rupees at the day's rate. The dollar rate must be entered or fetched first. Without it the calculator says so and will not price.
+- Minutes: travel is distance divided by speed (18 km/h door to door, editable), 8 minutes at each stop for parking and handover, the customer's own estimate of the work, and any waiting. A part of a block counts as a whole one, with a minimum of one block.
+- Fairness: the price is never lower than the rider and vehicle costs plus Ally's 25% fee (switchable). A check on screen compares the time price with that floor. At 7 dollars per 30 minutes a plain 9 km delivery comes to about Rs 1,985 (21 dollars) against about Rs 150 on cost plus, so Ally keeps about 94% of the price. That is a pricing decision for you. If it is too high for a document run, lower the block price or use cost mode for short jobs. The calculator warns when the time price is more than 4 times the floor.
+- The 25% fee is kept in both modes: in time mode it is the floor, and it is also taken on provider costs passed through at cost.
+- The customer sees rupees and dollars on every quotation, with the dollar rate and date. Their own currency is shown as well when it is another one.
+- Voice note requests: stored in the vault as audio for a person. Not transcribed and not sent to any AI. A transcription option would need the opt-in flag and the lawyer's view first.
+- Ally Assistant: product answers live in `lib/assistant-kb.ts`. Set NEXT_PUBLIC_SUPPORT_EMAIL to show an "Email us" button. No address is invented.
+- Not verified: voice recording on a real phone browser (tested with a fake microphone in Chrome), and the live exchange-rate fetch.

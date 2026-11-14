@@ -23,7 +23,7 @@ function FileList({ items }: { items: RequestAttachment[] }) {
       {items.map((f) => (
         <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
           <span className="text-[length:var(--text-small)] [overflow-wrap:anywhere]">{f.caption || f.title || "Document"}</span>
-          {f.title && <a className="btn btn-secondary" href={`/api/documents/${f.documentId}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${f.title}`}>Open</a>}
+          {f.title?.startsWith("Voice note") ? <audio controls preload="none" src={`/api/documents/${f.documentId}/file`} className="w-full sm:w-72" aria-label="Your voice note" /> : f.title && <a className="btn btn-secondary" href={`/api/documents/${f.documentId}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${f.title}`}>Open</a>}
         </li>
       ))}
     </ul>
@@ -37,6 +37,7 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
   const [events, files, quotes, access, approvals, properties, fam, payments] = await Promise.all([requestEvents(requestId), requestAttachments(requestId), quotesForRequest(requestId), familyAccess(id), approvalsFor(id), propertiesFor(id), getFamily(id), paymentsForRequest(requestId)]);
   const rc = await activeRateCard();
   const viaWhatsApp = r.understanding && (r.understanding as { via?: string }).via === "whatsapp";
+  const viaVoice = (r.understanding as { via?: string } | null)?.via === "voice";
   const waMessages = await whatsappForRequest(requestId);
   const s = STATUS_META[r.status];
   const quote = quotes[0];
@@ -56,6 +57,7 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
           <span className="chip" data-tone={s.tone}>{s.label}</span>
           {r.priority === "urgent" && <span className="chip" data-tone="danger">Urgent</span>}
           {(viaWhatsApp || waMessages.length > 0) && <span className="chip">via WhatsApp</span>}
+          {viaVoice && <span className="chip" data-tone="accent">via voice note</span>}
         </div>
         <h1 className="text-[length:var(--text-h1)] font-bold [overflow-wrap:anywhere]">{r.title}</h1>
       </header>

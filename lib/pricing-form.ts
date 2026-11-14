@@ -23,13 +23,14 @@ export function detailsFromForm(form: FormData): { ok: true; details: RequestDet
     item: { what: str(form, "i_what"), size: str(form, "i_size") || "small", weightKg: num(form, "i_weight"), valueInr: num(form, "i_value"), fragile: form.get("i_fragile") === "on" },
     returnTrip: form.get("returnTrip") === "on",
     waitMinutes: num(form, "waitMinutes"),
+    workMinutes: num(form, "workMinutes"),
     notes: str(form, "notes"),
   });
   if (!parsed.success) {
     const i = parsed.error.issues[0];
     const where = i?.path.join(" ") ?? "";
     if (/pincode/.test(where)) return { ok: false, message: "A PIN code has 6 digits." };
-    if (/weightKg|valueInr|waitMinutes/.test(where)) return { ok: false, message: "Please check the weight, value and waiting time. They must be numbers." };
+    if (/weightKg|valueInr|waitMinutes|workMinutes/.test(where)) return { ok: false, message: "Please check the weight, value and waiting time. They must be numbers." };
     return { ok: false, message: "Please check the place and timing details." };
   }
   return { ok: true, details: parsed.data };

@@ -126,7 +126,7 @@ describe("a saved price", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const { activeRateCard } = await pricing();
-    const expected = calculatePrice(price, (await as(ID.coord, () => activeRateCard())).card);
+    const expected = calculatePrice({ ...price, usdPerInr: 0.0106 }, (await as(ID.coord, () => activeRateCard())).card);
     expect(r.result.totalPaise).toBe(expected.totalPaise);
     expect(r.parts.providerFeeInr + r.parts.coordinationFeeInr + r.parts.taxesInr).toBe(r.parts.totalInr);
     const saved = await as(ID.coord, () => estimatesForRequest(id));
@@ -156,6 +156,7 @@ describe("a saved price", () => {
     const [quote] = await as(ID.owner, () => quotesForRequest(id));
     expect(quote).toMatchObject({ currency: "USD", advancePercent: 100, estimateId: e.id });
     expect(quote.fxPerInr).toBeGreaterThan(0);
+    expect(quote.usdPerInr).toBeCloseTo(0.0106, 6);
     expect(quote.totalInr).toBe(e.parts.totalInr);
   });
 });
@@ -181,5 +182,40 @@ describe("100% in advance", () => {
     const { setRequestStatus } = await svc();
     const id = await newRequest();
     expect((await as(ID.coord, () => setRequestStatus(id, "under_review", "", ID.coord, "C"))).ok).toBe(true);
+  });
+});
+
+describe("time pricing on the server", () => {
+  it("takes the dollar rate from the database, never from the browser, and keeps it with the price", async () => {
+    const { saveEstimate, estimatesForRequest } = await pricing();
+    const id = await newRequest();
+    const r = await as(ID.coord, () => saveEstimate({ requestId: id, price: { ...trip(), usdPerInr: 0.9, workMinutes: 30 }, currency: "INR", userId: ID.coord }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.result.usdPerInr).toBeCloseTo(0.0106, 6); // the browser's 0.9 was ignored
+    expect(r.result.mode).toBe("time");
+    expect(r.result.time?.blocks).toBe(3); // 30 travelling, 16 at the stops, 30 of work
+    expect(r.result.totalUsd).toBeGreaterThan(20);
+    const [saved] = await as(ID.coord, () => estimatesForRequest(id));
+    expect((saved.inputs as { usdPerInr?: number }).usdPerInr).toBeCloseTo(0.0106, 6);
+  });
+  it("cannot price by time when there is no dollar rate, and a quotation made by hand still carries the day's rate", async () => {
+    const { saveEstimate } = await pricing();
+    const { createQuotation, quotesForRequest } = await svc();
+    const id = await newRequest();
+    const row = (await db.query("select * from fx_rates where currency = 'USD'")).rows[0];
+    try {
+      const a = await as(ID.coord, () => createQuotation(id, { providerName: "Ally", providerFeeInr: 100, coordinationFeeInr: 50, taxesInr: 0, notes: "" }, ID.coord, "C"));
+      expect(a.ok).toBe(true);
+      const [q] = await as(ID.owner, () => quotesForRequest(id));
+      expect(q.usdPerInr).toBeCloseTo(0.0106, 6);
+      expect(q.usdAsOf).not.toBeNull();
+      await db.query("delete from fx_rates where currency = 'USD'");
+      const none = await as(ID.coord, () => saveEstimate({ requestId: id, price: trip(), currency: "INR", userId: ID.coord }));
+      expect(none).toMatchObject({ ok: false });
+      expect((none as { reason: string }).reason).toMatch(/US dollar rate/);
+    } finally {
+      await db.query("insert into fx_rates(currency, per_inr, as_of, source) values ('USD', $1, $2, $3) on conflict (currency) do update set per_inr = excluded.per_inr, as_of = excluded.as_of, source = excluded.source", [row.per_inr, row.as_of, row.source]);
+    }
   });
 });

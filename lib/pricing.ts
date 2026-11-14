@@ -94,7 +94,9 @@ export interface SavedEstimate { id: string; requestId: string | null; version: 
  */
 export async function saveEstimate(input: { requestId?: string | null; familyId?: string | null; price: PriceInput; currency: Currency | "INR"; userId: string }): Promise<{ ok: true; id: string; result: PriceResult; parts: ReturnType<typeof quoteParts> } | { ok: false; reason: string }> {
   const rc = await activeRateCard();
-  const result = calculatePrice({ ...input.price, urgency: urgencyOrDefault(input.price.urgency) }, rc.card);
+  const usd = (await fxRates()).find((x) => x.currency === "USD");
+  const priced: PriceInput = { ...input.price, urgency: urgencyOrDefault(input.price.urgency), usdPerInr: usd?.perInr };
+  const result = calculatePrice(priced, rc.card);
   if (!result.ok) return { ok: false, reason: result.blockers[0] ?? "This cannot be priced." };
   let familyId = input.familyId ?? null;
   let requestId: string | null = null;
@@ -111,7 +113,7 @@ export async function saveEstimate(input: { requestId?: string | null; familyId?
   const id = await asService(() => tx(async (t) => {
     const e = await t.one<Row>(
       "insert into price_estimates(family_id, request_id, rate_card_id, inputs, breakdown, total_inr, ally_fee_inr, currency, fx_per_inr, fx_as_of, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning id",
-      [familyId, requestId, rc.id, JSON.stringify(input.price), JSON.stringify(result), parts.totalInr, Math.round(result.allyFeePaise / 100), fx ? fx.currency : "INR", fx?.perInr ?? null, fx?.asOf ?? null, input.userId],
+      [familyId, requestId, rc.id, JSON.stringify(priced), JSON.stringify(result), parts.totalInr, Math.round(result.allyFeePaise / 100), fx ? fx.currency : "INR", fx?.perInr ?? null, fx?.asOf ?? null, input.userId],
     );
     await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'price_calculated','price_estimate',$2,$3)", [input.userId, e!.id, familyId]);
     return e!.id as string;

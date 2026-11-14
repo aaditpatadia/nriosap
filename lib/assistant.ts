@@ -1,3 +1,4 @@
+import { answerFromKb, contactActions, isHowTo, type AssistantAction } from "./assistant-kb";
 import { understandRequest } from "./request-engine";
 import { looksLikeAdvice } from "./rules";
 import { daysBetween, whenWords } from "./workspace-rules";
@@ -18,8 +19,11 @@ export interface AssistantFacts {
 }
 
 export interface Source { label: string; detail: string; href: string }
-export interface AssistantAnswer { kind: "answer" | "refused" | "none"; text: string; sources: Source[]; draft?: { label: string; href: string }; checklist?: string[] }
+export interface AssistantAnswer { kind: "answer" | "refused" | "none"; text: string; sources: Source[]; draft?: { label: string; href: string }; checklist?: string[]; actions?: AssistantAction[] }
 
+/** Words that mean someone is asking for legal, tax or medical advice, even in how-to form. */
+const LEGAL_OR_TAX = /\b(sue|suing|lawsuit|evict\w*|legal (action|notice|case|advice)|court case|avoid (paying )?(the )?tax|save (on )?tax|tax (saving|planning|return)|capital gains|diagnos\w*|dosage|which medicine)\b/;
+const DRAFTING = /^(please )?(help me )?(create|make|raise|start)( me)? an? request\b|^help me (create|make|raise|start)\b|\bneed someone\b/;
 const OPEN = (s: string) => s !== "completed" && s !== "cancelled";
 const STOP = new Set(["when", "does", "do", "my", "the", "a", "an", "of", "in", "on", "for", "to", "is", "it", "what", "which", "find", "show", "me", "all", "latest", "related", "documents", "document", "expire", "expires", "please", "with", "about", "last", "i", "have", "are", "any"]);
 const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !STOP.has(w));
@@ -45,8 +49,13 @@ export function answerQuestion(question: string, f: AssistantFacts): AssistantAn
   if (/\b(pay|transfer|send money|sign|approve|file|submit)\b.*\b(for me|on my behalf|now|this|it)\b/.test(q) || /^(pay|approve|sign|file)\b/.test(q)) {
     return { kind: "refused", text: "I cannot pay, sign, file or approve anything. Those steps stay with you and your coordinator. I can help you prepare a request instead.", sources: [], draft: { label: "Prepare a request", href: `${base}/requests/new?text=${encodeURIComponent(question.slice(0, 300))}` } };
   }
-  if (looksLikeAdvice(question) || understandRequest(question).verdict === "needs_professional") {
+  if (looksLikeAdvice(question) || LEGAL_OR_TAX.test(q) || understandRequest(question).verdict === "needs_professional") {
     return { kind: "refused", text: "That needs a licensed professional, so I will not answer it myself. I can prepare the papers and your coordinator can connect you with one.", sources: [], draft: { label: "Ask for a professional", href: `${base}/requests/new?text=${encodeURIComponent(question.slice(0, 300))}` } };
+  }
+  // Questions about how to do something, or what we do, are answered from what we offer, with buttons that go straight there.
+  if (!DRAFTING.test(q) && (isHowTo(q) || q.split(/\s+/).length <= 4)) {
+    const kb = answerFromKb(question, base);
+    if (kb && !/^(which|what needs|when does)\b/.test(q)) return { kind: kb.kind, text: kb.text, sources: [], actions: kb.actions };
   }
 
   if (/\b(create|make|raise|start|help me).*\brequest\b|\bneed someone\b/.test(q)) {
@@ -120,7 +129,14 @@ export function answerQuestion(question: string, f: AssistantFacts): AssistantAn
   }
   const reqs = f.requests.filter((r) => words(q).some((w) => r.title.toLowerCase().includes(w)));
   if (reqs.length) return { kind: "answer", text: `I found ${reqs.length} matching request${reqs.length === 1 ? "" : "s"}.`, sources: reqs.slice(0, 6).map((r) => ({ label: `${r.ref}: ${r.title}`, detail: r.statusLabel, href: `${base}/requests/${r.id}` })) };
-  return { kind: "none", text: "I could not find that in your Ally records. I only know what is stored here, so I will not guess.", sources: [] };
+  const kb = answerFromKb(question, base);
+  if (kb) return { kind: kb.kind, text: kb.text, sources: [], actions: kb.actions };
+  return {
+    kind: "none",
+    text: "I could not find that in your records, and I do not know the answer, so I will not guess. Your coordinator can help, or you can see what we do.",
+    sources: [],
+    actions: [{ label: "See what Ally can do", href: `${base}/ask?q=${encodeURIComponent("What can you do?")}` }, ...contactActions("A question Ally Assistant could not answer")],
+  };
 }
 
 /** Titles, dates and statuses only. Extracted document values and files are never included. */

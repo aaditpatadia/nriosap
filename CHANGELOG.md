@@ -1,5 +1,13 @@
 # Changelog
 
+## Voice note requests, time pricing, tidy privacy, smarter assistant
+- Voice note requests: on New request, a customer can just record a voice note. The screen lists what to cover (what, where with PIN code, who we meet, when, how soon, how long, what we carry, anything special), shows a timer and an example, and lets them listen back before sending. The request is created from the note alone; the desk listens, fills in the details with the customer, and prices it. The note is kept for a person and is not sent to AI.
+- Time pricing: the customer is charged for time, in half-hour blocks at $7 (travel, handover at each stop, the work itself, waiting), and every quotation shows rupees and dollars. Travel time comes from distance and speed; the customer says how long the work will take. The rider and vehicle costs are worked out underneath, and a fair price check keeps the price from falling below our costs plus the 25% fee. The old cost-plus way is one setting away.
+- Privacy page rebuilt: consent as one card per person, a short activity log in plain words grouped by day with filters, repeats merged, and the delete option tucked behind one click.
+- Ally Assistant knows the product: it answers how to do things and where things are, with buttons that go straight there, says no kindly to other cities and things we do not do, offers WhatsApp (and email when one is set), and never guesses.
+- The menu now draws folded on the first paint, so it no longer covers the page after a reload.
+- Migration 016. Additive only.
+
 ## Mumbai pricing, 100% advance, smoother motion
 - Pricing calculator for the desk (Ops, Settings, Pricing, and inside each request). It shows the whole breakdown: what goes to the rider, what the electric vehicle costs us, provider costs at cost, Ally's 25% fee, taxes, rounding, and the total the customer pays in advance. The customer sees the quotation, never how it was built.
 - Customers now say where and when: how soon, pickup and drop addresses with PIN codes and a contact at each, a time window, and what is carried (size, weight, value). They can add missing details later from the request. The desk can ask for everything that is missing in one message.

@@ -83,7 +83,7 @@ test("advice is blocked. A clean draft waits for a human click. Sending stays of
   await webhook(request, msg(KUSUM, "Any update?"));
   await signInStaff(page, "meera");
   await page.goto(`/ops/messages/${FAM.shah}`);
-  await expect(page.getByText("Sending is off until WhatsApp business verification")).toBeVisible();
+  await expect(page.getByText("Sending is off until WhatsApp business verification").first()).toBeVisible();
 
   await page.getByLabel("Draft").fill("You should stop taking the tablets");
   await page.getByRole("button", { name: "Save draft" }).click();

@@ -21,6 +21,7 @@ const refresh = (familyId: string) => revalidatePath(`/family/${familyId}`, "lay
 const base = () => (process.env.APP_URL ?? "").replace(/\/$/, "");
 
 // ---------- Requests: customer ----------
+const VOICE_REQUEST_TEXT = "Voice note request. Please listen to the voice note attached to this request and set it up with me.";
 const newRequest = z.object({
   familyId: id,
   description: z.string().trim().min(10, "Please say a little more about what you need.").max(2000),
@@ -36,14 +37,18 @@ const newRequest = z.object({
 export async function submitRequest(_p: Msg, form: FormData): Promise<Msg> {
   const v = await actionViewer();
   if (!v) return { ok: false, message: "Please sign in again." };
-  const p = newRequest.safeParse({ familyId: form.get("familyId"), description: form.get("description"), category: form.get("category"), location: form.get("location") ?? "", urgent: form.get("urgent") ?? undefined, extra: form.get("extra") ?? "", propertyId: form.get("propertyId") ?? "", memberId: form.get("memberId") ?? "", dueOn: form.get("dueOn") ?? "" });
+  const attachmentsGiven = form.getAll("attachment").filter((x): x is string => typeof x === "string");
+  const typed = typeof form.get("description") === "string" ? (form.get("description") as string).trim() : "";
+  // A voice note on its own is a request: a person listens and fills in the rest with the customer.
+  const voiceOnly = form.get("voiceOnly") === "1" && attachmentsGiven.length > 0 && typed.length < 10;
+  const p = newRequest.safeParse({ familyId: form.get("familyId"), description: voiceOnly ? VOICE_REQUEST_TEXT : form.get("description"), category: voiceOnly ? "Custom Requests" : form.get("category"), location: form.get("location") ?? "", urgent: form.get("urgent") ?? undefined, extra: form.get("extra") ?? "", propertyId: form.get("propertyId") ?? "", memberId: form.get("memberId") ?? "", dueOn: form.get("dueOn") ?? "" });
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the form." };
   if (!(await rateLimit(`request:${v.id}`, 30, 3600))) return { ok: false, message: "That is a lot of requests. Please wait a little." };
   const attachmentIds = form.getAll("attachment").filter((x): x is string => typeof x === "string");
   const d = detailsFromForm(form);
   if (!d.ok) return { ok: false, message: d.message };
   const description = p.data.extra ? `${p.data.description}\n\nMore details: ${p.data.extra}` : p.data.description;
-  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name, propertyId: p.data.propertyId || null, memberId: p.data.memberId || null, dueOn: p.data.dueOn || null, details: d.details });
+  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name, propertyId: p.data.propertyId || null, memberId: p.data.memberId || null, dueOn: p.data.dueOn || null, details: d.details, ...(voiceOnly ? { via: "voice" as const, title: "Voice note request" } : {}) });
   if (!r.ok) return { ok: false, message: r.reason };
   refresh(p.data.familyId);
   redirect(`/family/${p.data.familyId}/requests/${r.id}`);

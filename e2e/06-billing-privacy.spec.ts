@@ -80,6 +80,7 @@ test("owner deletes a family: rows, files and account are gone, the audit trail 
   await expect(page).toHaveURL(/\/family\//);
   const familyId = page.url().split("/").pop()!;
   await page.goto(`/family/${familyId}/privacy`);
+  await page.getByText("Delete everything").filter({ visible: true }).first().click(); // tucked away until asked for
   const label = (await page.getByText(/^Type .+ to confirm/).filter({ visible: true }).first().textContent())!;
   const familyName = label.match(/^Type (.+?) to confirm/)![1];
   await page.getByLabel(/^Type .+ to confirm/).filter({ visible: true }).fill("wrong");

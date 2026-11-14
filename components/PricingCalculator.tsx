@@ -36,6 +36,7 @@ export function PricingCalculator({ card, version, requestId, preset, details, f
     service: start.service, urgency: start.urgency, distance: start.distanceKm ? String(start.distanceKm) : "", returnTrip: start.returnTrip, extraStops: String(start.extraStops || ""), wait: String(start.waitMinutes || ""),
     when: start.whenLocal, size: start.sizeClass, weight: start.weightKg ? String(start.weightKg) : "", rain: start.heavyRain, thirdParty: start.thirdPartyInr ? String(start.thirdPartyInr) : "", thirdPartyNote: start.thirdPartyNote ?? "",
     value: start.declaredValueInr ? String(start.declaredValueInr) : "", prohibited: start.prohibitedItem, pickupPin: start.pickupPincode ?? "", dropPin: start.dropPincode ?? "",
+    work: start.workMinutes ? String(start.workMinutes) : "", travel: "",
   });
   const [estimate, setEstimate] = useState(false);
   const [coords, setCoords] = useState({ aLat: "", aLng: "", bLat: "", bLng: "" });
@@ -47,11 +48,13 @@ export function PricingCalculator({ card, version, requestId, preset, details, f
   const [pending, start_] = useTransition();
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((p) => ({ ...p, [k]: v }));
 
+  const usdPerInr = fx.find((x) => x.currency === "USD")?.perInr;
   const input: PriceInput = useMemo(() => ({
     service: f.service, distanceKm: n(f.distance), distanceIsEstimate: estimate, returnTrip: f.returnTrip, extraStops: Math.floor(n(f.extraStops)), waitMinutes: n(f.wait), urgency: f.urgency, whenLocal: f.when,
     sizeClass: f.size, weightKg: n(f.weight), heavyRain: f.rain, thirdPartyInr: n(f.thirdParty), thirdPartyNote: f.thirdPartyNote, declaredValueInr: n(f.value), prohibitedItem: f.prohibited,
     pickupPincode: f.pickupPin, dropPincode: f.dropPin,
-  }), [f, estimate]);
+    workMinutes: n(f.work), travelMinutesOverride: f.travel.trim() === "" ? undefined : n(f.travel), usdPerInr,
+  }), [f, estimate, usdPerInr]);
   const result = useMemo(() => calculatePrice(input, card), [input, card]);
   const shares = costShares(result);
   const total = Math.round(result.totalPaise / 100);
@@ -134,6 +137,13 @@ export function PricingCalculator({ card, version, requestId, preset, details, f
           </fieldset>
 
           <fieldset className="grid gap-3 sm:grid-cols-2">
+            <legend className="mb-1 px-1 font-semibold">Time</legend>
+            {field("Work at the place (minutes)", <input className="input" inputMode="numeric" value={f.work} onChange={(e) => set("work", e.target.value)} />)}
+            {field("Travel time by hand (minutes, optional)", <input className="input" inputMode="numeric" value={f.travel} onChange={(e) => set("travel", e.target.value)} placeholder={`Worked out: about ${Math.round((n(f.distance) * (f.returnTrip ? 2 : 1) / Math.max(1, card.avgSpeedKmh)) * 60)}`} />)}
+            {card.pricingMode === "time" && <p className="text-[length:var(--text-micro)] text-muted sm:col-span-2">Every {card.timeBlockMinutes} minutes of travelling, handover, work and waiting is charged at ${card.timeBlockUsd}. A part of a block counts as a whole one.</p>}
+          </fieldset>
+
+          <fieldset className="grid gap-3 sm:grid-cols-2">
             <legend className="mb-1 px-1 font-semibold">The load</legend>
             {field("Size", <select className="input" value={f.size} onChange={(e) => set("size", e.target.value as PriceInput["sizeClass"])}>{SIZES.map((s) => <option key={s} value={s}>{SIZE_LABEL[s]}</option>)}</select>)}
             {field("Weight (kg)", <input className="input" inputMode="decimal" value={f.weight} onChange={(e) => set("weight", e.target.value)} />)}
@@ -162,6 +172,28 @@ export function PricingCalculator({ card, version, requestId, preset, details, f
             <ul className="grid gap-1 rounded-xl p-3 text-[length:var(--text-small)]" style={{ background: "var(--warn-bg)" }}>{result.warnings.map((w) => <li key={w}>{w}</li>)}</ul>
           )}
 
+          {result.mode === "time" && result.time && (
+            <div className="grid gap-2 rounded-2xl border border-line p-4">
+              <h3 className="font-semibold">How the time adds up</h3>
+              <ul className="grid gap-0.5 text-[length:var(--text-small)]">
+                {([["Travelling", result.time.travelMin], ["At the places (parking and handover)", result.time.handlingMin], ["The work itself", result.time.workMin], ["Waiting", result.time.waitMin]] as const).filter(([, v]) => v > 0).map(([k, v]) => <li key={k} className="flex justify-between gap-3"><span className="text-muted">{k}</span><span className="tabular-nums">{v} min</span></li>)}
+                <li className="flex justify-between gap-3 border-t border-line pt-1 font-semibold"><span>Total time</span><span className="tabular-nums">{result.time.totalMin} min</span></li>
+              </ul>
+              <p className="text-[length:var(--text-small)]">That is {result.time.blocks} block{result.time.blocks === 1 ? "" : "s"} of {result.time.blockMinutes} minutes at ${result.time.blockUsd}: <strong>{formatMoney(result.time.blocks * result.time.blockUsd, "USD")}</strong>, or {rs((result.time.blocks * result.time.blockPaise) / 100)}{usdPerInr ? ` at 1 USD = ${rs(1 / usdPerInr)}` : ""}.</p>
+              {result.timeLines && result.timeLines.length > 0 && (
+                <ul className="grid gap-0.5 border-l-2 border-line pl-3 text-[length:var(--text-small)]">
+                  {result.timeLines.map((l) => <li key={l.key} className="flex justify-between gap-3"><span className="text-muted [overflow-wrap:anywhere]">{l.label}</span><span className="tabular-nums">{rs(l.paise / 100)}</span></li>)}
+                </ul>
+              )}
+              {result.fair && (
+                <div className="grid gap-1 rounded-xl bg-sunken p-3 text-[length:var(--text-small)]">
+                  <p className="font-semibold">Fair price check {result.fair.floorApplied && <span className="chip ml-1" data-tone="warn">Raised to the floor</span>}</p>
+                  <p className="text-muted">The rider and vehicle plus our {card.feePct}% fee come to {rs(result.fair.costPlusServicePaise / 100)}. The time price is {rs(result.fair.timeServicePaise / 100)}, which is {result.fair.ratio} times that. Ally keeps {result.fair.allyShareOfServicePct}% of the service price after paying the rider and the vehicle.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Where the money goes">
             {([["To the rider", shares.rider], ["EV cost to us", shares.ev], ["Provider at cost", shares.thirdParty], ["Our fee", shares.ally]] as const).map(([k, v]) => (
               <div key={k} className="rounded-xl bg-sunken p-3"><p className="text-[length:var(--text-micro)] text-muted">{k}</p><p className="text-[length:var(--text-h3)] font-bold tabular-nums">{rs(v)}</p></div>
@@ -185,9 +217,10 @@ export function PricingCalculator({ card, version, requestId, preset, details, f
           </div>
 
           <div className="grid gap-1 rounded-2xl p-4" style={{ background: "var(--mint)" }}>
-            <div className="flex items-baseline justify-between gap-3"><p className="font-semibold">The customer pays, in full, in advance</p><p className="text-[length:var(--text-h1)] font-bold tabular-nums">{result.ok ? rs(total) : "Not yet"}</p></div>
-            {result.ok && <p className="text-[length:var(--text-small)] text-muted">Our cost {rs(result.costsPaise / 100)}. Our fee {rs(shares.ally)}, which is {result.feeShareOfTotalPct}% of what the customer pays and {card.feePct}% {card.feeBasis === "on_costs" ? "on top of costs" : "of the price"}.</p>}
-            {result.ok && currency !== "INR" && rate && <p className="text-[length:var(--text-small)]">About {formatMoney(convertInr(total, rate.perInr, card.fxBufferPct), currency)} at 1 {currency} = {rs(1 / rate.perInr)}{card.fxBufferPct > 0 ? `, including a ${card.fxBufferPct}% conversion buffer` : ""}.</p>}
+            <div className="flex items-baseline justify-between gap-3"><p className="font-semibold">The customer pays, in full, in advance</p><div className="text-right"><p className="text-[length:var(--text-h1)] font-bold tabular-nums">{result.ok ? rs(total) : "Not yet"}</p>{result.ok && result.totalUsd != null && <p className="text-[length:var(--text-h3)] font-semibold tabular-nums">{formatMoney(result.totalUsd, "USD")}</p>}</div></div>
+            {result.ok && result.mode === "time" && <p className="text-[length:var(--text-small)] text-muted">Our costs are {rs(result.costsPaise / 100)}: the rider, the vehicle and any provider. Ally keeps {rs(shares.ally)}, which is {result.feeShareOfTotalPct}% of what the customer pays.</p>}
+            {result.ok && result.mode === "cost" && <p className="text-[length:var(--text-small)] text-muted">Our cost {rs(result.costsPaise / 100)}. Our fee {rs(shares.ally)}, which is {result.feeShareOfTotalPct}% of what the customer pays and {card.feePct}% {card.feeBasis === "on_costs" ? "on top of costs" : "of the price"}.</p>}
+            {result.ok && currency !== "INR" && currency !== "USD" && rate && <p className="text-[length:var(--text-small)]">About {formatMoney(convertInr(total, rate.perInr, card.fxBufferPct), currency)} at 1 {currency} = {rs(1 / rate.perInr)}{card.fxBufferPct > 0 ? `, including a ${card.fxBufferPct}% conversion buffer` : ""}.</p>}
           </div>
 
           <div className="flex flex-wrap items-end gap-3">

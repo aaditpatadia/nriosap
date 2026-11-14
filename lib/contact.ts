@@ -7,3 +7,7 @@ export const DESK_WHATSAPP = (process.env.NEXT_PUBLIC_DESK_WHATSAPP || "91809702
 
 /** A click-to-chat link. The text is a starting line the person can change before sending. */
 export const deskChat = (text?: string) => `https://wa.me/${DESK_WHATSAPP}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+
+/** An email address for support. It is shown only when one has been set, so no address is ever invented. */
+export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || null;
+export const supportMail = (subject: string) => (SUPPORT_EMAIL ? `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}` : null);

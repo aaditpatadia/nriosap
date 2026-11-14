@@ -7,6 +7,7 @@ import { paymentsForRequest } from "@/lib/payment-records";
 import { QuoteBreakdown } from "@/components/QuoteBreakdown";
 import { AssignForm, EvidenceForm, FinalReportForm, StatusForm, UpdateForm } from "@/components/RequestStaffForms";
 import { QuoteDesk } from "@/components/QuoteDesk";
+import { DetailsPanel } from "@/components/DetailsPanel";
 import { activeRateCard, fxRates, ownerCurrency } from "@/lib/pricing";
 import { inputFromDetails, SERVICE_LABEL, URGENCY_LABEL } from "@/lib/pricing-rules";
 import { StageBar } from "@/components/StageBar";
@@ -42,6 +43,7 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
         <h1 className="text-[length:var(--text-h1)] font-bold [overflow-wrap:anywhere]">{r.title}</h1>
         <div className="flex flex-wrap items-center gap-2"><span className="chip" data-tone={STATUS_META[r.status].tone}>{STATUS_META[r.status].label}</span>{r.priority === "urgent" && <span className="chip" data-tone="danger">Urgent</span>}{r.escalatedAt && <span className="chip" data-tone="danger">Escalated</span>}<PriorityToggle requestId={id} urgent={r.priority === "urgent"} /></div>
       </header>
+      {(r.understanding as { via?: string } | null)?.via === "voice" && <p className="card text-[length:var(--text-small)]" style={{ background: "var(--mint)", borderColor: "var(--mint-line)" }}><strong>Voice note request.</strong> Listen to the voice note under Files first. Then fill in the place, time and how long under Where and when below, ask the customer for anything missing, and price it.</p>}
       {r.needsProfessional && <p className="card text-[length:var(--text-small)]" style={{ borderColor: "var(--warn)" }}>This needs a licensed professional. Do not advise. Use the desk task to send it to one.</p>}
       <div className="card"><StageBar status={r.status} /></div>
       <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
@@ -53,6 +55,7 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
             {u.missing && u.missing.length > 0 && <p className="text-[length:var(--text-small)] text-muted">Still to find out: {u.missing.join(" ")}</p>}
             {r.taskId && <Link className="btn btn-secondary w-fit" href={`/ops/task/${r.taskId}`}>Open desk task and timer</Link>}
           </Panel>
+          <DetailsPanel requestId={id} details={d} canEdit area={{ from: rc.card.areaPinFrom, to: rc.card.areaPinTo }} desk />
           <StatusForm requestId={id} current={r.status} />
           <AssignForm requestId={id} providerName={r.providerName ?? ""} estimatedCompletion={r.estimatedCompletion ?? ""} coordinators={coordinators.map((c) => ({ id: c.id, name: c.name }))} partners={partners.filter((p) => p.status === "approved").map((p) => ({ id: p.id, name: p.name, category: p.category }))} />
           {quotes.length > 0 && <Panel title="Quotations">{quotes.map((q) => <div key={q.id} className="grid gap-1 border-t border-line pt-2"><QuoteBreakdown quote={q} />{q.changeNote && <p className="text-warn">Customer asked: {q.changeNote}</p>}</div>)}</Panel>}
@@ -65,7 +68,7 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
           <EvidenceForm requestId={id} familyId={r.familyId} />
           {files.length > 0 && (
             <Panel title="Files">
-              <ul className="rows">{files.map((f) => <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[length:var(--text-small)]"><span className="[overflow-wrap:anywhere]"><span className="chip mr-2">{f.kind === "evidence" ? "Proof" : "From customer"}</span>{f.caption || f.title || "Not available to you"}</span>{f.title && <a className="btn btn-secondary" href={`/api/documents/${f.documentId}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${f.title}`}>Open</a>}</li>)}</ul>
+              <ul className="rows">{files.map((f) => <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[length:var(--text-small)]"><span className="[overflow-wrap:anywhere]"><span className="chip mr-2">{f.kind === "evidence" ? "Proof" : "From customer"}</span>{f.caption || f.title || "Not available to you"}</span>{f.title?.startsWith("Voice note") ? <audio controls preload="none" src={`/api/documents/${f.documentId}/file`} className="w-full sm:w-72" aria-label="The customer's voice note" /> : f.title && <a className="btn btn-secondary" href={`/api/documents/${f.documentId}/file`} target="_blank" rel="noreferrer" aria-label={`Open ${f.title}`}>Open</a>}</li>)}</ul>
             </Panel>
           )}
           <FinalReportForm requestId={id} report={r.finalReport ?? ""} />

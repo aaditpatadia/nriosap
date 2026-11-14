@@ -37,8 +37,8 @@ describe("go-live database steps", () => {
   it("applies every migration to an empty database", async () => {
     const applied = await applyMigrations(fresh);
     expect(applied[0]).toBe("001_init.sql");
-    expect(applied.at(-1)).toBe("015_pricing.sql");
-    expect(applied).toHaveLength(15);
+    expect(applied.at(-1)).toBe("016_time_pricing.sql");
+    expect(applied).toHaveLength(16);
   });
 
   it("does nothing the second time", async () => {

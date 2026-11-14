@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { askAllyAction, assistantConsentAction, type AskResult } from "@/app/family/workspace-actions";
+import { STARTERS } from "@/lib/assistant-kb";
 import { dur, ease } from "@/lib/motion";
 
-const SUGGESTIONS = ["What needs my attention this week?", "Which bills are due this month?", "Which documents are expiring?", "Summarise everything completed this month.", "Help me create a request for a property inspection."];
 
 export function AssistantChat({ familyId, initial, aiAvailable, aiOn }: { familyId: string; initial: string; aiAvailable: boolean; aiOn: boolean }) {
   const [turns, setTurns] = useState<{ q: string; a: AskResult | null }[]>([]);
@@ -29,7 +29,19 @@ export function AssistantChat({ familyId, initial, aiAvailable, aiOn }: { family
 
   return (
     <div className="grid gap-4">
-      {turns.length === 0 && <ul className="flex flex-wrap gap-2" aria-label="Suggestions">{SUGGESTIONS.map((s) => <li key={s}><button type="button" className="btn btn-secondary text-left" onClick={() => ask(s)}>{s}</button></li>)}</ul>}
+      {turns.length === 0 && (
+        <div className="card grid gap-4" style={{ background: "var(--mint)", borderColor: "var(--mint-line)" }}>
+          <div className="grid gap-1"><h2 className="text-[length:var(--text-h3)] font-semibold">Hello. How can I help?</h2><p className="text-[length:var(--text-small)]">Ask me how to get something done, where to find something in the app, or what is in your records. I will answer and take you straight there.</p></div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {STARTERS.map((g) => (
+              <section key={g.group} aria-label={g.group} className="grid content-start gap-2">
+                <h3 className="text-[length:var(--text-micro)] font-semibold uppercase tracking-wide text-muted">{g.group}</h3>
+                <ul className="grid gap-2">{g.items.map((s) => <li key={s}><button type="button" className="btn btn-secondary w-full justify-start text-left" onClick={() => ask(s)}>{s}</button></li>)}</ul>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
       <ol className="grid gap-4" aria-live="polite">
         <AnimatePresence initial={false}>
           {turns.map((t, i) => (
@@ -46,6 +58,13 @@ export function AssistantChat({ familyId, initial, aiAvailable, aiOn }: { family
                       </div>
                     )}
                     {t.a.draft && <Link className="btn btn-secondary w-fit" href={t.a.draft.href}>{t.a.draft.label}</Link>}
+                    {t.a.actions && t.a.actions.length > 0 && (
+                      <div className="flex flex-wrap gap-2" aria-label="Where to go next">
+                        {t.a.actions.map((a, n) => a.external
+                          ? <a key={a.label} className={`btn ${n === 0 ? "btn-primary" : "btn-secondary"}`} href={a.href} target="_blank" rel="noopener noreferrer">{a.label}</a>
+                          : <Link key={a.label} className={`btn ${n === 0 ? "btn-primary" : "btn-secondary"}`} href={a.href}>{a.label}</Link>)}
+                      </div>
+                    )}
                     {t.a.viaAi && <p className="text-[length:var(--text-micro)] text-muted">Written by an AI service from your record titles and dates. Please check anything important.</p>}
                   </>
                 )}

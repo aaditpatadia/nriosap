@@ -18,11 +18,11 @@ export function WithdrawParentButton({ familyId, parentName, self = false }: { f
   );
 }
 
-export function DeleteFamilyForm({ familyId, familyName }: { familyId: string; familyName: string }) {
+export function DeleteFamilyForm({ familyId, familyName, bare = false }: { familyId: string; familyName: string; bare?: boolean }) {
   const [s, action, pending] = useActionState(deleteFamilyAction, null);
   return (
-    <form action={action} className="card grid gap-3">
-      <h2 className="text-[length:var(--text-h3)] font-semibold">Delete everything</h2>
+    <form action={action} className={bare ? "grid gap-3" : "card grid gap-3"}>
+      {!bare && <h2 className="text-[length:var(--text-h3)] font-semibold">Delete everything</h2>}
       <p className="text-muted">This removes every document, message and record for this family, and cancels the subscription. It cannot be undone. A log of ids and actions is kept as proof of what happened.</p>
       <input type="hidden" name="familyId" value={familyId} />
       <label className="field">Type {familyName} to confirm<input className="input" name="confirm" autoComplete="off" required /></label>

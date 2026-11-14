@@ -65,6 +65,15 @@ export interface RateCard {
   areaPinTo: number;
   fxBufferPct: number;
   quoteValidHours: number;
+  /** "time": the customer pays for time, in half-hour blocks priced in US dollars. "cost": costs plus the fee. */
+  pricingMode: "time" | "cost";
+  timeBlockMinutes: number;
+  timeBlockUsd: number;
+  /** How fast a scooter really moves through Mumbai traffic, door to door. */
+  avgSpeedKmh: number;
+  handlingMinutesPerStop: number;
+  /** In time mode, never charge less than the rider and vehicle costs plus Ally's fee. */
+  applyCostFloor: boolean;
 }
 
 /**
@@ -102,6 +111,12 @@ export const DEFAULT_RATE_CARD: RateCard = {
   areaPinTo: 400104,
   fxBufferPct: 0,
   quoteValidHours: 48,
+  pricingMode: "time",
+  timeBlockMinutes: 30,
+  timeBlockUsd: 7,
+  avgSpeedKmh: 18,
+  handlingMinutesPerStop: 8,
+  applyCostFloor: true,
 };
 
 const num = (min: number, max: number) => z.number().finite().min(min).max(max);
@@ -140,6 +155,12 @@ export const rateCardSchema = z.object({
   areaPinTo: z.number().int().min(100000).max(999999),
   fxBufferPct: num(0, 10),
   quoteValidHours: num(1, 720),
+  pricingMode: z.enum(["time", "cost"]),
+  timeBlockMinutes: num(5, 240),
+  timeBlockUsd: num(0.5, 1000),
+  avgSpeedKmh: num(3, 80),
+  handlingMinutesPerStop: num(0, 120),
+  applyCostFloor: z.boolean(),
 }).refine((c) => c.areaPinFrom <= c.areaPinTo, { message: "The first PIN code must not be after the last.", path: ["areaPinTo"] });
 
 /** Fills in anything missing from an older saved card, so adding a new rate never breaks old data. */
@@ -166,6 +187,8 @@ export const requestDetailsSchema = z.object({
   item: z.object({ what: text(200), size: z.enum(SIZES).default("small"), weightKg: z.number().finite().min(0).max(500).default(0), valueInr: z.number().finite().min(0).max(100000000).default(0), fragile: z.boolean().default(false) }).default({ what: "", size: "small", weightKg: 0, valueInr: 0, fragile: false }),
   returnTrip: z.boolean().default(false),
   waitMinutes: z.number().finite().min(0).max(600).default(0),
+  /** The customer's own guess at how long the work takes once we are there. */
+  workMinutes: z.number().finite().min(0).max(1000).default(0),
   notes: text(500),
 });
 export type RequestDetails = z.infer<typeof requestDetailsSchema>;
@@ -200,6 +223,7 @@ export function missingDetails(d: RequestDetails, card: Pick<RateCard, "areaPinF
     if (!d.item.what) ask.push("What is being picked up, in a few words.");
     if (!d.item.weightKg) ask.push("About how heavy it is, in kilograms.");
   }
+  if (d.service !== "delivery" && !d.workMinutes) ask.push("About how long the work will take once we are there. A rough guess is fine.");
   if (d.service === "delivery" && !d.item.valueInr) ask.push("What it is worth, in rupees, so we handle it with the right care.");
   return ask;
 }
@@ -244,6 +268,12 @@ export interface PriceInput {
   prohibitedItem: boolean;
   pickupPincode?: string;
   dropPincode?: string;
+  /** Minutes of work at the place, as stated by the customer or judged by the desk. */
+  workMinutes?: number;
+  /** The desk's own travel time, when it knows better than speed and distance. */
+  travelMinutesOverride?: number;
+  /** US dollars one rupee buys. Needed in time mode, where the price is set in dollars. */
+  usdPerInr?: number;
 }
 
 export type LineGroup = "rider" | "ev" | "third_party" | "ally" | "tax" | "rounding";
@@ -266,7 +296,18 @@ export interface PriceResult {
   /** What share of the customer's total is Ally's fee. */
   feeShareOfTotalPct: number;
   assumptions: string[];
+  mode: "time" | "cost";
+  /** Set in time mode: how the minutes add up, and what they cost. */
+  time?: TimeBreakdown;
+  /** What the customer pays for time, line by line. These add up to the service price. */
+  timeLines?: Line[];
+  fair?: { costPlusServicePaise: number; timeServicePaise: number; floorApplied: boolean; ratio: number; allyShareOfServicePct: number };
+  usdPerInr?: number;
+  /** The total in US dollars at the stated rate. */
+  totalUsd?: number;
 }
+
+export interface TimeBreakdown { travelMin: number; handlingMin: number; workMin: number; waitMin: number; totalMin: number; blocks: number; blockMinutes: number; blockUsd: number; blockPaise: number }
 
 const P = (rupees: number) => Math.round(rupees * 100);
 const pct = (paise: number, p: number) => Math.round((paise * p) / 100);
@@ -346,6 +387,77 @@ export function calculatePrice(input: PriceInput, card: RateCard = DEFAULT_RATE_
 
   const costsPaise = riderPaise + evPaise + thirdPartyPaise;
 
+  const toUsd = (paise: number) => (input.usdPerInr && input.usdPerInr > 0 ? Math.round(paise * input.usdPerInr) / 100 : undefined);
+
+  if (card.pricingMode === "time") {
+    // ---- Time mode. The customer pays for time in half-hour blocks priced in US dollars.
+    const usdPerInr = input.usdPerInr && input.usdPerInr > 0 ? input.usdPerInr : 0;
+    if (!usdPerInr) blockers.push("Add today's US dollar rate first. Get it on the Pricing page, under Exchange rates.");
+    const stopsCount = (input.service === "delivery" ? 2 : 1) + Math.max(0, Math.floor(input.extraStops || 0));
+    const travelMin = Math.round(input.travelMinutesOverride != null && input.travelMinutesOverride >= 0 ? input.travelMinutesOverride : needsRoute ? (routeKm / Math.max(1, card.avgSpeedKmh)) * 60 : 0);
+    const handlingMin = Math.round(stopsCount * card.handlingMinutesPerStop);
+    const workMin = Math.max(0, Math.round(input.workMinutes || 0));
+    const waitMin = Math.max(0, Math.round(input.waitMinutes || 0));
+    const totalMin = travelMin + handlingMin + workMin + waitMin;
+    const blocks = Math.max(1, Math.ceil(totalMin / Math.max(1, card.timeBlockMinutes)));
+    const blockPaise = usdPerInr ? Math.round((card.timeBlockUsd / usdPerInr) * 100) : 0;
+    const time: TimeBreakdown = { travelMin, handlingMin, workMin, waitMin, totalMin, blocks, blockMinutes: card.timeBlockMinutes, blockUsd: card.timeBlockUsd, blockPaise };
+
+    const timeLines: Line[] = [];
+    const tl = (key: string, label: string, paise: number) => { if (paise !== 0) timeLines.push({ key, label, paise, group: "ally" }); };
+    const baseTime = blocks * blockPaise;
+    tl("time_blocks", `${blocks} x ${card.timeBlockMinutes} min at $${card.timeBlockUsd} (Rs ${rupees(blockPaise).toFixed(2)} each)`, baseTime);
+    const urgencyTime = Math.round(baseTime * (mult - 1));
+    tl("time_urgency", `${URGENCY_LABEL[input.urgency]} (x${mult})`, urgencyTime);
+    const afterUrgencyTime = baseTime + urgencyTime;
+    if (when && isNight(when.hour, card.nightFromHour, card.nightToHour)) tl("time_night", `Night work +${card.nightUpliftPct}%`, pct(afterUrgencyTime, card.nightUpliftPct));
+    if (when && when.weekday === 0) tl("time_sunday", `Sunday +${card.sundayUpliftPct}%`, pct(afterUrgencyTime, card.sundayUpliftPct));
+    tl("time_size", `Item size: ${SIZE_LABEL[input.sizeClass].toLowerCase()}`, P(card.sizeSurchargeInr[input.sizeClass] ?? 0));
+    if (input.heavyRain) tl("time_rain", "Heavy rain", P(card.heavyRainBonusInr));
+    let servicePaise = timeLines.reduce((n, l) => n + l.paise, 0);
+    const timeServicePaise = servicePaise;
+
+    // Fair to both sides: never below the rider and the vehicle plus Ally's fee.
+    const vehicleCosts = riderPaise + evPaise;
+    const costPlusService = card.feeBasis === "on_costs" ? vehicleCosts + pct(vehicleCosts, card.feePct) : vehicleCosts + Math.round((vehicleCosts * card.feePct) / (100 - card.feePct));
+    const floorApplied = card.applyCostFloor && servicePaise < costPlusService;
+    if (floorApplied) { tl("time_floor", "Raised to cover the rider, the vehicle and Ally's fee", costPlusService - servicePaise); servicePaise = costPlusService; }
+    const ratio = costPlusService > 0 ? Math.round((timeServicePaise / costPlusService) * 100) / 100 : 0;
+    if (!card.applyCostFloor && servicePaise < costPlusService) warnings.push("The time price is below the rider and vehicle costs plus Ally's fee. You would lose money on this.");
+    if (floorApplied) warnings.push("The time price was below our costs plus the fee, so it was raised to the floor. Check the time estimate.");
+    if (ratio > 4) warnings.push(`The time price is ${ratio} times our costs plus fee. Check the time estimate before you send this.`);
+    if (totalMin > 480) warnings.push("This is more than 8 hours of work. Consider agreeing a day rate with the customer.");
+    if (input.travelMinutesOverride != null) warnings.push("Travel time was set by hand, not worked out from the distance.");
+
+    // The rest of the price: what Ally keeps, any fee on the provider's costs, tax, minimum and rounding.
+    const allyService = servicePaise - vehicleCosts;
+    add("ally", "ally_service", floorApplied ? `Ally fee, ${card.feePct}% of rider and vehicle costs` : "Ally service, the time charge left after the rider and the vehicle", allyService);
+    const feeOnThird = card.feeBasis === "on_costs" ? pct(thirdPartyPaise, card.feePct) : Math.round((thirdPartyPaise * card.feePct) / (100 - card.feePct));
+    add("ally", "ally_third_fee", `Ally fee on provider costs, ${card.feePct}%`, feeOnThird);
+    const allyPaise = allyService + feeOnThird;
+    const taxBaseT = card.taxBasis === "ally_fee" ? allyPaise : vehicleCosts + thirdPartyPaise + allyPaise;
+    const taxT = pct(taxBaseT, card.taxPct);
+    add("tax", "tax", `Taxes, ${card.taxPct}% of ${card.taxBasis === "ally_fee" ? "Ally's share" : "the whole price"}`, taxT);
+    if (card.taxPct === 0) assumptions.push("No tax is added. Your accountant sets the tax rate on the rate card.");
+    let totalT = vehicleCosts + thirdPartyPaise + allyPaise + taxT;
+    const minT = P(card.minTotalInr);
+    if (totalT < minT && totalT > 0) { add("ally", "ally_min_total", "Minimum charge top-up", minT - totalT); totalT = minT; }
+    const stepT = P(card.roundToInr);
+    const roundedT = Math.ceil(totalT / stepT) * stepT;
+    add("rounding", "rounding", `Rounded up to the next Rs ${card.roundToInr}`, roundedT - totalT);
+    totalT = roundedT;
+    const ally = lines.filter((l) => l.group === "ally").reduce((n, l) => n + l.paise, 0);
+    assumptions.push("Rates on the card are starting values. Check them against real trip costs.");
+    return {
+      ok: blockers.length === 0 && totalT > 0, blockers, warnings, lines, routeKm,
+      riderPaise, evPaise, thirdPartyPaise, costsPaise: riderPaise + evPaise + thirdPartyPaise, allyFeePaise: ally, taxPaise: taxT,
+      roundingPaise: lines.filter((l) => l.group === "rounding").reduce((n, l) => n + l.paise, 0),
+      totalPaise: totalT, feeShareOfTotalPct: totalT > 0 ? Math.round((ally / totalT) * 1000) / 10 : 0, assumptions,
+      mode: "time", time, timeLines, usdPerInr: usdPerInr || undefined, totalUsd: toUsd(totalT),
+      fair: { costPlusServicePaise: costPlusService, timeServicePaise, floorApplied, ratio, allyShareOfServicePct: servicePaise > 0 ? Math.round((allyService / servicePaise) * 1000) / 10 : 0 },
+    };
+  }
+
   // 4. Ally's fee.
   const rawFee = card.feeBasis === "on_costs" ? pct(costsPaise, card.feePct) : Math.round((costsPaise * card.feePct) / (100 - card.feePct));
   const minFee = P(card.minFeeInr);
@@ -377,7 +489,7 @@ export function calculatePrice(input: PriceInput, card: RateCard = DEFAULT_RATE_
     blockers, warnings, lines, routeKm,
     riderPaise, evPaise, thirdPartyPaise, costsPaise, allyFeePaise, taxPaise,
     roundingPaise: lines.filter((l) => l.group === "rounding").reduce((n, l) => n + l.paise, 0),
-    totalPaise: total, feeShareOfTotalPct, assumptions,
+    totalPaise: total, feeShareOfTotalPct, assumptions, mode: "cost", usdPerInr: input.usdPerInr && input.usdPerInr > 0 ? input.usdPerInr : undefined, totalUsd: toUsd(total),
   };
 }
 
@@ -429,6 +541,7 @@ export function inputFromDetails(d: RequestDetails): Partial<PriceInput> & { whe
     urgency: d.urgency,
     returnTrip: d.returnTrip,
     waitMinutes: d.waitMinutes,
+    workMinutes: d.workMinutes,
     whenLocal: date ? `${date}T${time}` : "",
     sizeClass: d.item.size,
     weightKg: d.item.weightKg,
@@ -439,11 +552,12 @@ export function inputFromDetails(d: RequestDetails): Partial<PriceInput> & { whe
 }
 
 /** A short, plain note for the customer's quotation. No cost detail beyond what the quotation already shows. */
-export function customerNotes(i: Pick<PriceInput, "service" | "urgency" | "returnTrip">, r: Pick<PriceResult, "routeKm">, from?: string, to?: string): string {
+export function customerNotes(i: Pick<PriceInput, "service" | "urgency" | "returnTrip">, r: Pick<PriceResult, "routeKm"> & { time?: TimeBreakdown }, from?: string, to?: string): string {
   const what = i.service === "delivery" ? "Pick up and drop" : i.service === "visit" ? "A visit" : "Arranged with a provider";
   const route = i.service === "errand" ? "" : ` About ${r.routeKm} km${i.returnTrip ? " there and back" : ""} on an electric scooter.`;
   const places = from ? ` ${to ? `From ${from} to ${to}.` : `At ${from}.`}` : "";
-  return `${what}.${places}${route} ${URGENCY_LABEL[i.urgency]}. Paid in full before the work starts.`.replace(/\s+/g, " ").trim();
+  const timed = r.time ? ` About ${r.time.totalMin} minutes in all (${r.time.travelMin} travelling, ${r.time.totalMin - r.time.travelMin} at the places and waiting), charged as ${r.time.blocks} half-hour${r.time.blocks === 1 ? "" : "s"}.` : "";
+  return `${what}.${places}${route}${timed} ${URGENCY_LABEL[i.urgency]}. Paid in full before the work starts.`.replace(/\s+/g, " ").trim();
 }
 
 /** Splits the cost into who gets what, for the desk's own view. */

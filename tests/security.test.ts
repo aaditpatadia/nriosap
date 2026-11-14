@@ -71,7 +71,7 @@ describe("debug features", () => {
 describe("secrets", () => {
   it("only three harmless settings are public", () => {
     const names = new Set(source.flatMap((f) => read(f).match(/NEXT_PUBLIC_[A-Z0-9_]+/g) ?? []));
-    expect([...names].sort()).toEqual(["NEXT_PUBLIC_DESK_WHATSAPP", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_URL"]);
+    expect([...names].sort()).toEqual(["NEXT_PUBLIC_DESK_WHATSAPP", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPPORT_EMAIL"]);
   });
   it("no public setting is named like a secret in .env.example", () => {
     const pub = read(".env.example").match(/^NEXT_PUBLIC_[A-Z0-9_]+/gm) ?? [];

@@ -19,6 +19,16 @@ export function RateCardForm({ card, version, canEdit }: { card: RateCard; versi
     <form action={action} className="card grid gap-5">
       <div><h2 className="text-[length:var(--text-h2)] font-bold">Rate card</h2><p className="text-[length:var(--text-small)] text-muted">Version {version === 0 ? "0, the starting values" : version}. {canEdit ? "Saving makes a new version. Old prices keep the rates they used." : "Only an admin can change these."}</p></div>
       <fieldset disabled={!canEdit} className="grid gap-5">
+        <fieldset className="grid gap-3 sm:grid-cols-3"><legend className="mb-1 px-1 font-semibold">How the customer is charged</legend>
+          <label className="field">Pricing
+            <select className="input" name="pricingMode" defaultValue={card.pricingMode}><option value="time">By time, in half hours priced in US dollars</option><option value="cost">By cost: rider and vehicle plus our fee</option></select>
+          </label>
+          <Num name="timeBlockMinutes" label="One block of time (minutes)" value={card.timeBlockMinutes} />
+          <Num name="timeBlockUsd" label="Price of one block (US dollars)" value={card.timeBlockUsd} help="For example 7 dollars for every 30 minutes." />
+          <Num name="avgSpeedKmh" label="Average speed door to door (km/h)" value={card.avgSpeedKmh} help="Used to turn distance into travel time." />
+          <Num name="handlingMinutesPerStop" label="Time at each stop (minutes)" value={card.handlingMinutesPerStop} help="Parking, waiting for the handover." />
+          <label className="choice self-end"><input type="checkbox" name="applyCostFloor" defaultChecked={card.applyCostFloor} className="size-5" /><span>Never charge below our costs plus the fee</span></label>
+        </fieldset>
         <fieldset className="grid gap-3 sm:grid-cols-3"><legend className="mb-1 px-1 font-semibold">Rider pay</legend>
           <Num name="riderBaseInr" label="Per task (Rs)" value={card.riderBaseInr} />
           <Num name="riderPerKmInr" label="Per km (Rs)" value={card.riderPerKmInr} />

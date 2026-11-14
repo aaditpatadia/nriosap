@@ -109,7 +109,7 @@ export async function askAllyAction(familyId: string, question: string): Promise
   let answer: AskResult = answerQuestion(p.data.question, facts);
   if (answer.kind === "none" && assistantAiConfigured() && (await assistantConsent(v.id))) {
     const text = await askClaude(p.data.question, facts);
-    if (text) answer = { kind: "answer", text, sources: [], viaAi: true };
+    if (text) answer = { kind: "answer", text, sources: [], viaAi: true, actions: answer.actions };
   }
   // The question itself is not stored or logged.
   await asService(() => tx((t) => t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'assistant_query','family',$2,$3)", [v.id, p.data.familyId, p.data.familyId])));

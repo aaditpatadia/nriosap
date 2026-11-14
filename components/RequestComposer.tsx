@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { DetailsFields } from "./DetailsFields";
 import { VoiceNote } from "./VoiceNote";
+import { VoiceRequestCard } from "./VoiceRequestCard";
 import { readDetails } from "@/lib/pricing-rules";
 import { submitRequest } from "@/app/family/platform-actions";
 import { SERVICE_CATEGORIES, understandRequest, type ServiceCategory } from "@/lib/request-engine";
@@ -21,6 +22,12 @@ export function RequestComposer({ familyId, vault, properties, defaultProperty, 
   const [progress, setProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
+  // Someone on a slow connection may start typing before the page has finished loading. Keep what they typed.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => { const typed = box.current?.value ?? ""; if (typed) setText((t) => t || typed); });
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const seen = useMemo(() => understandRequest(text), [text]);
   const hasText = text.trim().length >= 10;
@@ -49,8 +56,11 @@ export function RequestComposer({ familyId, vault, properties, defaultProperty, 
       <input type="hidden" name="category" value={category} />
       {attached.map((a) => <input key={a.id} type="hidden" name="attachment" value={a.id} />)}
 
+      <VoiceRequestCard familyId={familyId} canUpload={canUpload} pending={pending} hasVoice={attached.some((a) => a.title === "Voice note")} onSaved={(id, title) => setAttached((a) => [...a, { id, title }])} />
+      <p aria-hidden className="text-center text-[length:var(--text-small)] font-semibold text-muted">or type it</p>
+
       <label className="field text-[length:var(--text-h3)]">What do you need handled in India?
-        <textarea className="input" name="description" rows={5} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="I need someone to visit my flat in Mumbai because the tenant says there is a water leakage." required />
+        <textarea ref={box} className="input" name="description" rows={5} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="I need someone to visit my flat in Mumbai because the tenant says there is a water leakage." required />
       </label>
 
       {hasText && (

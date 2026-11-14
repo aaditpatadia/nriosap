@@ -30,6 +30,9 @@ const priceInput = z.object({
   prohibitedItem: z.boolean(),
   pickupPincode: z.string().regex(/^(\d{6})?$/).optional(),
   dropPincode: z.string().regex(/^(\d{6})?$/).optional(),
+  workMinutes: z.number().finite().min(0).max(1000).optional(),
+  travelMinutesOverride: z.number().finite().min(0).max(1000).optional(),
+  usdPerInr: z.number().finite().min(0).max(1).optional(),
 });
 
 export type UsedEstimate = { ok: true; estimateId: string; providerFeeInr: number; coordinationFeeInr: number; taxesInr: number; totalInr: number; notes: string; rateCardVersion: number } | { ok: false; message: string };
@@ -84,6 +87,7 @@ export async function saveRateCardAction(_p: Msg, form: FormData): Promise<Msg> 
     sizeSurchargeInr: { envelope: n("size_envelope"), small: n("size_small"), medium: n("size_medium"), large: n("size_large") },
     evEnergyPerKmInr: n("evEnergyPerKmInr"), evMaintenancePerKmInr: n("evMaintenancePerKmInr"), evPerTaskOverheadInr: n("evPerTaskOverheadInr"),
     feePct: n("feePct"), feeBasis: form.get("feeBasis"), minFeeInr: n("minFeeInr"), taxPct: n("taxPct"), taxBasis: form.get("taxBasis"), minTotalInr: n("minTotalInr"), roundToInr: n("roundToInr"),
+    pricingMode: form.get("pricingMode"), timeBlockMinutes: n("timeBlockMinutes"), timeBlockUsd: n("timeBlockUsd"), avgSpeedKmh: n("avgSpeedKmh"), handlingMinutesPerStop: n("handlingMinutesPerStop"), applyCostFloor: form.get("applyCostFloor") === "on",
     evMaxRouteKm: n("evMaxRouteKm"), evMaxWeightKg: n("evMaxWeightKg"), highValueInr: n("highValueInr"), roadFactor: n("roadFactor"), areaPinFrom: n("areaPinFrom"), areaPinTo: n("areaPinTo"), fxBufferPct: n("fxBufferPct"), quoteValidHours: n("quoteValidHours"),
   };
   const note = typeof form.get("note") === "string" ? (form.get("note") as string).trim() : "";
