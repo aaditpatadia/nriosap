@@ -56,3 +56,8 @@ export async function finishOnboardingSteps(page: Page) {
   await page.getByRole("checkbox").nth(0).check();
   await page.getByRole("checkbox").nth(1).check();
 }
+
+/** Waits for page entrance animations to finish, so a contrast check never sees text that is still fading in. */
+export async function settle(page: Page) {
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))));
+}

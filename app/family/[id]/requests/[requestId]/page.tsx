@@ -6,7 +6,9 @@ import { CancelRequestButton, DisputeForm, QuoteChangesForm, ReplyForm } from "@
 import { StageBar } from "@/components/StageBar";
 import { PaymentList } from "@/components/PaymentPanel";
 import { paymentsForRequest } from "@/lib/payment-records";
+import { DetailsPanel } from "@/components/DetailsPanel";
 import { Facts, Panel } from "@/components/ui";
+import { activeRateCard } from "@/lib/pricing";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { isOpenStatus, STATUS_META } from "@/lib/request-engine";
 import { familyAccess, getRequest, propertiesFor, quotesForRequest, requestAttachments, requestEvents, type RequestAttachment } from "@/lib/service-requests";
@@ -33,6 +35,7 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
   const r = await getRequest(requestId);
   if (!r || r.familyId !== id) notFound();
   const [events, files, quotes, access, approvals, properties, fam, payments] = await Promise.all([requestEvents(requestId), requestAttachments(requestId), quotesForRequest(requestId), familyAccess(id), approvalsFor(id), propertiesFor(id), getFamily(id), paymentsForRequest(requestId)]);
+  const rc = await activeRateCard();
   const viaWhatsApp = r.understanding && (r.understanding as { via?: string }).via === "whatsapp";
   const waMessages = await whatsappForRequest(requestId);
   const s = STATUS_META[r.status];
@@ -65,6 +68,7 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
             <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{r.description}</p>
             {given.length > 0 && <FileList items={given} />}
           </Panel>
+          <DetailsPanel requestId={requestId} details={r.details} canEdit={open && access.canCreate} area={{ from: rc.card.areaPinFrom, to: rc.card.areaPinTo }} />
           {waMessages.length > 0 && (
             <Panel title="Sent on WhatsApp">
               <ol className="timeline grid gap-4">{waMessages.map((m) => <li key={m.id}><p className="whitespace-pre-wrap text-[length:var(--text-small)] [overflow-wrap:anywhere]">{m.text ?? (m.hasVoice ? "Voice note. Your coordinator listens to it." : m.type === "image" ? "Photo" : "Document")}</p>{m.documentId && <a className="btn btn-secondary mt-1" href={`/api/documents/${m.documentId}/file`} target="_blank" rel="noreferrer">Open the file</a>}<p className="text-[length:var(--text-micro)] text-muted">{fmtDate(m.at)}, {fmtTime(m.at)} India time</p></li>)}</ol>
@@ -101,7 +105,7 @@ export default async function RequestDetail({ params }: { params: Promise<{ id: 
               {quote.status === "sent" && access.owner && <QuoteChangesForm quoteId={quote.id} familyId={id} />}
               {quote.documentId && <a className="btn btn-ghost w-fit px-0" href={`/api/documents/${quote.documentId}/file`} target="_blank" rel="noreferrer">See the supporting quotation</a>}
               <PaymentList payments={payments} />
-              <p className="text-[length:var(--text-micro)] text-muted">Approving agrees the work and the price. Ally does not hold your money. You pay the provider directly, and nothing is shown as paid until a receipt or payment reference confirms it.</p>
+              <p className="text-[length:var(--text-micro)] text-muted">Approving agrees the work and the price. You pay the full amount before the work starts, using a secure payment link your coordinator sends. Nothing is shown as paid until a receipt or payment reference confirms it.</p>
             </Panel>
           )}
           {access.owner && (

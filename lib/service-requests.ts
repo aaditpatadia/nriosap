@@ -5,6 +5,7 @@ import { looksLikeAdvice } from "./rules";
 import { loadPlans } from "./plans";
 import { planForPrice, requestLimitReason } from "./plan-rules";
 import { monthStartIst } from "./rules";
+import { readDetails, requestDetailsSchema, type RequestDetails } from "./pricing-rules";
 import { isOpenStatus, requestTitle, understandRequest, type RequestStatus, type ServiceCategory, type Understanding } from "./request-engine";
 
 type Row = Record<string, any>;
@@ -14,12 +15,14 @@ export interface ServiceRequest {
   priority: "normal" | "urgent"; status: RequestStatus; coordinatorId: string | null; coordinatorName: string | null; providerName: string | null;
   taskId: string | null; understanding: Partial<Understanding>; needsProfessional: boolean; estimatedCompletion: string | null; finalReport: string | null;
   createdAt: string; updatedAt: string; completedAt: string | null; familyName?: string; partnerId: string | null; propertyId: string | null; memberId: string | null; dueOn: string | null; escalatedAt: string | null;
+  details: RequestDetails;
 }
 export interface RequestEvent { id: string; kind: string; status: string | null; body: string; actorName: string; at: string; customerVisible: boolean }
 export interface RequestAttachment { id: string; documentId: string; title: string | null; kind: "customer" | "evidence"; caption: string | null }
 export interface Quotation {
   id: string; requestId: string; approvalId: string | null; providerName: string | null; providerFeeInr: number; coordinationFeeInr: number; taxesInr: number; totalInr: number;
   notes: string | null; estimatedCompletion: string | null; status: string; changeNote: string | null; createdAt: string; requestRef?: string; requestTitle?: string; undoUntil?: string; approvalStatus?: "pending" | "approved" | "declined"; approvalDeadline: string | null; documentId: string | null;
+  advancePercent: number; currency: string; fxPerInr: number | null; fxAsOf: string | null; estimateId: string | null;
 }
 
 const SELECT = `select r.*, c.name as coordinator_name, f.name as family_name from service_requests r
@@ -28,11 +31,12 @@ const SELECT = `select r.*, c.name as coordinator_name, f.name as family_name fr
 const toRequest = (r: Row): ServiceRequest => ({
   id: r.id, ref: r.ref, familyId: r.family_id, category: r.category, title: r.title, description: r.description, location: r.location, priority: r.priority, status: r.status,
   coordinatorId: r.coordinator_id, coordinatorName: r.coordinator_name ?? null, providerName: r.provider_name, taskId: r.task_id, understanding: r.understanding ?? {}, needsProfessional: r.needs_professional,
-  estimatedCompletion: r.estimated_completion ? String(r.estimated_completion).slice(0, 10) : null, finalReport: r.final_report, createdAt: r.created_at, updatedAt: r.updated_at, completedAt: r.completed_at, familyName: r.family_name, partnerId: r.partner_id ?? null, propertyId: r.property_id ?? null, memberId: r.member_id ?? null, dueOn: r.due_on ?? null, escalatedAt: r.escalated_at ?? null,
+  estimatedCompletion: r.estimated_completion ? String(r.estimated_completion).slice(0, 10) : null, finalReport: r.final_report, createdAt: r.created_at, updatedAt: r.updated_at, completedAt: r.completed_at, familyName: r.family_name, partnerId: r.partner_id ?? null, propertyId: r.property_id ?? null, memberId: r.member_id ?? null, dueOn: r.due_on ?? null, escalatedAt: r.escalated_at ?? null, details: readDetails(r.details),
 });
 const toQuote = (q: Row): Quotation => ({
   id: q.id, requestId: q.request_id, approvalId: q.approval_id, providerName: q.provider_name, providerFeeInr: Number(q.provider_fee_inr), coordinationFeeInr: Number(q.coordination_fee_inr), taxesInr: Number(q.taxes_inr), totalInr: Number(q.total_inr),
   notes: q.notes, estimatedCompletion: q.estimated_completion ? String(q.estimated_completion).slice(0, 10) : null, status: q.status, changeNote: q.change_note, createdAt: q.created_at, requestRef: q.ref, requestTitle: q.title, undoUntil: q.undo_until ?? undefined, approvalStatus: q.approval_status ?? undefined, approvalDeadline: q.approval_deadline ?? null, documentId: q.document_id ?? null,
+  advancePercent: q.advance_percent ?? 100, currency: q.currency ?? "INR", fxPerInr: q.fx_per_inr ? Number(q.fx_per_inr) : null, fxAsOf: q.fx_as_of ?? null, estimateId: q.estimate_id ?? null,
 });
 
 // ---------- Who may do what. Asked of Postgres as the signed-in person ----------
@@ -55,7 +59,7 @@ export const familyAccess = cache(async function familyAccess(familyId: string):
 // ---------- Customer ----------
 export type CreateResult = { ok: true; id: string; ref: string } | { ok: false; reason: string };
 
-export async function createServiceRequest(input: { familyId: string; description: string; category?: ServiceCategory; location?: string; urgent?: boolean; attachmentIds: string[]; userId: string; userName: string; propertyId?: string | null; memberId?: string | null; dueOn?: string | null; fromDesk?: boolean }): Promise<CreateResult> {
+export async function createServiceRequest(input: { familyId: string; description: string; category?: ServiceCategory; location?: string; urgent?: boolean; attachmentIds: string[]; userId: string; userName: string; propertyId?: string | null; memberId?: string | null; dueOn?: string | null; fromDesk?: boolean; details?: RequestDetails }): Promise<CreateResult> {
   const access = await familyAccess(input.familyId);
   if (!access.canCreate) return { ok: false, reason: "You do not have permission to ask for work on this account." };
   const seen = understandRequest(input.description);
@@ -68,8 +72,10 @@ export async function createServiceRequest(input: { familyId: string; descriptio
   const category = input.category ?? seen.category;
   const linked = input.propertyId && isUuid(input.propertyId) ? await asService(() => one<Row>("select id, city from properties where id = $1 and family_id = $2", [input.propertyId, input.familyId])) : undefined;
   const person = input.memberId && isUuid(input.memberId) ? await asService(() => one<Row>("select id from family_members where id = $1 and family_id = $2 and status <> 'revoked'", [input.memberId, input.familyId])) : undefined;
-  const location = input.location?.trim() || seen.location || linked?.city || null;
-  const priority = input.urgent ?? seen.urgent ? "urgent" : "normal";
+  const details = input.details ? requestDetailsSchema.parse(input.details) : null;
+  const location = input.location?.trim() || seen.location || linked?.city || (details && (details.pickup.area || details.pickup.pincode) ? "Mumbai" : null);
+  const rushed = details?.urgency === "priority" || details?.urgency === "express";
+  const priority = (input.urgent ?? seen.urgent) || rushed ? "urgent" : "normal";
   const title = requestTitle(input.description);
   const professional = seen.verdict === "needs_professional" || looksLikeAdvice(input.description);
   const checklist = ["Confirm exactly what is needed", "Say plainly if this cannot be done", "Send a quotation before any cost or filing"];
@@ -86,9 +92,9 @@ export async function createServiceRequest(input: { familyId: string; descriptio
       );
       await t.run("insert into task_notes(task_id, family_id, author_id, body) values ($1,$2,$3,$4)", [task!.id, input.familyId, input.userId, input.description]);
       const r = await t.one<Row>(
-        `insert into service_requests(family_id, created_by, category, title, description, location, priority, coordinator_id, task_id, understanding, needs_professional, property_id, member_id, due_on)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning id, ref`,
-        [input.familyId, input.userId, category, title, input.description, location, priority, f.coordinator_id, task!.id, JSON.stringify(seen), professional, linked?.id ?? null, person?.id ?? null, input.dueOn || null],
+        `insert into service_requests(family_id, created_by, category, title, description, location, priority, coordinator_id, task_id, understanding, needs_professional, property_id, member_id, due_on, details)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning id, ref`,
+        [input.familyId, input.userId, category, title, input.description, location, priority, f.coordinator_id, task!.id, JSON.stringify(seen), professional, linked?.id ?? null, person?.id ?? null, input.dueOn || details?.window.date || null, JSON.stringify(details ?? {})],
       );
       await t.run("insert into request_events(request_id, family_id, kind, status, body, actor_id, actor_name) values ($1,$2,'status','submitted','Request received.',$3,$4)", [r!.id, input.familyId, input.userId, input.userName]);
       for (const docId of input.attachmentIds.filter(isUuid).slice(0, 10)) {
@@ -212,6 +218,13 @@ export async function setRequestStatus(id: string, status: RequestStatus, note: 
   if (["assigned", "in_progress"].includes(status)) {
     const q = await one<Row>("select count(*)::int as open from quotations where request_id = $1 and status = 'sent'", [id]);
     if (q?.open) return { ok: false, reason: "A quotation is still waiting for the customer." };
+    // Paid in full first. Work starts only once a payment is confirmed with proof.
+    const unpaid = await one<Row>(
+      `select 1 as x from quotations q where q.request_id = $1 and q.status = 'approved' and q.advance_percent > 0
+         and not exists (select 1 from payments p where p.request_id = q.request_id and p.status = 'confirmed') limit 1`,
+      [id],
+    );
+    if (unpaid) return { ok: false, reason: "The customer pays in full before work starts. Confirm their payment first." };
   }
   return asService(() =>
     tx(async (t) => {
@@ -253,7 +266,7 @@ export async function addRequestUpdate(id: string, body: string, customerVisible
 }
 
 /** The total is worked out here, never taken from the browser. Sending it creates the approval the customer decides on. */
-export async function createQuotation(id: string, q: { providerName: string; providerFeeInr: number; coordinationFeeInr: number; taxesInr: number; notes: string; estimatedCompletion?: string; approvalDeadline?: string; documentId?: string }, userId: string, userName: string): Promise<StaffResult> {
+export async function createQuotation(id: string, q: { providerName: string; providerFeeInr: number; coordinationFeeInr: number; taxesInr: number; notes: string; estimatedCompletion?: string; approvalDeadline?: string; documentId?: string; estimateId?: string }, userId: string, userName: string): Promise<StaffResult> {
   const r = await workable(id);
   if (!r) return { ok: false, reason: "That request is not on your list." };
   if (!r.task_id) return { ok: false, reason: "This request has no desk task." };
@@ -261,6 +274,7 @@ export async function createQuotation(id: string, q: { providerName: string; pro
   const total = q.providerFeeInr + q.coordinationFeeInr + q.taxesInr;
   if (total <= 0) return { ok: false, reason: "A quotation must have an amount." };
   const req = await one<Row>("select title, ref from service_requests where id = $1", [id]);
+  const est = q.estimateId && isUuid(q.estimateId) ? await one<Row>("select id, currency, fx_per_inr, fx_as_of from price_estimates where id = $1 and request_id = $2", [q.estimateId, id]) : undefined;
   return asService(() =>
     tx(async (t) => {
       // A new quotation replaces any that is still waiting, so only one can ever be approved.
@@ -271,12 +285,12 @@ export async function createQuotation(id: string, q: { providerName: string; pro
         [r.family_id, r.task_id, `${req!.ref}: ${req!.title}`.slice(0, 200), total, q.providerName || "Ally coordination", q.coordinationFeeInr + q.taxesInr, q.estimatedCompletion ? `By ${q.estimatedCompletion}` : "To be agreed", userId],
       );
       await t.run(
-        "insert into quotations(request_id, family_id, approval_id, provider_name, provider_fee_inr, coordination_fee_inr, taxes_inr, total_inr, notes, estimated_completion, created_by, approval_deadline, document_id) select $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,(select d.id from documents d where d.id = $13::uuid and d.family_id = $2 and d.deleted_at is null)",
-        [id, r.family_id, a!.id, q.providerName || null, q.providerFeeInr, q.coordinationFeeInr, q.taxesInr, total, q.notes || null, q.estimatedCompletion || null, userId, q.approvalDeadline || null, q.documentId && isUuid(q.documentId) ? q.documentId : null],
+        "insert into quotations(request_id, family_id, approval_id, provider_name, provider_fee_inr, coordination_fee_inr, taxes_inr, total_inr, notes, estimated_completion, created_by, approval_deadline, document_id, estimate_id, currency, fx_per_inr, fx_as_of) select $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,(select d.id from documents d where d.id = $13::uuid and d.family_id = $2 and d.deleted_at is null),$14,$15,$16,$17",
+        [id, r.family_id, a!.id, q.providerName || null, q.providerFeeInr, q.coordinationFeeInr, q.taxesInr, total, q.notes || null, q.estimatedCompletion || null, userId, q.approvalDeadline || null, q.documentId && isUuid(q.documentId) ? q.documentId : null, est?.id ?? null, est?.currency ?? "INR", est?.fx_per_inr ?? null, est?.fx_as_of ?? null],
       );
       await t.run("update service_requests set status = 'awaiting_approval', provider_name = coalesce(nullif($2,''), provider_name), estimated_completion = coalesce($3::date, estimated_completion), updated_at = now() where id = $1", [id, q.providerName, q.estimatedCompletion || null]);
       await t.run("update tasks set status = 'waiting_owner', needs_approval = true where id = $1", [r.task_id]);
-      await logEvent(t, r as { id: string; family_id: string }, "quote", "awaiting_approval", `Quotation sent: Rs ${total.toLocaleString("en-IN")}. Nothing happens until you decide.`, userId, userName);
+      await logEvent(t, r as { id: string; family_id: string }, "quote", "awaiting_approval", `Quotation sent: Rs ${total.toLocaleString("en-IN")}, paid in full before the work starts. Nothing happens until you decide.`, userId, userName);
       await t.run("insert into events(family_id, kind, actor, actor_name, text) values ($1,'approval','system','Desk',$2)", [r.family_id, `Waiting for your approval: ${req!.ref}`]);
       await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'quote_sent','service_request',$2,$3)", [userId, id, r.family_id]);
       return { ok: true };
@@ -360,4 +374,21 @@ export async function removeProperty(id: string, userId: string): Promise<string
     }),
   );
   return p.family_id;
+}
+
+/** The customer, or the desk on their behalf, adds where and when. Each change is written on the timeline. */
+export async function updateRequestDetails(id: string, details: RequestDetails, userId: string, userName: string): Promise<StaffResult> {
+  if (!isUuid(id)) return { ok: false, reason: "Request not found." };
+  const r = await one<Row>("select id, family_id, status from service_requests where id = $1", [id]);
+  if (!r) return { ok: false, reason: "Request not found." };
+  const access = await familyAccess(r.family_id);
+  if (!access.canCreate) return { ok: false, reason: "You do not have permission to change this request." };
+  if (r.status === "completed" || r.status === "cancelled") return { ok: false, reason: "This request is closed." };
+  const clean = requestDetailsSchema.parse(details);
+  await asService(() => tx(async (t) => {
+    await t.run("update service_requests set details = $2, updated_at = now() where id = $1", [id, JSON.stringify(clean)]);
+    await t.run("insert into request_events(request_id, family_id, kind, body, actor_id, actor_name, customer_visible) values ($1,$2,'update',$3,$4,$5,true)", [id, r.family_id, access.staff && !access.owner ? "The desk added the place and timing details." : "Place and timing details added.", userId, userName]);
+    await t.run("insert into audit_log(actor_id, action, entity, entity_id, family_id) values ($1,'request_details_updated','service_request',$2,$3)", [userId, id, r.family_id]);
+  }));
+  return { ok: true };
 }

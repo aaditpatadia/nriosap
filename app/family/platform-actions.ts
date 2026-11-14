@@ -10,6 +10,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { MEMBER_ROLES, ROLE_PERMISSIONS, type MemberRole } from "@/lib/workspace-rules";
 import { DOCUMENT_CATEGORIES, DEFAULT_PERMISSIONS, PERMISSIONS, RELATIONS, REQUEST_STATUSES, SERVICE_CATEGORIES, type DocumentCategory, type Permission, type Relation } from "@/lib/request-engine";
 import { normalisePhone } from "@/lib/consent";
+import { detailsFromForm } from "@/lib/pricing-form";
 import {
   addProperty, addRequestUpdate, assignRequest, attachEvidence, cancelRequest, createQuotation, createServiceRequest, customerReply, disputeRequest, getRequest, removeProperty, requestQuoteChanges, saveFinalReport, setRequestStatus,
 } from "@/lib/service-requests";
@@ -39,11 +40,27 @@ export async function submitRequest(_p: Msg, form: FormData): Promise<Msg> {
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the form." };
   if (!(await rateLimit(`request:${v.id}`, 30, 3600))) return { ok: false, message: "That is a lot of requests. Please wait a little." };
   const attachmentIds = form.getAll("attachment").filter((x): x is string => typeof x === "string");
+  const d = detailsFromForm(form);
+  if (!d.ok) return { ok: false, message: d.message };
   const description = p.data.extra ? `${p.data.description}\n\nMore details: ${p.data.extra}` : p.data.description;
-  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name, propertyId: p.data.propertyId || null, memberId: p.data.memberId || null, dueOn: p.data.dueOn || null });
+  const r = await createServiceRequest({ familyId: p.data.familyId, description, category: p.data.category, location: p.data.location, urgent: p.data.urgent === "on", attachmentIds, userId: v.id, userName: v.name, propertyId: p.data.propertyId || null, memberId: p.data.memberId || null, dueOn: p.data.dueOn || null, details: d.details });
   if (!r.ok) return { ok: false, message: r.reason };
   refresh(p.data.familyId);
   redirect(`/family/${p.data.familyId}/requests/${r.id}`);
+}
+
+/** The customer, or the desk for them, adds or corrects where and when. */
+export async function detailsAction(_p: Msg, form: FormData): Promise<Msg> {
+  const v = await actionViewer();
+  const rid = id.safeParse(form.get("requestId"));
+  if (!v || !rid.success) return { ok: false, message: "Please sign in again." };
+  const d = detailsFromForm(form);
+  if (!d.ok) return { ok: false, message: d.message };
+  const { updateRequestDetails } = await import("@/lib/service-requests");
+  const r = await updateRequestDetails(rid.data, d.details, v.id, v.name);
+  const req = await getRequest(rid.data);
+  if (req) { refresh(req.familyId); opsRefresh(rid.data); }
+  return { ok: r.ok, message: r.ok ? "Saved. Your coordinator can see this now." : (r.reason ?? "That did not save.") };
 }
 
 export async function cancelRequestAction(requestId: string) {
@@ -123,10 +140,10 @@ export async function updateAction(_p: Msg, form: FormData): Promise<Msg> {
 const rupees = z.coerce.number().int("Whole rupees only.").min(0).max(100000000);
 export async function quoteAction(_p: Msg, form: FormData): Promise<Msg> {
   const v = await staffUser();
-  const p = z.object({ requestId: id, providerName: z.string().trim().max(120), providerFee: rupees, coordinationFee: rupees, taxes: rupees, notes: z.string().trim().max(1000), estimatedCompletion: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/), approvalDeadline: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).optional() }).safeParse(Object.fromEntries(form));
+  const p = z.object({ requestId: id, providerName: z.string().trim().max(120), providerFee: rupees, coordinationFee: rupees, taxes: rupees, notes: z.string().trim().max(1000), estimatedCompletion: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/), approvalDeadline: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).optional(), estimateId: z.union([id, z.literal("")]).optional() }).safeParse(Object.fromEntries(form));
   if (!v) return { ok: false, message: "Please sign in again." };
   if (!p.success) return { ok: false, message: p.error.issues[0]?.message ?? "Please check the amounts." };
-  const r = await createQuotation(p.data.requestId, { providerName: p.data.providerName, providerFeeInr: p.data.providerFee, coordinationFeeInr: p.data.coordinationFee, taxesInr: p.data.taxes, notes: p.data.notes, estimatedCompletion: p.data.estimatedCompletion, approvalDeadline: p.data.approvalDeadline }, v.id, v.name);
+  const r = await createQuotation(p.data.requestId, { providerName: p.data.providerName, providerFeeInr: p.data.providerFee, coordinationFeeInr: p.data.coordinationFee, taxesInr: p.data.taxes, notes: p.data.notes, estimatedCompletion: p.data.estimatedCompletion, approvalDeadline: p.data.approvalDeadline, estimateId: p.data.estimateId || undefined }, v.id, v.name);
   opsRefresh(p.data.requestId);
   return { ok: r.ok, message: r.ok ? "Sent to the customer. Nothing happens until they decide." : (r.reason ?? "That did not save.") };
 }

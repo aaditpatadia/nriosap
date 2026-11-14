@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { post, verifyChallenge } from "../scripts/local/whatsapp-emulator.mjs";
 import { envelope, FIXTURES, NUMBERS, text } from "../scripts/local/whatsapp-fixtures.mjs";
-import { FAM, signInOwner, signInStaff } from "./helpers";
+import { FAM, settle, signInOwner, signInStaff } from "./helpers";
 
 /** Pages can hold a hidden copy while they stream, so only what is visible counts. */
 const vis = (l: Locator) => l.filter({ visible: true });
@@ -47,6 +47,7 @@ test("a bill photo becomes a request, with the AI reading beside the photo", asy
   await expect(reading).toContainText("Prompt version");
   await msg.getByRole("button", { name: "Confirm category" }).click();
   await expect(vis(page.getByText("Category confirmed.")).first()).toBeVisible();
+  await settle(page);
   const a = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   expect(a.violations.map((v) => v.id)).toEqual([]);
 });
@@ -113,6 +114,7 @@ test("a desk reply is checked for advice and waits in the outbox, ready to copy"
   const row = vis(page.getByTestId("wa-outbox")).filter({ hasText: "Meera here. I have your bill" });
   await expect(row).toContainText("Would send");
   await expect(row.getByRole("button", { name: "Copy text" })).toBeVisible();
+  await settle(page);
   const a = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   expect(a.violations.map((v) => v.id)).toEqual([]);
 });

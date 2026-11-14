@@ -187,7 +187,9 @@ details[open] > :not(summary) { animation: rise 240ms var(--ease-out) both; }
 /* ---------- The signed-in shell, shared by the customer app and Ops ---------- */
 .shell { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: 100vh; align-items: start; }
 .shell[data-collapsed="true"] { grid-template-columns: 72px minmax(0, 1fr); }
-.side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 12px; padding: 16px 12px; background: var(--surface); border-right: 1px solid var(--line); overflow-y: auto; }
+.side { position: sticky; top: 0; height: 100vh; width: 256px; isolation: isolate; }
+.side-scroll { display: flex; flex-direction: column; gap: 12px; height: 100%; padding: 16px 12px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.side-bg, .side-edge, .side-glow { display: none; }
 .side-nav { display: grid; gap: 1px; }
 .side-link { position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; font-size: var(--text-small); font-weight: 500; border-radius: 8px; color: var(--muted); transition: opacity var(--dur-fast) var(--ease-out); }
 .side-link[aria-current="page"] { color: var(--ink); font-weight: 600; }
@@ -204,7 +206,7 @@ details[open] > :not(summary) { animation: rise 240ms var(--ease-out) both; }
 @media (max-width: 1023px) {
   .shell, .shell[data-collapsed="true"] { display: block; }
   .mobile-top { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 16px; background: color-mix(in srgb, var(--surface) 82%, transparent); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line); }
-  .side { position: fixed; z-index: 50; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform var(--dur-slow) var(--ease-out); box-shadow: var(--shadow-lg); }
+  .side { position: fixed; z-index: 50; inset: 0 auto 0 0; width: min(300px, 86vw); background: var(--surface); border-right: 1px solid var(--line); transform: translateX(-102%); transition: transform var(--dur-slow) var(--ease-spring); box-shadow: var(--shadow-lg); }
   .shell[data-open="true"] .side { transform: none; }
   .shell[data-open="true"] .side-scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgb(13 20 28 / 0.45); animation: fade-in var(--dur-base) var(--ease-out) both; }
   .shell[data-collapsed="true"] .side-text { position: relative; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
@@ -441,20 +443,84 @@ a.band-note:hover { color: var(--b-ink); }
 .eyebrow { display: inline-flex; width: fit-content; padding: 0.2rem 0.7rem; border-radius: 99px; background: var(--mint); color: var(--mint-strong); font-size: var(--text-micro); font-weight: 700; letter-spacing: 0.02em; }
 @media (prefers-reduced-motion: reduce) { .hero-frame, .hero-frame * { animation: none !important; } }
 
-/* Menu fold: the button sits at the top right of the menu. Folded, only icons show; pointing at it opens it over the page. */
+/* Menu fold. The fold button sits at the top right of the menu. Folded, only icons show, and pointing at the menu opens it over the page.
+   The panel behind it is one wide layer that is squeezed with a transform, so the motion stays smooth: only transform and opacity ever move. */
 .side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 @media (min-width: 1024px) {
-  .side-fold { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
+  .side { --k: 1; --open-ms: 260ms; }
+  .shell[data-collapsed="true"] .side { --k: 0.28125; width: 72px; transition: width 0s linear var(--open-ms); }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) { --k: 1; width: 256px; z-index: 40; transition-delay: 0s; }
+  .side-bg, .side-edge, .side-glow { display: block; position: absolute; top: 0; bottom: 0; left: 0; pointer-events: none; }
+  .side-bg { z-index: -1; width: 256px; background: var(--surface); transform-origin: left center; transform: scaleX(var(--k)); transition: transform var(--open-ms) var(--ease-out); }
+  .side-edge { z-index: -1; width: 1px; background: var(--line); transform: translateX(calc(256px * var(--k) - 1px)); transition: transform var(--open-ms) var(--ease-out); }
+  .side-glow { z-index: -2; width: 256px; box-shadow: var(--shadow-lg); opacity: 0; transition: opacity var(--open-ms) var(--ease-out); }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-glow { opacity: 1; }
+  .side-fold { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; transition: transform var(--dur-fast) var(--ease-spring); }
   .side-fold:hover { background: var(--sunken); color: var(--ink); }
+  .side-fold:active { transform: scale(0.92); }
   .shell[data-collapsed="true"] .side-head { justify-content: center; }
   .shell[data-collapsed="true"] .side:not(:hover):not(:has(:focus-visible)) .side-fold { display: none; }
   .shell[data-collapsed="true"] .side:not(:hover):not(:has(:focus-visible)) .btn-primary { padding: 0; justify-content: center; }
   .side .btn-primary svg { flex: none; }
-  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) { width: 256px; z-index: 40; box-shadow: var(--shadow-lg); }
   .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-head { justify-content: space-between; }
-  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-text { width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; position: relative; animation: fade-in var(--dur-base) var(--ease-out) both; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-text { width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; position: relative; animation: side-label 300ms var(--ease-out) both; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-nav li:nth-child(2) .side-text { animation-delay: 25ms; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-nav li:nth-child(3) .side-text { animation-delay: 50ms; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-nav li:nth-child(4) .side-text { animation-delay: 75ms; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-nav li:nth-child(n+5) .side-text { animation-delay: 100ms; }
   .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-link { justify-content: flex-start; padding: 0 10px; }
-  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-badge { display: inline-flex; }
-  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-foot-detail { display: grid; animation: fade-in var(--dur-base) var(--ease-out) both; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-badge { display: inline-flex; animation: fade-in 300ms var(--ease-out) 120ms both; }
+  .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) .side-foot-detail { display: grid; animation: fade-in 300ms var(--ease-out) 120ms both; }
 }
+@keyframes side-label { from { opacity: 0; transform: translateX(-8px); } }
 @media (prefers-reduced-motion: reduce) { .shell[data-collapsed="true"] .side * { animation: none !important; } }
+
+/* Pickable choices in forms: a tappable row that lights up when chosen. */
+.choice { display: flex; align-items: center; gap: 0.65rem; min-height: 48px; padding: 0 0.85rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; }
+.choice:has(input:checked) { background: var(--mint); border-color: var(--mint-line); }
+@media (hover: hover) { .choice:hover { border-color: var(--line-strong); } }
+
+/* Smoothness. Spring easing for touch and hover, soft arrivals for content, and nothing but transform and opacity ever moves. */
+:root { --ease-spring: cubic-bezier(0.34, 1.35, 0.64, 1); }
+@supports (transition-timing-function: linear(0, 1)) {
+  :root { --ease-spring: linear(0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163, 1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1.004 83.8%, 1); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+.btn, .stat, .dt-row, .lift, .side-link, .bottom-link, .cal-day { transition-property: transform, opacity; transition-duration: var(--dur-base); transition-timing-function: var(--ease-spring); }
+@media (hover: hover) {
+  .btn:not([disabled]):hover { transform: translateY(-1px); }
+  a.stat:hover { transform: translateY(-3px); }
+  .dt-row:hover { transform: translateY(-1px); }
+  .cal-day:hover { transform: scale(1.08); }
+}
+.btn:not([disabled]):active, .bottom-link:active, .cal-day:active { transform: scale(0.96); transition-duration: var(--dur-instant); }
+
+@keyframes arrive { from { opacity: 0; transform: translateY(10px); } }
+@keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes pop { 0% { transform: scale(0.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+
+/* Panels and page headings arrive softly, one after another. */
+.card, .page-head { animation: arrive 340ms var(--ease-out) both; }
+.card:nth-child(2) { animation-delay: 40ms; }
+.card:nth-child(3) { animation-delay: 80ms; }
+.card:nth-child(4) { animation-delay: 120ms; }
+.card:nth-child(n + 5) { animation-delay: 160ms; }
+/* Rows in lists slide in with a small stagger, for the first few only. */
+.rows > li { animation: row-in 300ms var(--ease-out) both; }
+.rows > li:nth-child(2) { animation-delay: 30ms; }
+.rows > li:nth-child(3) { animation-delay: 60ms; }
+.rows > li:nth-child(4) { animation-delay: 90ms; }
+.rows > li:nth-child(5) { animation-delay: 120ms; }
+.rows > li:nth-child(n + 6) { animation-delay: 150ms; }
+/* An opened section fades its content in instead of snapping. */
+details[open] > *:not(summary) { animation: arrive 280ms var(--ease-out) both; }
+/* The current page in the bottom bar pops when you arrive. */
+.bottom-link[aria-current="page"] svg { animation: pop 420ms var(--ease-spring) both; }
+/* The tick on a finished choice. */
+.choice:has(input:checked) input { animation: pop 300ms var(--ease-spring) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .page-head, .rows > li, details[open] > *:not(summary), .bottom-link[aria-current="page"] svg, .choice:has(input:checked) input { animation: none !important; }
+  .btn, .stat, .dt-row, .lift, .side-link, .bottom-link, .cal-day { transition: none !important; }
+}

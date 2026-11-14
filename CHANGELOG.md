@@ -1,5 +1,15 @@
 # Changelog
 
+## Mumbai pricing, 100% advance, smoother motion
+- Pricing calculator for the desk (Ops, Settings, Pricing, and inside each request). It shows the whole breakdown: what goes to the rider, what the electric vehicle costs us, provider costs at cost, Ally's 25% fee, taxes, rounding, and the total the customer pays in advance. The customer sees the quotation, never how it was built.
+- Customers now say where and when: how soon, pickup and drop addresses with PIN codes and a contact at each, a time window, and what is carried (size, weight, value). They can add missing details later from the request. The desk can ask for everything that is missing in one message.
+- Mumbai only: a PIN code outside Greater Mumbai is flagged to the customer and blocks pricing.
+- Rate card with versions: an admin changes any rate, with a reason, and every change is a new version. A saved price keeps the card it used.
+- Multi-currency display: rates for USD, GBP, EUR, CAD, AUD, SGD and AED, fetched on request or entered by hand, with the source and date shown. The price itself stays in rupees.
+- 100% advance: quotations say they are paid in full before the work starts, and the desk cannot move a request to Assigned or In progress until a payment is confirmed with proof.
+- Smoother app: the menu opens and closes with a squeezed panel instead of a jump, labels fade in one after another, panels and list rows arrive softly, buttons spring back, and the page scrolls smoothly. Only transform and opacity ever move.
+- Migration 015. Additive only.
+
 ## WhatsApp inbound pipeline
 - New webhook at `/api/whatsapp/webhook`. Signature checked on the raw body, every message stored once, answered at once, read in the background.
 - Knows who wrote: owner, parent, family member, WhatsApp-only contact, or unknown. Unknown numbers learn nothing about any family and reach a person.

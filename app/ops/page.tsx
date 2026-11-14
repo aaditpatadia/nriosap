@@ -54,7 +54,7 @@ export default async function OpsOverview({ searchParams }: { searchParams: Prom
         </div>
         <div className="grid content-start gap-5">
         <Panel title="Desk tools">
-          <ul className="rows">{[["/ops/visits", "Visits and scheduling"], ["/ops/approvals", "Quotations and approvals"], ["/ops/documents", "Document review"], ["/ops/properties", "Properties"], ["/ops/partners", "Service partners"], ["/ops/reports", "Reports"]].map(([href, label]) => <li key={href}><Link className="row-link font-medium" href={href}>{label}<span aria-hidden className="text-muted">›</span></Link></li>)}</ul>
+          <ul className="rows">{[["/ops/pricing", "Pricing"], ["/ops/visits", "Visits and scheduling"], ["/ops/approvals", "Quotations and approvals"], ["/ops/documents", "Document review"], ["/ops/properties", "Properties"], ["/ops/partners", "Service partners"], ["/ops/reports", "Reports"]].map(([href, label]) => <li key={href}><Link className="row-link font-medium" href={href}>{label}<span aria-hidden className="text-muted">›</span></Link></li>)}</ul>
         </Panel>
         <Panel title="Coordinator workload">
           {o.workload.length === 0 ? <p className="text-[length:var(--text-small)] text-muted">No coordinators yet.</p> : (

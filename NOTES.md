@@ -125,3 +125,22 @@ Source: developers.facebook.com/docs/whatsapp/pricing, read 2026-11-11 with an a
 7. Is an APPROVE reply from a number proved by a one-time code a valid approval of a quotation, with the 5 minute undo?
 8. Breach: confirm the 72 hour duty and what the notice to the Board and to each person must say.
 9. Does Meta processing messages through the Cloud API need its own line in the privacy policy and consent?
+
+## Mumbai pricing (phase 4)
+- Where it lives: `lib/pricing-rules.ts` (pure rules, money in paise, fully unit tested), `lib/pricing.ts` (rate card, saved prices, exchange rates), Ops Pricing page, `components/PricingCalculator.tsx`.
+- Every rate on the card is a starting value I chose so the tool works on day one. They are assumptions, not market rates. Replace them with real trip data after the first 30 to 50 trips.
+- The fee: 25% is taken on top of costs by default, which is 20% of what the customer pays. Switch "The fee is taken" to "As a share of the price" on the rate card if you mean 25% of the total. The screen always shows both numbers.
+- Tax: set to 0 and labelled "set by your accountant". The tool never decides a tax rate.
+- Service area: Greater Mumbai PIN codes 400001 to 400104 (editable). A PIN outside is flagged to the customer and blocks pricing. This list is my reading of the PIN ranges, so check it before relying on it.
+- Distance: no maps key is used. The desk opens the route in Google Maps, enters the road distance, or estimates it from two map points (straight line times a road factor, flagged as an estimate). A maps provider with a key is the next step.
+- EV limits: 35 km one way and 15 kg by default. Beyond that the calculator refuses and the desk prices by hand.
+- Exchange rates: from Exchange Rate API (open access endpoint, attribution shown), only when an admin presses the button. No customer data is sent. Rates can also be entered by hand and are then marked as such. A quotation stores the rate and date it used.
+- 100% advance: the rule lives in `setRequestStatus`. Work cannot be set to Assigned or In progress while an approved quotation has no confirmed payment. Planning statuses are not blocked.
+- Payments: still no money moves in the app. Staff record the payment link and proof as before. Taking customers' money in advance, in several currencies, needs a licensed payment partner. That is open.
+- Not verified: live exchange-rate fetch against the real service from production, real trip costs, and Mumbai PIN ranges against an official source.
+
+### Public copy that now disagrees with how Ally works (not changed, needs your decision)
+- Trust page and landing page say "Ally does not hold your money" and the customer page now says you pay in advance. Fix the public wording before advances are collected, and ask the lawyer about holding funds and cross-border receipts.
+- The site says "India" everywhere. Ally works in Mumbai only for now.
+- The site says the subscription pays for coordination. A 25% fee on each task needs the same sentence to say so.
+- Nothing on the site says electric vehicles yet. Say it only once it is true on the road.

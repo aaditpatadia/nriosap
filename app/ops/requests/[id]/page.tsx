@@ -5,7 +5,10 @@ import { PaymentList } from "@/components/PaymentPanel";
 import { RecordPaymentForm, SettlePaymentForm } from "@/components/PaymentForms";
 import { paymentsForRequest } from "@/lib/payment-records";
 import { QuoteBreakdown } from "@/components/QuoteBreakdown";
-import { AssignForm, EvidenceForm, FinalReportForm, QuoteForm, StatusForm, UpdateForm } from "@/components/RequestStaffForms";
+import { AssignForm, EvidenceForm, FinalReportForm, StatusForm, UpdateForm } from "@/components/RequestStaffForms";
+import { QuoteDesk } from "@/components/QuoteDesk";
+import { activeRateCard, fxRates, ownerCurrency } from "@/lib/pricing";
+import { inputFromDetails, SERVICE_LABEL, URGENCY_LABEL } from "@/lib/pricing-rules";
 import { StageBar } from "@/components/StageBar";
 import { Panel } from "@/components/ui";
 import { requireStaff } from "@/lib/auth";
@@ -26,6 +29,8 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
   if (!r) notFound();
   const [fam, events, files, quotes, coordinators, partners, payments] = await Promise.all([getFamily(r.familyId), requestEvents(id), requestAttachments(id), quotesForRequest(id), viewer.role === "admin" ? listCoordinators() : Promise.resolve([]), allPartners(), paymentsForRequest(id), logAudit(viewer.id, "view_request", "service_request", id, r.familyId)]);
   if (!fam) notFound();
+  const [rc, fx, currency] = await Promise.all([activeRateCard(), fxRates(), ownerCurrency(r.familyId)]);
+  const d = r.details;
   const u = r.understanding;
   const internal = events.filter((e) => !e.customerVisible);
   const visible = events.filter((e) => e.customerVisible);
@@ -44,12 +49,12 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
           <Panel title="The request">
             <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{r.description}</p>
             <p className="text-[length:var(--text-small)] text-muted">{r.location ?? "Location not given"}{r.providerName ? ` · Provider: ${r.providerName}` : ""}{r.dueOn ? ` · Needed by ${fmtDate(r.dueOn)}` : ""}{r.estimatedCompletion ? ` · Expected ${fmtDate(r.estimatedCompletion)}` : ""}</p>
+            <p className="text-[length:var(--text-small)] text-muted">{SERVICE_LABEL[d.service]} · {URGENCY_LABEL[d.urgency]}{d.window.date ? ` · ${d.window.date}${d.window.from ? ` ${d.window.from}` : ""}` : ""}{d.pickup.pincode ? ` · PIN ${d.pickup.pincode}` : ""}{d.item.what ? ` · ${d.item.what}` : ""}</p>
             {u.missing && u.missing.length > 0 && <p className="text-[length:var(--text-small)] text-muted">Still to find out: {u.missing.join(" ")}</p>}
             {r.taskId && <Link className="btn btn-secondary w-fit" href={`/ops/task/${r.taskId}`}>Open desk task and timer</Link>}
           </Panel>
           <StatusForm requestId={id} current={r.status} />
           <AssignForm requestId={id} providerName={r.providerName ?? ""} estimatedCompletion={r.estimatedCompletion ?? ""} coordinators={coordinators.map((c) => ({ id: c.id, name: c.name }))} partners={partners.filter((p) => p.status === "approved").map((p) => ({ id: p.id, name: p.name, category: p.category }))} />
-          <QuoteForm requestId={id} providerName={r.providerName ?? ""} />
           {quotes.length > 0 && <Panel title="Quotations">{quotes.map((q) => <div key={q.id} className="grid gap-1 border-t border-line pt-2"><QuoteBreakdown quote={q} />{q.changeNote && <p className="text-warn">Customer asked: {q.changeNote}</p>}</div>)}</Panel>}
         </div>
         <div className="grid gap-4">
@@ -67,6 +72,13 @@ export default async function OpsRequest({ params }: { params: Promise<{ id: str
           <EscalateForm requestId={id} />
           <Panel title="Customer-visible timeline"><Feed items={visible} /></Panel>
         </div>
+      </div>
+      <div id="price" className="scroll-mt-4">
+        <QuoteDesk
+          requestId={id} providerName={r.providerName ?? ""} card={rc.card} version={rc.version} details={d} customerCurrency={currency}
+          fx={fx.map((x) => ({ currency: x.currency, perInr: x.perInr, asOf: x.asOf }))}
+          preset={{ input: inputFromDetails(d), from: d.pickup.area || d.pickup.address, to: d.service === "delivery" ? d.drop.area || d.drop.address : "" }}
+        />
       </div>
     </section>
   );

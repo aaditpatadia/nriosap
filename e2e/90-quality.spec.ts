@@ -13,7 +13,7 @@ async function staffRoutes(page: Page) {
   await page.goto("/ops/queue");
   const task = await page.locator("table").getByRole("link", { name: "Pay November electricity bill" }).getAttribute("href");
   return [
-    ["ops-overview", "/ops"], ["ops-queue", "/ops/queue"], ["ops-requests", "/ops/requests"], ["ops-hours", "/ops/reports"], ["ops-families", "/ops/families"], ["ops-family", `/ops/families/${FAM.shah}`], ["ops-partners", "/ops/partners"], ["ops-properties", "/ops/properties"], ["ops-documents", "/ops/documents"], ["ops-approvals", "/ops/approvals"], ["ops-visits", "/ops/visits"], ["ops-new", "/ops/new"], ["ops-onboard", "/ops/onboard"], ["ops-settings", "/ops/settings"], ["ops-whatsapp", "/ops/whatsapp?status=all"], ["ops-whatsapp-outbox", "/ops/whatsapp/outbox"],
+    ["ops-overview", "/ops"], ["ops-queue", "/ops/queue"], ["ops-requests", "/ops/requests"], ["ops-hours", "/ops/reports"], ["ops-families", "/ops/families"], ["ops-family", `/ops/families/${FAM.shah}`], ["ops-partners", "/ops/partners"], ["ops-properties", "/ops/properties"], ["ops-documents", "/ops/documents"], ["ops-approvals", "/ops/approvals"], ["ops-visits", "/ops/visits"], ["ops-new", "/ops/new"], ["ops-onboard", "/ops/onboard"], ["ops-settings", "/ops/settings"], ["ops-pricing", "/ops/pricing"], ["ops-whatsapp", "/ops/whatsapp?status=all"], ["ops-whatsapp-outbox", "/ops/whatsapp/outbox"],
     ["ops-task", task!], ["ops-messages", `/ops/messages/${FAM.shah}`], ["ops-consent", `/ops/consent/${FAM.shah}`], ["chat", `/chat/${FAM.shah}`],
     ...familyPages(FAM.shah),
   ] as [string, string][];

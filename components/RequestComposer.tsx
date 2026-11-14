@@ -1,14 +1,16 @@
 "use client";
 
 import { useActionState, useMemo, useRef, useState } from "react";
+import { DetailsFields } from "./DetailsFields";
 import { VoiceNote } from "./VoiceNote";
+import { readDetails } from "@/lib/pricing-rules";
 import { submitRequest } from "@/app/family/platform-actions";
 import { SERVICE_CATEGORIES, understandRequest, type ServiceCategory } from "@/lib/request-engine";
 import { uploadFile } from "@/lib/upload-client";
 
 interface Attached { id: string; title: string }
 
-export function RequestComposer({ familyId, vault, properties, defaultProperty, contacts = [], canUpload, initial = "" }: { familyId: string; vault: Attached[]; properties: { id: string; name: string }[]; defaultProperty: string; contacts?: { id: string; name: string }[]; canUpload: boolean; initial?: string }) {
+export function RequestComposer({ familyId, vault, properties, defaultProperty, contacts = [], canUpload, initial = "", area }: { area?: { from: number; to: number }; familyId: string; vault: Attached[]; properties: { id: string; name: string }[]; defaultProperty: string; contacts?: { id: string; name: string }[]; canUpload: boolean; initial?: string }) {
   const [state, action, pending] = useActionState(submitRequest, null);
   const [text, setText] = useState(initial);
   const [picked, setPicked] = useState<ServiceCategory | "">("");
@@ -26,6 +28,7 @@ export function RequestComposer({ familyId, vault, properties, defaultProperty, 
   const category = picked || seen.category;
   const place = location ?? seen.location ?? "";
   const isUrgent = urgent ?? seen.urgent;
+  const outsideMumbai = hasText && !!seen.location && !/^(mumbai|bombay)$/i.test(seen.location);
 
   async function onFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -70,6 +73,7 @@ export function RequestComposer({ familyId, vault, properties, defaultProperty, 
                 {contacts.length > 0 && <label className="field">Who is involved (optional)<select className="input" name="memberId" defaultValue=""><option value="">Just me</option>{contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
                 <label className="field">Needed by (optional)<input className="input" type="date" name="dueOn" /></label>
               </div>
+              {outsideMumbai && <p role="status" className="chip w-fit whitespace-normal" data-tone="warn">We only work in Mumbai for now. You can still send this, and your coordinator will tell you what is possible before anything starts.</p>}
               {seen.action && <p className="text-muted">Likely next step: <strong className="text-ink">{seen.action}</strong></p>}
               <label className="flex min-h-12 items-center gap-3"><input type="checkbox" name="urgent" className="size-6" checked={isUrgent} onChange={(e) => setUrgent(e.target.checked)} /><span>This is urgent</span></label>
               {seen.missing.length > 0 && (
@@ -83,6 +87,8 @@ export function RequestComposer({ familyId, vault, properties, defaultProperty, 
           )}
         </div>
       )}
+
+      {!blocked && <DetailsFields initial={readDetails(null)} area={area} defaultOpen={false} />}
 
       {!blocked && (
         <fieldset className="card grid gap-3">

@@ -51,6 +51,10 @@ export function Shell({ home, navLabel, items, cta, foot, children }: { home: st
       </header>
       <span className="side-scrim no-print" aria-hidden onClick={() => setOpen(false)} />
       <aside className="side no-print">
+        <span aria-hidden className="side-glow" />
+        <span aria-hidden className="side-bg" />
+        <span aria-hidden className="side-edge" />
+        <div className="side-scroll">
         <div className="side-head">
           <Link href={home} className="flex min-h-12 items-center gap-2 px-1 text-lg font-bold" aria-label="Ally overview">
             <LogoMark size={30} /><span className="side-text">Ally</span>
@@ -84,6 +88,7 @@ export function Shell({ home, navLabel, items, cta, foot, children }: { home: st
         </nav>
         <div className="side-foot">
           <div className="side-foot-detail grid gap-1">{foot}</div>
+        </div>
         </div>
       </aside>
       <div className="content">{children}</div>

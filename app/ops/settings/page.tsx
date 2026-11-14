@@ -13,7 +13,7 @@ export default async function OpsSettings() {
   const viewer = await requireStaff();
   const admin = viewer.role === "admin";
   const [plans, me] = await Promise.all([admin ? loadPlans() : [], one<{ working_hours: string | null }>("select working_hours from profiles where id = $1", [viewer.id])]);
-  const tools: [string, string, string][] = [["/ops/partners", "Service partners", "The directory of local partners, and their checks."], ["/ops/reports", "Reports", "Hours, margin and SLA per family."], ...(admin ? [["/ops/coordinators", "Coordinators", "Workload for each coordinator, as plain counts."] as [string, string, string]] : [])];
+  const tools: [string, string, string][] = [["/ops/pricing", "Pricing", "Price a Mumbai job. Rate card, exchange rates and the 25% fee."], ["/ops/partners", "Service partners", "The directory of local partners, and their checks."], ["/ops/reports", "Reports", "Hours, margin and SLA per family."], ...(admin ? [["/ops/coordinators", "Coordinators", "Workload for each coordinator, as plain counts."] as [string, string, string]] : [])];
   return (
     <section className="grid max-w-4xl gap-5">
       <PageHeader title="Settings" />

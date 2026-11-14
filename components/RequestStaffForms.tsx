@@ -42,20 +42,25 @@ export function AssignForm({ requestId, providerName, estimatedCompletion, coord
   );
 }
 
-export function QuoteForm({ requestId, providerName }: { requestId: string; providerName: string }) {
+export interface QuotePreset { providerFee: number; coordinationFee: number; taxes: number; notes: string; estimateId: string; version: number }
+
+export function QuoteForm({ requestId, providerName, preset }: { requestId: string; providerName: string; preset?: QuotePreset }) {
   const [state, action, pending] = useActionState(quoteAction, null);
-  const [fees, setFees] = useState({ providerFee: "", coordinationFee: "", taxes: "" });
+  const [fees, setFees] = useState({ providerFee: preset ? String(preset.providerFee) : "", coordinationFee: preset ? String(preset.coordinationFee) : "", taxes: preset ? String(preset.taxes) : "" });
   const total = Object.values(fees).reduce((n, v) => n + (Number(v) || 0), 0);
   const field = (name: keyof typeof fees, label: string) => <label className="field">{label}<input className="input" name={name} inputMode="numeric" value={fees[name]} onChange={(e) => setFees({ ...fees, [name]: e.target.value })} /></label>;
   return (
     <form action={action} key={state?.ok ? "sent" : "form"} className="card grid gap-3">
       <Title>Send a quotation</Title>
       <input type="hidden" name="requestId" value={requestId} />
+      {preset && <input type="hidden" name="estimateId" value={preset.estimateId} />}
+      {preset && <p className="chip w-fit whitespace-normal" data-tone="accent">Filled from the price calculator, rate card version {preset.version}</p>}
       <label className="field">Provider<input className="input" name="providerName" maxLength={120} defaultValue={providerName} /></label>
       <div className="grid gap-3 sm:grid-cols-3">{field("providerFee", "Provider fee (Rs)")}{field("coordinationFee", "Ally fee (Rs)")}{field("taxes", "Taxes (Rs)")}</div>
       <div className="grid gap-3 sm:grid-cols-2"><label className="field">Expected by<input className="input" type="date" name="estimatedCompletion" /></label><label className="field">Customer decides by (optional)<input className="input" type="date" name="approvalDeadline" /></label></div>
-      <label className="field">Notes for the customer<textarea className="input" name="notes" rows={2} maxLength={1000} /></label>
+      <label className="field">Notes for the customer<textarea className="input" name="notes" rows={2} maxLength={1000} defaultValue={preset?.notes ?? ""} /></label>
       <p className="font-semibold">Total: Rs {total.toLocaleString("en-IN")}</p>
+      <p className="text-[length:var(--text-micro)] text-muted">The customer pays the full amount before the work starts.</p>
       <button className="btn btn-primary w-fit" disabled={pending || total <= 0}>Send to the customer</button>
       <Status s={state} />
     </form>
