@@ -447,8 +447,9 @@ a.band-note:hover { color: var(--b-ink); }
    The panel behind it is one wide layer that is squeezed with a transform, so the motion stays smooth: only transform and opacity ever move. */
 .side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 @media (min-width: 1024px) {
-  .side { --k: 1; --open-ms: 260ms; }
-  .shell[data-collapsed="true"] .side { --k: 0.28125; width: 72px; transition: width 0s linear var(--open-ms); }
+  .side { --k: 1; --open-ms: 260ms; z-index: 20; }
+  .shell[data-collapsed="true"] .side { --k: 0.28125; width: 72px; }
+  .shell[data-ready="true"][data-collapsed="true"] .side { transition: width 0s linear var(--open-ms); }
   .shell[data-collapsed="true"] .side:is(:hover, :has(:focus-visible)) { --k: 1; width: 256px; z-index: 40; transition-delay: 0s; }
   .side-bg, .side-edge, .side-glow { display: block; position: absolute; top: 0; bottom: 0; left: 0; pointer-events: none; }
   .side-bg { z-index: -1; width: 256px; background: var(--surface); transform-origin: left center; transform: scaleX(var(--k)); transition: transform var(--open-ms) var(--ease-out); }

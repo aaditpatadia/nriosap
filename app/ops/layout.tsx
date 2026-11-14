@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { AccountBar } from "@/components/AccountBar";
+import { SIDEBAR_COOKIE } from "@/lib/sidebar-pref";
 import { Shell, type ShellItem } from "@/components/FamilyNav";
 import { requireStaff } from "@/lib/auth";
 
@@ -7,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function OpsLayout({ children }: { children: React.ReactNode }) {
   const viewer = await requireStaff();
+  const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
   const items: ShellItem[] = [
     { href: "/ops", label: "Overview", icon: "home", primary: true },
     { href: "/ops/requests", label: "Requests", icon: "list", primary: true, also: ["/ops/approvals", "/ops/visits"] },
@@ -17,6 +20,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
   ];
   return (
     <Shell
+      defaultCollapsed={collapsed}
       home="/ops"
       navLabel="Ops"
       items={items}

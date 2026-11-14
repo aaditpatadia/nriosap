@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { SIDEBAR_COOKIE } from "@/lib/sidebar-pref";
 import { AccountBar } from "@/components/AccountBar";
 import { Shell, type ShellItem } from "@/components/FamilyNav";
 import { requireViewer } from "@/lib/auth";
@@ -9,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function FamilyLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
   const viewer = await requireViewer(`/family/${id}`);
   const fam = await getFamily(id);
   if (!fam) notFound();
@@ -26,6 +29,7 @@ export default async function FamilyLayout({ children, params }: { children: Rea
   ];
   return (
     <Shell
+      defaultCollapsed={collapsed}
       home={base}
       navLabel="Family sections"
       items={items.filter((i) => i.show).map(({ show: _s, ...i }) => i)}

@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { m } from "motion/react";
 import { spring } from "@/lib/motion";
-import { useStoredFlag } from "@/lib/stored-flag";
+import { SIDEBAR_COOKIE, writeSidebarCookie } from "@/lib/sidebar-pref";
 import { Logo, LogoMark } from "./Logo";
 
 export type NavIcon = keyof typeof GLYPHS;
@@ -35,16 +35,28 @@ export function Glyph({ name }: { name: NavIcon }) {
 export interface ShellItem { href: string; label: string; icon: NavIcon; badge?: number; primary?: boolean; short?: string; also?: string[] }
 
 /** Sidebar on a computer. On a phone: a drawer, plus a bar of the most used sections at the thumb. */
-export function Shell({ home, navLabel, items, cta, foot, children }: { home: string; navLabel: string; items: ShellItem[]; cta?: { href: string; label: string }; foot: React.ReactNode; children: React.ReactNode }) {
+export function Shell({ home, navLabel, items, cta, foot, children, defaultCollapsed = false }: { defaultCollapsed?: boolean; home: string; navLabel: string; items: ShellItem[]; cta?: { href: string; label: string }; foot: React.ReactNode; children: React.ReactNode }) {
   const path = usePathname();
-  const [collapsed, setCollapsed] = useStoredFlag("sidebar-collapsed");
+  const [collapsed, setCollapsedState] = useState(defaultCollapsed);
+  const [ready, setReady] = useState(false);
+  const setCollapsed = (v: boolean) => { setCollapsedState(v); writeSidebarCookie(v); };
+  useEffect(() => {
+    // After the first paint: carry over an old browser-only setting once, and allow the closing delay on hover.
+    const id = requestAnimationFrame(() => {
+      try {
+        if (!document.cookie.includes(`${SIDEBAR_COOKIE}=`) && localStorage.getItem("sidebar-collapsed") === "1") { setCollapsedState(true); writeSidebarCookie(true); }
+      } catch { /* storage can be blocked */ }
+      setReady(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
   // Remembers which page the drawer was opened on, so moving to another page closes it.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === path;
   const setOpen = (v: boolean) => setOpenOn(v ? path : null);
   const isActive = (href: string, also: string[] = []) => (href === home ? path === home : [href, ...also].some((h) => path.startsWith(h)));
   return (
-    <div className="shell" data-collapsed={collapsed} data-open={open}>
+    <div className="shell" data-collapsed={collapsed} data-ready={ready} data-open={open}>
       <header className="mobile-top no-print">
         <Link href={home} className="inline-flex min-h-12 items-center" aria-label="Ally overview"><Logo /></Link>
         {cta && <Link href={cta.href} className="btn btn-secondary">{cta.label}</Link>}
